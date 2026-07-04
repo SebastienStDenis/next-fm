@@ -47,6 +47,10 @@ Endpoints:
 - <http://localhost:3000/users> - web page listing all users
 - <http://localhost:8000/docs> - interactive API docs (Swagger UI)
 
+### Configuration and secrets
+
+Compose reads an optional `.env` at the repo root (see `.env.example`); defaults cover everything, and secrets should be referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup.
+
 ### Managing the stack
 
 ```sh
