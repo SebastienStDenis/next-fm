@@ -52,7 +52,7 @@ Endpoints:
 
 ### Configuration and secrets
 
-Compose reads a `.env` at the repo root (`cp .env.example .env`); defaults cover everything except secrets, which are referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup. `LASTFM_API_KEY` needs a [Last.fm API account](https://www.last.fm/api/account/create).
+All configuration lives in a single `.env` at the repo root (`cp .env.example .env`). Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real environment variables take precedence). Defaults cover everything except secrets, which are referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup. `LASTFM_API_KEY` needs a [Last.fm API account](https://www.last.fm/api/account/create).
 
 ### Managing the stack
 
@@ -66,18 +66,24 @@ docker compose up -d db         # start only Postgres (for running apps outside 
 docker compose exec db psql -U postgres app   # psql shell into the database
 ```
 
+Host ports are configurable, so a second stack (e.g. from a git worktree) can run alongside the main one under its own project name:
+
+```sh
+DB_PORT=5433 API_PORT=8001 WEB_PORT=3001 docker compose -p my-branch up -d --build
+docker compose -p my-branch down -v           # tear it down, including its database volume
+```
+
 ### Running the backend outside Docker
 
 ```sh
 cd backend
-cp .env.example .env
 uv sync
 uv run alembic upgrade head
 uv run python -m app.seed
 uv run uvicorn app.main:app --reload
 ```
 
-Requires Postgres running (e.g. `docker compose up -d db`).
+Requires Postgres running (e.g. `docker compose up -d db`) and the root `.env` (see above).
 
 ### Backend checks
 
