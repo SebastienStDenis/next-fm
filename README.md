@@ -38,6 +38,8 @@ This starts:
 - API on <http://localhost:8000> (applies migrations and seeds on startup, hot reload)
 - Web on <http://localhost:3000> (hot reload)
 
+Source directories are bind-mounted into the containers, so code edits hot-reload. Dependency and config-file changes (lockfiles, `pyproject.toml`, `next.config.ts`, ...) are baked into the images: rebuild with `docker compose up -d --build`.
+
 Endpoints:
 - `GET /health` - API + database health check
 - `GET /users` - list users
@@ -52,7 +54,7 @@ docker compose up -d            # start in the background
 docker compose down             # stop everything (data persists)
 docker compose down -v          # stop and wipe the database volume
 docker compose logs -f api      # tail logs (api, web, or db)
-docker compose up -d --build    # rebuild after dependency changes
+docker compose up -d --build    # rebuild after dependency or config changes
 docker compose up -d db         # start only Postgres (for running apps outside Docker)
 docker compose exec db psql -U postgres app   # psql shell into the database
 ```
@@ -80,7 +82,7 @@ uv run ty check                 # type check
 uv run pytest                   # tests
 ```
 
-Tests hit the real API app, which requires the database to be up.
+Tests are unit tests: the database dependency is stubbed out, so nothing needs to be running.
 
 ### Managing backend dependencies
 

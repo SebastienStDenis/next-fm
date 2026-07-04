@@ -10,7 +10,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      # -h forces a TCP check; the socket also answers during initdb, before TCP is up
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d app"]
       interval: 2s
       timeout: 3s
       retries: 15
@@ -26,8 +27,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - /app/.venv
+      - ./backend/app:/app/app
+      - ./backend/migrations:/app/migrations
+      - ./backend/tests:/app/tests
     depends_on:
       db:
         condition: service_healthy
@@ -39,9 +41,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+      - ./frontend/src:/app/src
     depends_on:
       - api
 
