@@ -49,20 +49,7 @@ Endpoints:
 
 ### Configuration and secrets
 
-Docker Compose reads an optional `.env` file at the repo root (gitignored). Without one, everything runs on the defaults baked into `docker-compose.yml`. To override a value or add a secret:
-
-```sh
-cp .env.example .env       # then edit
-```
-
-Non-secret values are interpolated with defaults (`${POSTGRES_PASSWORD:-postgres}`), so the stack works with no `.env` present. When adding a real secret (API keys etc.), put it in `.env`, add it to `.env.example` as documentation, and reference it in `docker-compose.yml` without a default so a missing value fails at startup instead of silently running unconfigured:
-
-```yaml
-environment:
-  SOME_API_KEY: ${SOME_API_KEY:?set SOME_API_KEY in .env}
-```
-
-The root `.env` configures the compose stack; `backend/.env` separately configures the API when run outside Docker.
+Compose reads an optional `.env` at the repo root (see `.env.example`); defaults cover everything, and secrets should be referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup.
 
 ### Managing the stack
 
