@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -34,7 +35,7 @@ async def list_users(session: SessionDep) -> list[User]:
 
 
 @app.get("/users/{user_id}", response_model=UserRead)
-async def get_user(user_id: int, session: SessionDep) -> User:
+async def get_user(user_id: uuid.UUID, session: SessionDep) -> User:
     user = await session.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
