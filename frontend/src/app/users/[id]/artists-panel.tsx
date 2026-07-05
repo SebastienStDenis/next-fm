@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 
 import { syncLastfmArtists } from "./actions";
 
@@ -49,6 +50,52 @@ function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
+function SyncForm({
+  action,
+  kind,
+  label,
+  disabled,
+  primary = false,
+}: {
+  action: (formData: FormData) => void;
+  kind: string;
+  label: string;
+  disabled: boolean;
+  primary?: boolean;
+}) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="kind" value={kind} />
+      <SyncButton label={label} disabled={disabled} primary={primary} />
+    </form>
+  );
+}
+
+function SyncButton({
+  label,
+  disabled,
+  primary,
+}: {
+  label: string;
+  disabled: boolean;
+  primary: boolean;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      className={
+        primary
+          ? "rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+          : "rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+      }
+    >
+      {pending ? "Syncing..." : label}
+    </button>
+  );
+}
+
 export function ArtistsPanel({
   userId,
   lastfmLinked,
@@ -60,57 +107,32 @@ export function ArtistsPanel({
   userArtists: UserArtist[];
   allArtists: Artist[];
 }) {
-  const [allState, allAction, allPending] = useActionState(
-    syncLastfmArtists.bind(null, userId, null),
+  const [state, formAction, pending] = useActionState(
+    syncLastfmArtists.bind(null, userId),
     { error: null, summary: null },
   );
-  const [topState, topAction, topPending] = useActionState(
-    syncLastfmArtists.bind(null, userId, "lastfm_top_artist"),
-    { error: null, summary: null },
-  );
-  const [lovedState, lovedAction, lovedPending] = useActionState(
-    syncLastfmArtists.bind(null, userId, "lastfm_loved_tracks"),
-    { error: null, summary: null },
-  );
-  const pending = allPending || topPending || lovedPending;
-  const summary = allState.summary ?? topState.summary ?? lovedState.summary;
-  const error = allState.error ?? topState.error ?? lovedState.error;
 
   return (
     <div>
       {lastfmLinked ? (
         <div className="space-y-2">
           <div className="flex gap-2">
-            <form action={allAction}>
-              <button
-                type="submit"
-                disabled={pending}
-                className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-              >
-                {allPending ? "Syncing..." : "Sync all"}
-              </button>
-            </form>
-            <form action={topAction}>
-              <button
-                type="submit"
-                disabled={pending}
-                className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-              >
-                {topPending ? "Syncing..." : "Sync top artists"}
-              </button>
-            </form>
-            <form action={lovedAction}>
-              <button
-                type="submit"
-                disabled={pending}
-                className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-              >
-                {lovedPending ? "Syncing..." : "Sync loved tracks"}
-              </button>
-            </form>
+            <SyncForm action={formAction} kind="all" label="Sync all" primary disabled={pending} />
+            <SyncForm
+              action={formAction}
+              kind="lastfm_top_artist"
+              label="Sync top artists"
+              disabled={pending}
+            />
+            <SyncForm
+              action={formAction}
+              kind="lastfm_loved_tracks"
+              label="Sync loved tracks"
+              disabled={pending}
+            />
           </div>
-          {summary && <p className="text-sm text-gray-500">{summary}</p>}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {state.summary && <p className="text-sm text-gray-500">{state.summary}</p>}
+          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
         </div>
       ) : (
         <p className="text-sm text-gray-500">
