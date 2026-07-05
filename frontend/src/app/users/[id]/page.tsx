@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import {
+  ArtistsPanel,
+  type Artist,
+  type UserArtist,
+} from "./artists-panel";
 import { DeleteUserButton } from "./delete-user-button";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 
@@ -33,6 +38,22 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     ? await lastfmRes.json()
     : null;
 
+  const userArtistsRes = await fetch(`${apiUrl}/users/${id}/artists`, {
+    cache: "no-store",
+  });
+  if (!userArtistsRes.ok) {
+    throw new Error(`Failed to load user artists: ${userArtistsRes.status}`);
+  }
+  const userArtists: UserArtist[] = await userArtistsRes.json();
+
+  const allArtistsRes = await fetch(`${apiUrl}/artists`, {
+    cache: "no-store",
+  });
+  if (!allArtistsRes.ok) {
+    throw new Error(`Failed to load artists: ${allArtistsRes.status}`);
+  }
+  const allArtists: Artist[] = await allArtistsRes.json();
+
   return (
     <main className="mx-auto max-w-xl p-8">
       <Link href="/users" className="text-sm text-gray-500 hover:underline">
@@ -42,6 +63,15 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       <section>
         <h2 className="mb-3 text-lg font-medium">Last.fm</h2>
         <LastfmPanel userId={user.id} account={lastfm} />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">Artists</h2>
+        <ArtistsPanel
+          userId={user.id}
+          lastfmLinked={lastfm !== null}
+          userArtists={userArtists}
+          allArtists={allArtists}
+        />
       </section>
       <section className="mt-8">
         <DeleteUserButton userId={user.id} userName={user.name} />
