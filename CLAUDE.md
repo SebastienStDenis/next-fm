@@ -63,6 +63,7 @@ Small layered FastAPI app; keep the separation when adding features:
 - `models.py` - SQLAlchemy 2.0 ORM models (`DeclarativeBase`, typed `Mapped`/`mapped_column`). Alembic autogenerate diffs against `Base.metadata`.
 - `schemas.py` - Pydantic v2 API schemas. ORM models and Pydantic schemas are deliberately separate (no SQLModel); response models use `ConfigDict(from_attributes=True)`.
 - `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`), injected via the `get_lastfm_client` dependency in `main.py`.
+- `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
 - `seed.py` - idempotent seed script (`python -m app.seed`).
 

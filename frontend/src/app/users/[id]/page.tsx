@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CityPanel, type City } from "./city-panel";
 import { DeleteUserButton } from "./delete-user-button";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 
@@ -33,6 +34,14 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     ? await lastfmRes.json()
     : null;
 
+  const cityRes = await fetch(`${apiUrl}/users/${id}/city`, {
+    cache: "no-store",
+  });
+  if (!cityRes.ok && cityRes.status !== 404) {
+    throw new Error(`Failed to load city: ${cityRes.status}`);
+  }
+  const city: City | null = cityRes.ok ? await cityRes.json() : null;
+
   return (
     <main className="mx-auto max-w-xl p-8">
       <Link href="/users" className="text-sm text-gray-500 hover:underline">
@@ -42,6 +51,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       <section>
         <h2 className="mb-3 text-lg font-medium">Last.fm</h2>
         <LastfmPanel userId={user.id} account={lastfm} />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">City</h2>
+        <CityPanel userId={user.id} city={city} />
       </section>
       <section className="mt-8">
         <DeleteUserButton userId={user.id} userName={user.name} />

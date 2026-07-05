@@ -9,6 +9,33 @@ class Base(DeclarativeBase):
     pass
 
 
+class City(Base):
+    __tablename__ = "cities"
+
+    geonameid: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    name: Mapped[str]
+    ascii_name: Mapped[str]
+    admin1: Mapped[str | None]
+    country_code: Mapped[str]
+    latitude: Mapped[float]
+    longitude: Mapped[float]
+    population: Mapped[int]
+
+
+Index(
+    "ix_cities_name_trgm",
+    City.name,
+    postgresql_using="gin",
+    postgresql_ops={"name": "gin_trgm_ops"},
+)
+Index(
+    "ix_cities_ascii_name_trgm",
+    City.ascii_name,
+    postgresql_using="gin",
+    postgresql_ops={"ascii_name": "gin_trgm_ops"},
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -16,6 +43,9 @@ class User(Base):
         primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
     )
     name: Mapped[str]
+    city_id: Mapped[int | None] = mapped_column(
+        ForeignKey("cities.geonameid", ondelete="SET NULL"), index=True
+    )
 
 
 class LastfmAccount(Base):

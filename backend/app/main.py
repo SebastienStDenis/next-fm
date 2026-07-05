@@ -2,16 +2,16 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.db import get_session
 from app.lastfm import LastfmClient, LastfmUserInfo, LastfmUserNotFoundError
-from app.models import LastfmAccount, LastfmConnection, User
-from app.schemas import LastfmAccountRead, LastfmLink, UserCreate, UserRead
+from app.models import City, LastfmAccount, LastfmConnection, User
+from app.schemas import CityRead, CitySet, LastfmAccountRead, LastfmLink, UserCreate, UserRead
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -77,6 +77,64 @@ async def _require_user(session: AsyncSession, user_id: uuid.UUID) -> User:
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+
+
+@app.get("/cities", response_model=list[CityRead])
+async def search_cities(
+    q: Annotated[str, Query(min_length=2)],
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=25)] = 10,
+) -> list[City]:
+    """Search cities by name, most populous first."""
+    pattern = f"%{_escape_like(q.strip())}%"
+    result = await session.execute(
+        select(City)
+        .where(
+            or_(
+                City.name.ilike(pattern, escape="\\"),
+                City.ascii_name.ilike(pattern, escape="\\"),
+            )
+        )
+        .order_by(City.population.desc(), City.geonameid)
+        .limit(limit)
+    )
+    return list(result.scalars())
+
+
+@app.get("/users/{user_id}/city", response_model=CityRead)
+async def get_user_city(user_id: uuid.UUID, session: SessionDep) -> City:
+    """Return the user's city; 404 if none is set."""
+    user = await _require_user(session, user_id)
+    city = await session.get(City, user.city_id) if user.city_id is not None else None
+    if city is None:
+        raise HTTPException(status_code=404, detail="No city set")
+    return city
+
+
+@app.put("/users/{user_id}/city", response_model=CityRead)
+async def set_user_city(user_id: uuid.UUID, payload: CitySet, session: SessionDep) -> City:
+    """Set the user's city, replacing any existing one."""
+    user = await _require_user(session, user_id)
+    city = await session.get(City, payload.geonameid)
+    if city is None:
+        raise HTTPException(status_code=404, detail="City not found")
+    user.city_id = city.geonameid
+    await session.commit()
+    return city
+
+
+@app.delete("/users/{user_id}/city", status_code=204)
+async def clear_user_city(user_id: uuid.UUID, session: SessionDep) -> None:
+    """Remove the user's city; 404 if none is set."""
+    user = await _require_user(session, user_id)
+    if user.city_id is None:
+        raise HTTPException(status_code=404, detail="No city set")
+    user.city_id = None
+    await session.commit()
 
 
 async def _linked_lastfm_account(session: AsyncSession, user_id: uuid.UUID) -> LastfmAccount | None:

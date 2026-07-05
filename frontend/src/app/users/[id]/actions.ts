@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8000";
 
-export type LastfmActionState = {
+export type ActionState = {
   error: string | null;
 };
 
@@ -16,9 +16,9 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
 
 export async function linkLastfm(
   userId: string,
-  _prev: LastfmActionState,
+  _prev: ActionState,
   formData: FormData,
-): Promise<LastfmActionState> {
+): Promise<ActionState> {
   const username = formData.get("username");
   if (typeof username !== "string" || username.trim() === "") {
     return { error: "Enter a Last.fm username." };
@@ -37,7 +37,7 @@ export async function linkLastfm(
   return { error: null };
 }
 
-export async function refreshLastfm(userId: string): Promise<LastfmActionState> {
+export async function refreshLastfm(userId: string): Promise<ActionState> {
   const res = await fetch(`${apiUrl}/users/${userId}/lastfm/refresh`, {
     method: "POST",
   });
@@ -49,7 +49,7 @@ export async function refreshLastfm(userId: string): Promise<LastfmActionState> 
   return { error: null };
 }
 
-export async function unlinkLastfm(userId: string): Promise<LastfmActionState> {
+export async function unlinkLastfm(userId: string): Promise<ActionState> {
   const res = await fetch(`${apiUrl}/users/${userId}/lastfm`, {
     method: "DELETE",
   });
@@ -61,7 +61,36 @@ export async function unlinkLastfm(userId: string): Promise<LastfmActionState> {
   return { error: null };
 }
 
-export async function deleteUser(userId: string): Promise<LastfmActionState> {
+export async function setCity(
+  userId: string,
+  geonameid: number,
+): Promise<ActionState> {
+  const res = await fetch(`${apiUrl}/users/${userId}/city`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ geonameid }),
+  });
+  if (!res.ok) {
+    return { error: await errorMessage(res, "Failed to set city.") };
+  }
+
+  revalidatePath(`/users/${userId}`);
+  return { error: null };
+}
+
+export async function clearCity(userId: string): Promise<ActionState> {
+  const res = await fetch(`${apiUrl}/users/${userId}/city`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    return { error: await errorMessage(res, "Failed to clear city.") };
+  }
+
+  revalidatePath(`/users/${userId}`);
+  return { error: null };
+}
+
+export async function deleteUser(userId: string): Promise<ActionState> {
   const res = await fetch(`${apiUrl}/users/${userId}`, { method: "DELETE" });
   if (!res.ok) {
     return { error: await errorMessage(res, "Failed to delete user.") };
