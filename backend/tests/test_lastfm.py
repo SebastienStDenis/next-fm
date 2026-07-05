@@ -232,3 +232,26 @@ async def test_refresh_when_not_linked() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"
+
+
+async def test_unlink_deletes_connection() -> None:
+    connection = MagicMock()
+    session = make_session()
+    session.execute.return_value = result_returning(connection)
+
+    response = await request("DELETE", f"/users/{USER_ID}/lastfm", session)
+
+    assert response.status_code == 204
+    session.delete.assert_awaited_once_with(connection)
+    session.commit.assert_awaited_once()
+
+
+async def test_unlink_when_not_linked() -> None:
+    session = make_session()
+    session.execute.return_value = result_returning(None)
+
+    response = await request("DELETE", f"/users/{USER_ID}/lastfm", session)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No Last.fm account linked"
+    session.delete.assert_not_awaited()

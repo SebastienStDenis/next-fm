@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { linkLastfm, refreshLastfm } from "./actions";
+import { linkLastfm, refreshLastfm, unlinkLastfm } from "./actions";
 
 export type LastfmAccount = {
   id: string;
@@ -92,10 +92,15 @@ function AccountCard({
   userId: string;
   account: LastfmAccount;
 }) {
-  const [state, formAction, pending] = useActionState(
+  const [refreshState, refreshAction, refreshPending] = useActionState(
     refreshLastfm.bind(null, userId),
     { error: null },
   );
+  const [unlinkState, unlinkAction, unlinkPending] = useActionState(
+    unlinkLastfm.bind(null, userId),
+    { error: null },
+  );
+  const error = refreshState.error ?? unlinkState.error;
 
   return (
     <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
@@ -160,17 +165,28 @@ function AccountCard({
             ? `Last synced ${formatDateTime(account.last_synced_at)}`
             : "Never synced"}
         </p>
-        <form action={formAction}>
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-          >
-            {pending ? "Refreshing..." : "Refresh"}
-          </button>
-        </form>
+        <div className="flex gap-2">
+          <form action={refreshAction}>
+            <button
+              type="submit"
+              disabled={refreshPending}
+              className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+            >
+              {refreshPending ? "Refreshing..." : "Refresh"}
+            </button>
+          </form>
+          <form action={unlinkAction}>
+            <button
+              type="submit"
+              disabled={unlinkPending}
+              className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+            >
+              {unlinkPending ? "Unlinking..." : "Unlink"}
+            </button>
+          </form>
+        </div>
       </div>
-      {state.error && <p className="mt-2 text-sm text-red-600">{state.error}</p>}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
 }

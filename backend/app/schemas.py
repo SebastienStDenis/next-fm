@@ -11,6 +11,10 @@ class UserRead(BaseModel):
     name: str
 
 
+class UserCreate(BaseModel):
+    name: str = Field(min_length=1)
+
+
 class LastfmAccountRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
