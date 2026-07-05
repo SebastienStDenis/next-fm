@@ -5,9 +5,14 @@ from pydantic import BaseModel
 
 API_URL = "https://ws.audioscrobbler.com/2.0/"
 USER_NOT_FOUND_ERROR_CODE = 6
+PRIVATE_DATA_ERROR_CODE = 17
 
 
 class LastfmUserNotFoundError(Exception):
+    pass
+
+
+class LastfmPrivateDataError(Exception):
     pass
 
 
@@ -22,24 +27,71 @@ class LastfmUserInfo(BaseModel):
     artist_count: int | None
 
 
+class LastfmTopArtist(BaseModel):
+    name: str
+    url: str | None
+    mbid: str | None
+    playcount: int | None
+    rank: int | None
+
+
+class LastfmLovedTrack(BaseModel):
+    title: str
+    artist_name: str
+    artist_url: str | None
+    artist_mbid: str | None
+
+
+class LastfmLovedTracksPage(BaseModel):
+    tracks: list[LastfmLovedTrack]
+    total_pages: int
+
+
 class LastfmClient:
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
 
     async def get_user_info(self, username: str) -> LastfmUserInfo:
-        params = {
-            "method": "user.getinfo",
-            "user": username,
-            "api_key": self._api_key,
-            "format": "json",
-        }
+        payload = await self._get({"method": "user.getinfo", "user": username})
+        return _parse_user_info(payload["user"])
+
+    async def get_top_artists(
+        self, username: str, period: str = "12month", limit: int = 50, page: int = 1
+    ) -> list[LastfmTopArtist]:
+        payload = await self._get(
+            {
+                "method": "user.gettopartists",
+                "user": username,
+                "period": period,
+                "limit": limit,
+                "page": page,
+            }
+        )
+        return [_parse_top_artist(artist) for artist in _as_list(payload["topartists"], "artist")]
+
+    async def get_loved_tracks(
+        self, username: str, limit: int = 50, page: int = 1
+    ) -> LastfmLovedTracksPage:
+        payload = await self._get(
+            {"method": "user.getlovedtracks", "user": username, "limit": limit, "page": page}
+        )
+        loved = payload["lovedtracks"]
+        return LastfmLovedTracksPage(
+            tracks=[_parse_loved_track(track) for track in _as_list(loved, "track")],
+            total_pages=_int_or_none(loved.get("@attr", {}).get("totalPages")) or 1,
+        )
+
+    async def _get(self, params: dict) -> dict:
+        params = {**params, "api_key": self._api_key, "format": "json"}
         async with httpx.AsyncClient() as client:
             response = await client.get(API_URL, params=params)
         payload = response.json()
         if payload.get("error") == USER_NOT_FOUND_ERROR_CODE:
-            raise LastfmUserNotFoundError(username)
+            raise LastfmUserNotFoundError(params.get("user"))
+        if payload.get("error") == PRIVATE_DATA_ERROR_CODE:
+            raise LastfmPrivateDataError(params.get("user"))
         response.raise_for_status()
-        return _parse_user_info(payload["user"])
+        return payload
 
 
 def _parse_user_info(user: dict) -> LastfmUserInfo:
@@ -61,6 +113,34 @@ def _parse_user_info(user: dict) -> LastfmUserInfo:
         playcount=_int_or_none(user.get("playcount")),
         artist_count=_int_or_none(user.get("artist_count")),
     )
+
+
+def _parse_top_artist(artist: dict) -> LastfmTopArtist:
+    return LastfmTopArtist(
+        name=artist["name"],
+        url=_text_or_none(artist.get("url")),
+        mbid=_text_or_none(artist.get("mbid")),
+        playcount=_int_or_none(artist.get("playcount")),
+        rank=_int_or_none(artist.get("@attr", {}).get("rank")),
+    )
+
+
+def _parse_loved_track(track: dict) -> LastfmLovedTrack:
+    artist = track.get("artist", {})
+    return LastfmLovedTrack(
+        title=track["name"],
+        artist_name=artist["name"],
+        artist_url=_text_or_none(artist.get("url")),
+        artist_mbid=_text_or_none(artist.get("mbid")),
+    )
+
+
+def _as_list(container: dict, key: str) -> list[dict]:
+    # Last.fm collapses single-element JSON arrays into a bare object.
+    value = container.get(key, [])
+    if isinstance(value, dict):
+        return [value]
+    return value
 
 
 def _text_or_none(value: str | None) -> str | None:

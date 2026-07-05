@@ -7,11 +7,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
 from app.config import get_settings
 from app.db import get_session
-from app.lastfm import LastfmClient, LastfmUserInfo, LastfmUserNotFoundError
-from app.models import LastfmAccount, LastfmConnection, User
-from app.schemas import LastfmAccountRead, LastfmLink, UserCreate, UserRead
+from app.lastfm import (
+    LastfmClient,
+    LastfmPrivateDataError,
+    LastfmUserInfo,
+    LastfmUserNotFoundError,
+)
+from app.models import Artist, LastfmAccount, LastfmConnection, User, UserArtistInterest
+from app.schemas import (
+    ArtistInterestRead,
+    ArtistRead,
+    ArtistSyncRequest,
+    ArtistSyncResult,
+    LastfmAccountRead,
+    LastfmLink,
+    UserArtistRead,
+    UserCreate,
+    UserRead,
+)
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -167,6 +183,62 @@ async def refresh_lastfm_account(
     _apply_user_info(account, info, datetime.now(UTC))
     await session.commit()
     return account
+
+
+@app.post("/users/{user_id}/lastfm/artists/sync", response_model=ArtistSyncResult)
+async def sync_lastfm_artists_for_user(
+    user_id: uuid.UUID,
+    session: SessionDep,
+    lastfm: LastfmClientDep,
+    payload: ArtistSyncRequest | None = None,
+) -> ArtistSyncResult:
+    """Fetch the linked Last.fm account's taste signals and upsert artist interests.
+
+    Body may narrow the sync to specific kinds; the default syncs all of them.
+    """
+    await _require_user(session, user_id)
+    account = await _linked_lastfm_account(session, user_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="No Last.fm account linked")
+
+    kinds = list(dict.fromkeys(payload.kinds)) if payload else list(SYNC_KINDS)
+    try:
+        results = await sync_lastfm_artists(session, lastfm, user_id, account.username, kinds)
+    except LastfmUserNotFoundError:
+        raise HTTPException(status_code=404, detail="Last.fm user not found") from None
+    except LastfmPrivateDataError:
+        raise HTTPException(
+            status_code=403, detail="This Last.fm account's listening data is private"
+        ) from None
+    await session.commit()
+    return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)
+
+
+@app.get("/users/{user_id}/artists", response_model=list[UserArtistRead])
+async def list_user_artists(user_id: uuid.UUID, session: SessionDep) -> list[UserArtistRead]:
+    """List the user's artists of interest, grouped by artist with all reasons."""
+    await _require_user(session, user_id)
+    result = await session.execute(
+        select(UserArtistInterest, Artist)
+        .join(Artist, UserArtistInterest.artist_id == Artist.id)
+        .where(UserArtistInterest.user_id == user_id)
+        .order_by(func.lower(Artist.name), UserArtistInterest.kind)
+    )
+    grouped: dict[uuid.UUID, UserArtistRead] = {}
+    for interest, artist in result.all():
+        entry = grouped.get(artist.id)
+        if entry is None:
+            entry = UserArtistRead(artist=ArtistRead.model_validate(artist), interests=[])
+            grouped[artist.id] = entry
+        entry.interests.append(ArtistInterestRead.model_validate(interest))
+    return list(grouped.values())
+
+
+@app.get("/artists", response_model=list[ArtistRead])
+async def list_artists(session: SessionDep) -> list[Artist]:
+    """List all canonical artists."""
+    result = await session.execute(select(Artist).order_by(func.lower(Artist.name)))
+    return list(result.scalars())
 
 
 @app.delete("/users/{user_id}/lastfm", status_code=204)
