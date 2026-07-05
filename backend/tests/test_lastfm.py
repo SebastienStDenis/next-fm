@@ -2,13 +2,20 @@ import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
+import pytest
 from httpx import ASGITransport, AsyncClient, Response
 
 from app.db import get_session
 from app.lastfm import (
     LastfmClient,
+    LastfmLovedTrack,
+    LastfmPrivateDataError,
     LastfmUserInfo,
     LastfmUserNotFoundError,
+    _as_list,
+    _parse_loved_track,
+    _parse_top_artist,
     _parse_user_info,
 )
 from app.main import app, get_lastfm_client
@@ -221,6 +228,118 @@ def test_parse_user_info_treats_placeholders_as_none() -> None:
     assert info.registered_at is None
     assert info.playcount == 0
     assert info.artist_count is None
+
+
+def test_parse_top_artist() -> None:
+    artist = _parse_top_artist(
+        {
+            "name": "Autechre",
+            "url": "https://www.last.fm/music/Autechre",
+            "mbid": "410c9baf-5469-44f6-9852-826524b80c61",
+            "playcount": "321",
+            "@attr": {"rank": "3"},
+        }
+    )
+
+    assert artist.name == "Autechre"
+    assert artist.url == "https://www.last.fm/music/Autechre"
+    assert artist.mbid == "410c9baf-5469-44f6-9852-826524b80c61"
+    assert artist.playcount == 321
+    assert artist.rank == 3
+
+
+def test_parse_top_artist_treats_placeholders_as_none() -> None:
+    artist = _parse_top_artist({"name": "Autechre", "url": "", "mbid": "", "playcount": ""})
+
+    assert artist.name == "Autechre"
+    assert artist.url is None
+    assert artist.mbid is None
+    assert artist.playcount is None
+    assert artist.rank is None
+
+
+def test_parse_loved_track() -> None:
+    track = _parse_loved_track(
+        {
+            "name": "Windowlicker",
+            "artist": {
+                "name": "Aphex Twin",
+                "url": "https://www.last.fm/music/Aphex+Twin",
+                "mbid": "f22942a1-6f70-4f48-866e-238cb2308fbd",
+            },
+        }
+    )
+
+    assert track.title == "Windowlicker"
+    assert track.artist_name == "Aphex Twin"
+    assert track.artist_url == "https://www.last.fm/music/Aphex+Twin"
+    assert track.artist_mbid == "f22942a1-6f70-4f48-866e-238cb2308fbd"
+
+
+def test_parse_loved_track_treats_placeholders_as_none() -> None:
+    track = _parse_loved_track({"name": "Roygbiv", "artist": {"name": "Boards of Canada"}})
+
+    assert track.artist_url is None
+    assert track.artist_mbid is None
+
+
+def test_as_list_wraps_single_object() -> None:
+    assert _as_list({"artist": {"name": "Solo"}}, "artist") == [{"name": "Solo"}]
+
+
+def test_as_list_passes_lists_through_and_defaults_to_empty() -> None:
+    assert _as_list({"artist": [{"name": "A"}, {"name": "B"}]}, "artist") == [
+        {"name": "A"},
+        {"name": "B"},
+    ]
+    assert _as_list({}, "artist") == []
+
+
+def stub_lastfm_api(monkeypatch: pytest.MonkeyPatch, payload: dict) -> None:
+    async def get(self: httpx.AsyncClient, url: str, params: dict | None = None) -> httpx.Response:
+        return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", get)
+
+
+async def test_get_top_artists_raises_on_private_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_lastfm_api(monkeypatch, {"error": 17, "message": "Login: User required to be logged in"})
+
+    with pytest.raises(LastfmPrivateDataError):
+        await LastfmClient("key").get_top_artists("rj")
+
+
+async def test_get_loved_tracks_parses_single_track_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_lastfm_api(
+        monkeypatch,
+        {
+            "lovedtracks": {
+                "track": {
+                    "name": "Windowlicker",
+                    "artist": {"name": "Aphex Twin", "url": "", "mbid": ""},
+                },
+                "@attr": {"totalPages": "3"},
+            }
+        },
+    )
+
+    page = await LastfmClient("key").get_loved_tracks("rj")
+
+    assert page.total_pages == 3
+    assert page.tracks == [
+        LastfmLovedTrack(
+            title="Windowlicker", artist_name="Aphex Twin", artist_url=None, artist_mbid=None
+        )
+    ]
+
+
+async def test_get_loved_tracks_defaults_to_one_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_lastfm_api(monkeypatch, {"lovedtracks": {"track": []}})
+
+    page = await LastfmClient("key").get_loved_tracks("rj")
+
+    assert page.total_pages == 1
+    assert page.tracks == []
 
 
 async def test_refresh_when_not_linked() -> None:
