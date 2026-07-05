@@ -60,6 +60,10 @@ export function ArtistsPanel({
   userArtists: UserArtist[];
   allArtists: Artist[];
 }) {
+  const [allState, allAction, allPending] = useActionState(
+    syncLastfmArtists.bind(null, userId, null),
+    { error: null, summary: null },
+  );
   const [topState, topAction, topPending] = useActionState(
     syncLastfmArtists.bind(null, userId, "lastfm_top_artist"),
     { error: null, summary: null },
@@ -68,18 +72,28 @@ export function ArtistsPanel({
     syncLastfmArtists.bind(null, userId, "lastfm_loved_tracks"),
     { error: null, summary: null },
   );
-  const summary = topState.summary ?? lovedState.summary;
-  const error = topState.error ?? lovedState.error;
+  const pending = allPending || topPending || lovedPending;
+  const summary = allState.summary ?? topState.summary ?? lovedState.summary;
+  const error = allState.error ?? topState.error ?? lovedState.error;
 
   return (
     <div>
       {lastfmLinked ? (
         <div className="space-y-2">
           <div className="flex gap-2">
+            <form action={allAction}>
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+              >
+                {allPending ? "Syncing..." : "Sync all"}
+              </button>
+            </form>
             <form action={topAction}>
               <button
                 type="submit"
-                disabled={topPending}
+                disabled={pending}
                 className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
               >
                 {topPending ? "Syncing..." : "Sync top artists"}
@@ -88,7 +102,7 @@ export function ArtistsPanel({
             <form action={lovedAction}>
               <button
                 type="submit"
-                disabled={lovedPending}
+                disabled={pending}
                 className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
               >
                 {lovedPending ? "Syncing..." : "Sync loved tracks"}

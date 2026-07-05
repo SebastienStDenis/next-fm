@@ -78,12 +78,14 @@ type SyncArtistsResponse = {
 
 export async function syncLastfmArtists(
   userId: string,
-  kind: "lastfm_top_artist" | "lastfm_loved_tracks",
+  kind: "lastfm_top_artist" | "lastfm_loved_tracks" | null,
 ): Promise<SyncArtistsActionState> {
   const res = await fetch(`${apiUrl}/users/${userId}/lastfm/artists/sync`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kinds: [kind] }),
+    ...(kind !== null && {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kinds: [kind] }),
+    }),
   });
   if (!res.ok) {
     return {
