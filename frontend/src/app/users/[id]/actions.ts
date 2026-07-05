@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8000";
 
@@ -46,4 +47,26 @@ export async function refreshLastfm(userId: string): Promise<LastfmActionState> 
 
   revalidatePath(`/users/${userId}`);
   return { error: null };
+}
+
+export async function unlinkLastfm(userId: string): Promise<LastfmActionState> {
+  const res = await fetch(`${apiUrl}/users/${userId}/lastfm`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    return { error: await errorMessage(res, "Failed to unlink Last.fm account.") };
+  }
+
+  revalidatePath(`/users/${userId}`);
+  return { error: null };
+}
+
+export async function deleteUser(userId: string): Promise<LastfmActionState> {
+  const res = await fetch(`${apiUrl}/users/${userId}`, { method: "DELETE" });
+  if (!res.ok) {
+    return { error: await errorMessage(res, "Failed to delete user.") };
+  }
+
+  revalidatePath("/users");
+  redirect("/users");
 }

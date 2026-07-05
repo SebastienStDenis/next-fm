@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DeleteUserButton } from "./delete-user-button";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 
 type User = {
@@ -41,6 +42,9 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       <section>
         <h2 className="mb-3 text-lg font-medium">Last.fm</h2>
         <LastfmPanel userId={user.id} account={lastfm} />
+      </section>
+      <section className="mt-8">
+        <DeleteUserButton userId={user.id} userName={user.name} />
       </section>
     </main>
   );

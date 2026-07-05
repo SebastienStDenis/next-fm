@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.db import get_session
 from app.lastfm import LastfmClient, LastfmUserInfo, LastfmUserNotFoundError
 from app.models import LastfmAccount, LastfmConnection, User
-from app.schemas import LastfmAccountRead, LastfmLink, UserRead
+from app.schemas import LastfmAccountRead, LastfmLink, UserCreate, UserRead
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -49,10 +49,27 @@ async def list_users(session: SessionDep) -> list[User]:
     return list(result.scalars())
 
 
+@app.post("/users", response_model=UserRead, status_code=201)
+async def create_user(payload: UserCreate, session: SessionDep) -> User:
+    """Create a user."""
+    user = User(name=payload.name)
+    session.add(user)
+    await session.commit()
+    return user
+
+
 @app.get("/users/{user_id}", response_model=UserRead)
 async def get_user(user_id: uuid.UUID, session: SessionDep) -> User:
     """Fetch a single user."""
     return await _require_user(session, user_id)
+
+
+@app.delete("/users/{user_id}", status_code=204)
+async def delete_user(user_id: uuid.UUID, session: SessionDep) -> None:
+    """Delete a user and their Last.fm link."""
+    user = await _require_user(session, user_id)
+    await session.delete(user)
+    await session.commit()
 
 
 async def _require_user(session: AsyncSession, user_id: uuid.UUID) -> User:
@@ -150,3 +167,17 @@ async def refresh_lastfm_account(
     _apply_user_info(account, info, datetime.now(UTC))
     await session.commit()
     return account
+
+
+@app.delete("/users/{user_id}/lastfm", status_code=204)
+async def unlink_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> None:
+    """Remove the user's Last.fm link; 404 if none is linked."""
+    await _require_user(session, user_id)
+    result = await session.execute(
+        select(LastfmConnection).where(LastfmConnection.user_id == user_id)
+    )
+    connection = result.scalar_one_or_none()
+    if connection is None:
+        raise HTTPException(status_code=404, detail="No Last.fm account linked")
+    await session.delete(connection)
+    await session.commit()
