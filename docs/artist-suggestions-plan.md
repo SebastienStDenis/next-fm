@@ -159,9 +159,13 @@ A candidate becomes or stays a suggestion when:
 
 - score >= `SUGGESTION_ENTER_SCORE = 0.45` (new suggestions), or
 - score >= `SUGGESTION_EXIT_SCORE = 0.35` and it is already a suggestion
-  (incumbents), or
-- it is an incumbent whose artist has an upcoming matched show - retained regardless
-  of score or known classification (see "The playlist scrobbles back").
+  (incumbents).
+
+Clearing a threshold is necessary, never bypassed: a candidate classified as known
+is then dropped - unless it is an incumbent whose artist has an upcoming matched
+show, the show-tied grace of "The playlist scrobbles back". Grace excuses known-ness
+and nothing else; a suggestion whose score genuinely collapses leaves even
+mid-window.
 
 Qualifiers are ranked by score and kept up to `SUGGESTION_BUDGET = 200`, with
 deterministic tie-breaks (incumbency first, then `name_key`) so equal inputs always
@@ -251,7 +255,12 @@ Design notes:
   exclusion also immediately deletes any existing `similar_artist` interest row for
   that pair - safe because the suggestion engine owns that kind and would prune it
   next sync anyway; playlist reconciliation then removes its tracks on the next
-  playlist sync with no special handling.
+  playlist sync with no special handling. Excluding a *seed* cascades with no extra
+  machinery: its paths disappear from scoring, so every suggestion that stood only
+  on it fails the exit threshold at the next suggestion sync and is pruned, upcoming
+  shows notwithstanding (grace never overrides score) - one exclusion purges the
+  whole lineage, e.g. taste contamination from a shared account, while suggestions
+  with independent support survive on their own merit.
 
 ### The interest rows
 
@@ -328,15 +337,20 @@ Two mechanisms close the loop, plus a deliberate line on what "known" means:
   plays, a handful of passes through the playlist - no longer flips anyone to
   known. Loved tracks get no floor - loving a track is an explicit act, not
   scrobble residue.
-- **Show-tied grace: no mid-decision evictions.** An incumbent suggestion whose
-  artist still has an upcoming matched show is retained through recomputes regardless
-  of score or known classification; it is re-evaluated only once the show has passed.
-  (Exclusion always wins - "ignore this artist" takes effect immediately.) The
-  suggestion exists to sell that show; evicting it while the decision is live defeats
-  the product, and a user who plays a suggested artist forty times before the gig is
-  the success case, not cleanup. Retained incumbents still count against
-  `SUGGESTION_BUDGET`, keeping the event-fetch commitment bounded (theoretical at a
-  budget of 200), and the check is one local query against events - no API cost.
+- **Show-tied grace: becoming known never evicts mid-decision.** An incumbent
+  suggestion whose artist still has an upcoming matched show is not pruned for
+  *becoming known*; that re-evaluation waits until the show has passed. The plays a
+  playlist generates never touch a suggestion's score (they move the known
+  classification, not the seed-similarity paths), so this one clause is the whole
+  scrobble-loop protection - and a user who plays a suggested artist forty times
+  before the gig is the success case, not cleanup. Grace excuses known-ness and
+  nothing else: score thresholds always apply, so a suggestion whose support
+  genuinely collapses (a seed excluded, or taste that actually moved) leaves the
+  playlist even mid-window - with no live evidence behind it, serving it is inertia,
+  not conviction. Score *noise* is hysteresis's job, not grace's. (Exclusion of the
+  artist itself always wins - "ignore this artist" takes effect immediately.) Graced
+  incumbents still count against `SUGGESTION_BUDGET`, and the check is one local
+  query against events - no API cost.
 
 Above the floor, plays count no matter who caused them: **known measures
 familiarity, not provenance**. A user who has heard an artist twenty times knows
@@ -363,8 +377,9 @@ set faster than the floor tolerates.
 
 One structural note: the match join never re-derives known-ness. The classification
 nuance (weight floors, the show-grace window) lives in suggestion sync alone, which
-maintains the disjointness invariant - pruning a suggestion only when the artist is
-known and out of grace - while the match join filters by kind sets and exclusions.
+maintains the disjointness invariant - pruning for known-ness only once out of
+grace, alongside its ordinary score-based pruning - while the match join filters by
+kind sets and exclusions.
 Between syncs a freshly-adopted artist can linger in a suggested-only playlist until
 the next suggestion sync; harmless lag, resolved by the same recompute that admits
 it.
