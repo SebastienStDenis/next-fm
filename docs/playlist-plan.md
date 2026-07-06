@@ -178,7 +178,16 @@ Design notes:
   table (`spotify_playlists`, ...) takes the external id, snapshot, and written-track
   rows. The stored tracklist stays provider-level in that world by nature - it is the
   record of what we last wrote to *that provider*, in that provider's track ids - while
-  the canonical tracklist remains the desired-state query, never a stored row.
+  the canonical tracklist remains the desired-state query, never a stored row. The same
+  move applies to `artist_top_tracks`: `rank` and `title` come from Last.fm and are
+  provider-neutral - that is already the canonical ranked list - so a second provider
+  adds its own track resolution beside `spotify_track_id` rather than replacing the
+  table. Until then, Spotify stays concrete and explicitly named at the leaves
+  (`spotify_artists`, `spotify_track_id`, the `spotify_*` playlist columns) rather than
+  hidden behind generic wrappers: everything upstream - users, interests, artists,
+  events, desired-state logic - never mentions Spotify, and an abstraction designed
+  from a single provider would only bake in that provider's shape (auth model, id
+  semantics, `snapshot_id`) under a generic name.
 - **No canonical tracks table.** Tracks exist only to fill Spotify playlists; a
   two-layer registry like artists/events would be pattern-matching without a payoff.
   If an Apple Music target ever lands, revisit.
