@@ -157,8 +157,8 @@ refresh-endpoint pattern; no background infrastructure needed yet.
 by `last_synced_at`), throttled well under 5 req/s.
 
 **Phase 4 - enrichment + cross-service.** `artist.getInfo` for tags, `artist.getSimilar`
-for discovery interests (`kind="lastfm_similar_artist"`, evidence carrying the match
-score and the seed artist). Spotify resolution lands here as a `spotify_artists` table
+for suggested-artist interests (`kind="similar_artist"`, evidence carrying the match
+score and the seed artist; see `docs/artist-suggestions-plan.md`). Spotify resolution lands here as a `spotify_artists` table
 populated by search-by-name, with MusicBrainz as validator when an MBID exists.
 
 ## To verify empirically (undocumented)

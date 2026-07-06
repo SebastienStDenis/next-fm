@@ -198,18 +198,18 @@ artists) does three things, none of which mention events:
 1. Resolve each similar artist into the registry via the existing ingestion path -
    upsert `lastfm_artists` by `name_key`, creating a canonical `artists` row only when
    genuinely new. Many suggestions already exist because another user listens to them.
-2. Write an interest row: `kind="lastfm_similar_artist"`, evidence carrying the seed
+2. Write an interest row: `kind="similar_artist"`, evidence carrying the seed
    artist and similarity score.
 3. Done.
 
 The event pipeline picks them up for free, precisely because it is defined as "fetch
 events for every distinct artist referenced by any interest row" - it never asks *why*
-an interest exists, and no branch anywhere says suggested vs direct. The distinction
+an interest exists, and no branch anywhere says suggested vs known. The distinction
 surfaces only downstream, deliberately:
 
-- **Playlist layer** weights or caps by `kind` (e.g. top 5 tracks for artists the user
-  demonstrably listens to, top 2 for a discovery suggestion, or a bounded share of the
-  playlist for suggestions).
+- **Playlist layer** weights or caps by `kind` (e.g. top 5 tracks for known artists,
+  top 2 for a suggested artist, or a bounded share of the playlist for suggested
+  artists).
 - **UI** renders "because you listen to X" straight from the interest row's evidence.
 - **Sync ownership**: the similarity engine upserts and deletes only its own `kind`, so
   a Last.fm top-artists re-sync and a suggestion refresh never clobber each other.
@@ -251,5 +251,7 @@ refresh-endpoint pattern; no background infrastructure yet.
 **Phase 3 - background refresh.** A scheduled task re-syncing the stalest
 interest-referenced artists, removing the freshness check from the request path.
 
-**Phase 4 - suggested artists.** The similarity engine writes capped
-`lastfm_similar_artist` interests; this pipeline picks them up unchanged.
+**Phase 4 - suggested artists.** The suggestion engine writes capped
+`similar_artist` interests (see `docs/artist-suggestions-plan.md`, which settles the
+kind name and the known-vs-suggested terminology); this pipeline picks them up
+unchanged.

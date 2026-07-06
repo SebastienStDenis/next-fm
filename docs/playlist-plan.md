@@ -105,8 +105,8 @@ For a playlist of kind `city_shows`:
    radius of the playlist's target city (`city_id`, or `users.city_id` when null),
    `starts_at > now()`.
 2. For each matched artist, take the top N cached tracks (start with N=5; the
-   interest `kind` weighting the event plan anticipates - fewer tracks for discovery
-   suggestions - plugs in here later).
+   interest `kind` weighting the event plan anticipates - fewer tracks for suggested
+   artists - plugs in here later).
 3. Order by soonest show per artist, then track rank, so the playlist reads as "what's
    coming up next". Dedupe URIs (a track can chart for two artists via collaborations).
 4. Cap the playlist at 100 tracks, dropping lowest-rank tracks from furthest-out shows

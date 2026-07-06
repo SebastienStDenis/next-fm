@@ -6,12 +6,37 @@ for artists they already listen to. This is the layer `docs/artist-matching-plan
 explored; this doc commits to a direction, adds the suggestion lifecycle, and specifies
 the "include artists I know" setting.
 
+## Terminology: known artists vs suggested artists
+
+Two terms, used everywhere - docs, code constants, API copy. Both are relations
+between a user and an artist derived from interest kinds, never properties of the
+artist itself (the same artist can be known to one user, suggested to another, and
+neither to a third, sitting in the registry only because of someone else's taste):
+
+- **Known artist**: the user has at least one interest of a *known kind* - a kind
+  asserting they demonstrably listen to the artist. `KNOWN_ARTIST_KINDS =
+  {lastfm_top_artist, lastfm_loved_tracks}`; future taste sources add their kinds
+  here.
+- **Suggested artist**: the user has at least one interest of a *suggested kind* - a
+  kind written by the suggestion engine - and **no known-kind interest**.
+  `SUGGESTED_ARTIST_KINDS = {similar_artist}`; a future suggestion signal
+  (content-based fallback, another service's similarity) is a new kind in this set,
+  not a new classification.
+
+The "no known-kind interest" clause makes the two classifications disjoint by
+definition: when both row types exist for the same (user, artist) - possible in the
+lag window between a taste sync and the next suggestion sync - the artist is known,
+full stop. "Discovery" stays as the name of the product capability, and user-facing
+copy can say "new artists" or "artists you might like"; but whenever an artist is
+being classified - in schema, code, queries, or these docs - the terms are known and
+suggested, nothing else.
+
 ## Decision: expand the user's interest set, don't score the event inventory
 
 The matching notes sketched two directions for collaborative similarity
 (`artist.getSimilar`): fetch similar lists per *event artist* and score each local
 event against the user's taste, or fetch per *user artist* and expand the user's
-profile with new artists. For scoring an existing inventory, per-event-artist wins -
+profile outward. For scoring an existing inventory, per-event-artist wins -
 but this system has no inventory to score. Event ingestion is artist-first: an event
 only enters the database because some user's interest artist published it. An artist
 nobody tracks never gets their events fetched, so scoring local event artists can
@@ -28,7 +53,7 @@ From there the existing pipeline does everything for free, exactly as the event 
 anticipated: event sync fetches tour dates for every distinct interest artist without
 asking why the interest exists, the match join finds nearby shows, and the playlist
 layer already carries per-track provenance. Nothing downstream grows a
-suggested-vs-direct branch.
+suggested-vs-known branch.
 
 Per-event-artist edges remain the right shape for a *future* multi-user scoring tier
 (rank another user's artist playing nearby against my taste); the edge table below is
@@ -98,10 +123,9 @@ score(cand)      = best path + 0.05 * min(count of other paths >= 0.2, 4)
 
 ### Known-artist filtering
 
-The point is artists the user does not know, so candidates are dropped when:
+A suggested artist must not be a known artist, so candidates are dropped when:
 
-- they already have any interest of a known kind (`lastfm_top_artist`,
-  `lastfm_loved_tracks` - a `KNOWN_ARTIST_KINDS` constant new sources add to), or
+- they are already known (any `KNOWN_ARTIST_KINDS` interest), or
 - they appear in the user's *overall*-period top artists: one extra
   `user.getTopArtists(period="overall", limit=1000)` call at suggestion-sync time,
   used purely as an in-memory blocklist, never stored. The 12-month top-200 misses
@@ -197,10 +221,12 @@ Suggestions are ordinary `user_artist_interests` rows:
 | evidence | `{"score": 0.58, "paths": [{"seed_artist_id": "...", "seed_name": "Slowdive", "match": 0.84}, ...]}` (top 3 paths) |
 
 `source` is `internal`, not `lastfm`: the edges come from Last.fm, but the row records
-our engine's decision (aggregation, thresholds, caps, exclusions). A future edge
-source (Spotify related artists, pgvector fallback) feeds the same engine and the same
-kind rather than minting a parallel one. Evidence carries denormalized seed names so
-the UI renders "because you listen to Slowdive" without joins.
+our engine's decision (aggregation, thresholds, caps, exclusions). A future suggestion
+signal (Spotify related artists, the pgvector fallback) lands as its own kind added to
+`SUGGESTED_ARTIST_KINDS`, keeping per-kind sync ownership - it changes nothing
+downstream, since everything classifies through the kind sets. Evidence carries
+denormalized seed names so the UI renders "because you listen to Slowdive" without
+joins.
 
 ## Lifecycle: suggestions are derived state, recomputed and replaced
 
@@ -236,14 +262,15 @@ by the TTL.
 ## The "include artists I know" setting
 
 `users.include_known_artists`, boolean, default **false**: playlists contain only
-discoveries unless the user opts known artists in.
+suggested artists unless the user opts known artists in.
 
-- **Semantics when false**: an artist qualifies for matching only if the user has a
-  `similar_artist` interest for it *and no known-kind interest*. The second clause
-  matters: between syncs an artist can briefly hold both a stale suggestion row and a
-  fresh `lastfm_top_artist` row, and filtering on "has a suggestion row" alone would
-  leak known artists into a discovery playlist. When true: any interest kind
-  qualifies. Exclusions filter regardless of the setting.
+- **Semantics when false**: only suggested artists qualify for matching - which, by
+  the terminology section's definition, means a suggested-kind interest *and no
+  known-kind interest*. The second clause is what the definition earns its keep with:
+  between syncs an artist can briefly hold both a stale suggestion row and a fresh
+  `lastfm_top_artist` row, and filtering on "has a suggested-kind row" alone would
+  leak known artists into a suggested-only playlist. When true: known and suggested
+  artists both qualify. Exclusions filter regardless of the setting.
 - **Where it applies**: in the shared match join, which moves from
   `playlist_sync._match_artists` (and its duplicate in the events endpoint) into
   `matching.py`, parameterized by the setting and the exclusion filter. Both the
@@ -254,8 +281,8 @@ discoveries unless the user opts known artists in.
   it then takes effect on the next playlist sync instead of waiting out a full event
   re-fetch. Cost: some Bandsintown calls for artists that never surface while the
   setting is false - accepted, it keeps the event pipeline's "never asks why" rule.
-- **Per user, not per playlist, for now.** A "discovery playlist alongside my-artists
-  playlist" product wants this per playlist (a new `kind`), and the playlists table
+- **Per user, not per playlist, for now.** A "suggested-artists playlist alongside a
+  known-artists playlist" product wants this per playlist (a new `kind`), and the playlists table
   already supports that; the user-level setting is the V1 knob and can become the
   default for new playlists later without migration pain.
 - **API surface**: `include_known_artists` on `UserRead`, plus
@@ -264,8 +291,8 @@ discoveries unless the user opts known artists in.
 
 ### Rollout consequence (the one breaking behavior change)
 
-With the default false, every existing playlist flips from "shows by artists you
-love" to discovery-only at its next sync - and to *empty* if no suggestion sync has
+With the default false, every existing playlist flips from known artists' shows to
+suggested artists only at its next sync - and to *empty* if no suggestion sync has
 run yet. Post-deploy order matters: taste sync, then suggestions, then events, then
 playlists. The playlist description also stops being true; sync starts choosing copy
 by the setting ("New artists you might like playing near {city}" vs the current
@@ -277,9 +304,8 @@ suggested-artist events by default, which is the intended product pivot.
 
 The per-kind weighting the playlist plan reserved space for:
 `TOP_TRACKS_PER_ARTIST` stays 5 for known artists, `SUGGESTED_TRACKS_PER_ARTIST = 3`
-for artists whose only qualifying interest is a suggestion. Discovery bets are
-cheaper to place three tracks at a time, and a discovery playlist fits more artists
-under the 100-track cap. Ordering, dedupe, provenance, and the full-replace write are
+for suggested artists. A suggested artist is a cheaper bet at three tracks, and a
+suggested-only playlist fits more artists under the 100-track cap. Ordering, dedupe, provenance, and the full-replace write are
 untouched.
 
 ## Volume and rate limits
