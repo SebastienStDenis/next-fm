@@ -57,7 +57,9 @@ async def sync_lastfm_artists(
         artist_ids = await upsert_lastfm_artists(session, signals)
         signal_by_artist = {artist_ids[name_key(signal.name)]: signal for signal in signals}
         results.append(
-            await _sync_interests(session, user_id, kind, signal_by_artist, prune=complete)
+            await sync_interests(
+                session, user_id, kind, signal_by_artist, source=Source.LASTFM, prune=complete
+            )
         )
     return results
 
@@ -191,13 +193,18 @@ async def upsert_lastfm_artists(
     return artist_ids
 
 
-async def _sync_interests(
+async def sync_interests(
     session: AsyncSession,
     user_id: uuid.UUID,
     kind: str,
     signal_by_artist: dict[uuid.UUID, ArtistSignal],
+    *,
+    source: Source,
     prune: bool,
 ) -> ArtistSyncKindResult:
+    """Reconcile the (user, kind) interest scope against the given signals:
+    new artists get rows, survivors are updated in place (created_at
+    preserved), and absent ones are deleted when pruning."""
     result = await session.execute(
         select(UserArtistInterest).where(
             UserArtistInterest.user_id == user_id, UserArtistInterest.kind == kind
@@ -214,7 +221,7 @@ async def _sync_interests(
                     user_id=user_id,
                     artist_id=artist_id,
                     kind=kind,
-                    source=Source.LASTFM,
+                    source=source,
                     evidence=signal.evidence,
                     weight=signal.weight,
                 )

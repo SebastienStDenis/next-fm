@@ -1,8 +1,9 @@
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
@@ -15,8 +16,10 @@ SIMILAR_ARTIST_KIND = "similar_artist"
 
 # Known: kinds asserting the user demonstrably listens to the artist.
 # Suggested: kinds written by the suggestion engine. Suggestion sync keeps the
-# two disjoint (a suggested artist never holds a known-kind interest clearing
-# its floor), so queries classify purely by which rows exist.
+# two effectively disjoint - it prunes a suggestion whose artist becomes known,
+# though only once out of the show-grace window, so an artist can briefly hold
+# both row types. Queries classify purely by which rows exist and never
+# re-derive known-ness (weight floors, grace) themselves.
 KNOWN_ARTIST_KINDS = frozenset({TOP_ARTIST_KIND, LOVED_TRACKS_KIND})
 SUGGESTED_ARTIST_KINDS = frozenset({SIMILAR_ARTIST_KIND})
 
@@ -40,6 +43,16 @@ def distance_km(latitude: float, longitude: float) -> ColumnElement[float]:
         )
     )
     return 6371.0 * central_angle
+
+
+def upcoming_event_near(cities: Sequence[City]) -> ColumnElement[bool]:
+    """Event is upcoming and within EVENT_MATCH_RADIUS_KM of any of the given
+    cities - the servable predicate shared by the match join and the
+    suggestion engine's show-tied grace."""
+    nearby = or_(
+        *(distance_km(city.latitude, city.longitude) <= EVENT_MATCH_RADIUS_KM for city in cities)
+    )
+    return (Event.starts_at > func.now()) & nearby
 
 
 def artist_qualifies(
@@ -81,14 +94,12 @@ async def match_artist_shows(
 ) -> list[ArtistMatch]:
     """The match join reduced to one soonest upcoming show per servable
     artist near the city, ordered soonest-first."""
-    distance = distance_km(city.latitude, city.longitude)
     result = await session.execute(
         select(EventArtist.artist_id, Event.id, Event.starts_at)
         .join(Event, Event.id == EventArtist.event_id)
         .where(
             artist_qualifies(user_id, EventArtist.artist_id, include_known_artists),
-            Event.starts_at > func.now(),
-            distance <= EVENT_MATCH_RADIUS_KM,
+            upcoming_event_near([city]),
         )
         .order_by(Event.starts_at, Event.id)
     )

@@ -327,6 +327,7 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
         result_with_rows([]),  # canonical ids for candidate keys
         result_with_scalars([]),  # upsert: no existing lastfm rows
         result_with_rows([]),  # upsert: insert conflicts
+        result_with_scalars([]),  # reconcile: no existing suggestion interests
     ]
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.return_value = [

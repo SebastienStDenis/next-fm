@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 from pydantic import BaseModel
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import (
@@ -13,6 +13,7 @@ from app.artist_sync import (
     TOP_ARTIST_KIND,
     ArtistSignal,
     name_key,
+    sync_interests,
     upsert_lastfm_artists,
 )
 from app.lastfm import (
@@ -21,7 +22,7 @@ from app.lastfm import (
     LastfmClient,
     LastfmSimilarArtistData,
 )
-from app.matching import EVENT_MATCH_RADIUS_KM, SIMILAR_ARTIST_KIND, distance_km
+from app.matching import SIMILAR_ARTIST_KIND, upcoming_event_near
 from app.models import (
     City,
     Event,
@@ -133,7 +134,10 @@ async def sync_user_suggestions(
     candidates = score_candidates(edges, affinities, seed_names)
 
     blocked_keys = await _blocked_name_keys(lastfm, username)
-    artist_ids_by_key = await _canonical_ids_by_key(session, [c.name_key for c in candidates])
+    # Below the exit score a candidate fails both thresholds regardless of
+    # incumbency, so only the rest ever need a canonical id.
+    viable_keys = [c.name_key for c in candidates if c.score >= SUGGESTION_EXIT_SCORE]
+    artist_ids_by_key = await _canonical_ids_by_key(session, viable_keys)
     graced_ids = await _graced_artist_ids(session, user, set(incumbents))
 
     kept = select_suggestions(
@@ -146,7 +150,18 @@ async def sync_user_suggestions(
         graced_ids=graced_ids,
     )
 
-    created = await _reconcile_interests(session, user.id, kept, incumbents)
+    # Only selected candidates get canonical artist rows; the interest write
+    # is the same reconcile every taste kind uses, so an incumbent absent
+    # from the selection is deleted, and survivors keep their created_at.
+    signals = [
+        ArtistSignal(name=c.name, url=None, mbid=c.mbid, evidence=_evidence(c), weight=c.score)
+        for c in kept
+    ]
+    artist_ids = await upsert_lastfm_artists(session, signals)
+    signal_by_artist = {artist_ids[name_key(signal.name)]: signal for signal in signals}
+    written = await sync_interests(
+        session, user.id, SIMILAR_ARTIST_KIND, signal_by_artist, source=Source.INTERNAL, prune=True
+    )
 
     return SuggestionSyncResult(
         synced_at=now,
@@ -155,9 +170,9 @@ async def sync_user_suggestions(
         seeds_skipped=len(seeds) - len(stale),
         seeds_failed=failed,
         candidates_scored=len(candidates),
-        suggestions_created=created,
-        suggestions_kept=len(kept) - created,
-        suggestions_removed=len(incumbents) - (len(kept) - created),
+        suggestions_created=written.interests_created,
+        suggestions_kept=len(kept) - written.interests_created,
+        suggestions_removed=written.interests_removed,
     )
 
 
@@ -280,15 +295,20 @@ async def _refresh_seed_edges(
         *(_fetch_similar(lastfm, seed.name, semaphore) for seed in seeds)
     )
 
-    synced = failed = 0
-    for seed, similar in zip(seeds, outcomes, strict=True):
-        if similar is None:
-            # Leave similar_synced_at untouched so the next sync retries.
-            failed += 1
-            continue
+    # Failed fetches keep their old edges and their stale similar_synced_at,
+    # so the next sync retries them.
+    fetched = [
+        (seed, similar)
+        for seed, similar in zip(seeds, outcomes, strict=True)
+        if similar is not None
+    ]
+    if fetched:
         await session.execute(
-            delete(LastfmSimilarArtist).where(LastfmSimilarArtist.artist_id == seed.artist_id)
+            delete(LastfmSimilarArtist).where(
+                LastfmSimilarArtist.artist_id.in_([seed.artist_id for seed, _ in fetched])
+            )
         )
+    for seed, similar in fetched:
         deduped: dict[str, LastfmSimilarArtistData] = {}
         for entry in similar:
             deduped.setdefault(name_key(entry.name), entry)
@@ -303,8 +323,7 @@ async def _refresh_seed_edges(
                 )
             )
         seed.similar_synced_at = now
-        synced += 1
-    return synced, failed
+    return len(fetched), len(seeds) - len(fetched)
 
 
 async def _fetch_similar(
@@ -366,57 +385,13 @@ async def _graced_artist_ids(
     result = await session.execute(select(City).where(City.geonameid.in_(city_ids)))
     cities = list(result.scalars())
 
-    nearby = or_(
-        *(distance_km(city.latitude, city.longitude) <= EVENT_MATCH_RADIUS_KM for city in cities)
-    )
     result = await session.execute(
         select(EventArtist.artist_id)
         .join(Event, Event.id == EventArtist.event_id)
-        .where(EventArtist.artist_id.in_(incumbent_ids), Event.starts_at > func.now(), nearby)
+        .where(EventArtist.artist_id.in_(incumbent_ids), upcoming_event_near(cities))
         .distinct()
     )
     return set(result.scalars())
-
-
-async def _reconcile_interests(
-    session: AsyncSession,
-    user_id: uuid.UUID,
-    kept: list[Candidate],
-    incumbents: dict[uuid.UUID, UserArtistInterest],
-) -> int:
-    """Write the selected suggestions as similar_artist interest rows:
-    survivors updated in place (created_at preserved as "first suggested"),
-    the rest deleted. Returns how many rows are new."""
-    signals = [
-        ArtistSignal(name=candidate.name, url=None, mbid=candidate.mbid, evidence={})
-        for candidate in kept
-    ]
-    artist_ids = await upsert_lastfm_artists(session, signals)
-
-    created = 0
-    stale = dict(incumbents)
-    for candidate in kept:
-        artist_id = artist_ids[candidate.name_key]
-        evidence = _evidence(candidate)
-        interest = stale.pop(artist_id, None)
-        if interest is None:
-            session.add(
-                UserArtistInterest(
-                    user_id=user_id,
-                    artist_id=artist_id,
-                    kind=SIMILAR_ARTIST_KIND,
-                    source=Source.INTERNAL,
-                    evidence=evidence,
-                    weight=candidate.score,
-                )
-            )
-            created += 1
-        elif (interest.evidence, interest.weight) != (evidence, candidate.score):
-            interest.evidence = evidence
-            interest.weight = candidate.score
-    for interest in stale.values():
-        await session.delete(interest)
-    return created
 
 
 def _evidence(candidate: Candidate) -> dict:
