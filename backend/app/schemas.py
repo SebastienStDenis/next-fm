@@ -12,10 +12,15 @@ class UserRead(BaseModel):
 
     id: uuid.UUID
     name: str
+    include_known_artists: bool
 
 
 class UserCreate(BaseModel):
     name: str = Field(min_length=1)
+
+
+class UserUpdate(BaseModel):
+    include_known_artists: bool | None = None
 
 
 class CityRead(BaseModel):
@@ -65,6 +70,7 @@ class ArtistInterestRead(BaseModel):
     kind: str
     source: Source
     evidence: dict
+    weight: float | None
     created_at: datetime
     updated_at: datetime
 
@@ -118,6 +124,18 @@ class ArtistSyncKindResult(BaseModel):
 class ArtistSyncResult(BaseModel):
     synced_at: datetime
     results: list[ArtistSyncKindResult]
+
+
+class SuggestionSyncResult(BaseModel):
+    synced_at: datetime
+    seeds_total: int
+    seeds_synced: int
+    seeds_skipped: int
+    seeds_failed: int
+    candidates_scored: int
+    suggestions_created: int
+    suggestions_kept: int
+    suggestions_removed: int
 
 
 class PlaylistTrackRead(BaseModel):

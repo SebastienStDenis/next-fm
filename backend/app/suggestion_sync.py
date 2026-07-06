@@ -1,0 +1,433 @@
+import asyncio
+import math
+import uuid
+from datetime import UTC, datetime, timedelta
+
+import httpx
+from pydantic import BaseModel
+from sqlalchemy import delete, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.artist_sync import (
+    LOVED_TRACKS_KIND,
+    TOP_ARTIST_KIND,
+    ArtistSignal,
+    name_key,
+    upsert_lastfm_artists,
+)
+from app.lastfm import (
+    LastfmApiError,
+    LastfmArtistNotFoundError,
+    LastfmClient,
+    LastfmSimilarArtistData,
+)
+from app.matching import EVENT_MATCH_RADIUS_KM, SIMILAR_ARTIST_KIND, distance_km
+from app.models import (
+    City,
+    Event,
+    EventArtist,
+    LastfmArtist,
+    LastfmSimilarArtist,
+    Playlist,
+    Source,
+    User,
+    UserArtistExclusion,
+    UserArtistInterest,
+)
+from app.schemas import SuggestionSyncResult
+
+SIMILAR_TTL = timedelta(days=30)
+SIMILAR_FETCH_LIMIT = 100
+FETCH_CONCURRENCY = 4
+
+# A lastfm_top_artist interest counts toward the known classification only
+# above this playcount: presence is not knowing, and the floor keeps playlist
+# scrobbles from evicting the suggestions that caused them.
+KNOWN_PLAYCOUNT_FLOOR = 20.0
+
+LOVED_AFFINITY_BASE = 0.4
+LOVED_AFFINITY_PER_TRACK = 0.15
+
+# Paths below this value neither earn the consensus bonus nor, therefore,
+# change any output - which is also why seeds with affinity below it are
+# provably safe to skip fetching (path value never exceeds affinity).
+QUALIFYING_PATH_VALUE = 0.2
+CONSENSUS_BONUS = 0.05
+CONSENSUS_MAX_PATHS = 4
+
+SUGGESTION_ENTER_SCORE = 0.45
+SUGGESTION_EXIT_SCORE = 0.35
+SUGGESTION_BUDGET = 200
+
+OVERALL_TOP_ARTISTS_LIMIT = 1000
+EVIDENCE_PATH_COUNT = 3
+
+
+class Path(BaseModel):
+    """One seed-to-candidate similarity edge, weighted by the seed's affinity."""
+
+    seed_artist_id: uuid.UUID
+    seed_name: str
+    match: float
+    value: float
+
+
+class Candidate(BaseModel):
+    """A similar artist aggregated across every seed that recommends it."""
+
+    name: str
+    name_key: str
+    mbid: str | None
+    score: float
+    paths: list[Path]
+
+
+async def sync_user_suggestions(
+    session: AsyncSession, lastfm: LastfmClient, user: User, username: str
+) -> SuggestionSyncResult:
+    """Recompute the user's suggested artists and reconcile their
+    similar_artist interest rows against the result.
+
+    The previous suggestion set is deliberately an input (incumbency drives
+    the exit threshold and show-tied grace), and every existing row is either
+    re-confirmed or deleted - an incumbent absent from the scoring output is
+    a zero, not an unknown.
+    """
+    now = datetime.now(UTC)
+
+    result = await session.execute(
+        select(UserArtistInterest).where(UserArtistInterest.user_id == user.id)
+    )
+    interests = list(result.scalars())
+    known_ids = known_artist_ids(interests)
+    affinities = seed_affinities(interests)
+    incumbents = {i.artist_id: i for i in interests if i.kind == SIMILAR_ARTIST_KIND}
+
+    result = await session.execute(
+        select(UserArtistExclusion.artist_id).where(UserArtistExclusion.user_id == user.id)
+    )
+    excluded_ids = set(result.scalars())
+
+    eligible_ids = {
+        artist_id
+        for artist_id, affinity in affinities.items()
+        if affinity >= QUALIFYING_PATH_VALUE and artist_id not in excluded_ids
+    }
+    result = await session.execute(
+        select(LastfmArtist).where(LastfmArtist.artist_id.in_(eligible_ids))
+    )
+    seeds = list(result.scalars())
+
+    stale = [
+        seed
+        for seed in seeds
+        if seed.similar_synced_at is None or now - seed.similar_synced_at >= SIMILAR_TTL
+    ]
+    synced, failed = await _refresh_seed_edges(session, lastfm, stale, now)
+
+    result = await session.execute(
+        select(LastfmSimilarArtist).where(LastfmSimilarArtist.artist_id.in_(eligible_ids))
+    )
+    edges = list(result.scalars())
+    seed_names = {seed.artist_id: seed.name for seed in seeds}
+    candidates = score_candidates(edges, affinities, seed_names)
+
+    blocked_keys = await _blocked_name_keys(lastfm, username)
+    artist_ids_by_key = await _canonical_ids_by_key(session, [c.name_key for c in candidates])
+    graced_ids = await _graced_artist_ids(session, user, set(incumbents))
+
+    kept = select_suggestions(
+        candidates,
+        artist_ids_by_key,
+        incumbent_ids=set(incumbents),
+        known_ids=known_ids,
+        blocked_keys=blocked_keys,
+        excluded_ids=excluded_ids,
+        graced_ids=graced_ids,
+    )
+
+    created = await _reconcile_interests(session, user.id, kept, incumbents)
+
+    return SuggestionSyncResult(
+        synced_at=now,
+        seeds_total=len(seeds),
+        seeds_synced=synced,
+        seeds_skipped=len(seeds) - len(stale),
+        seeds_failed=failed,
+        candidates_scored=len(candidates),
+        suggestions_created=created,
+        suggestions_kept=len(kept) - created,
+        suggestions_removed=len(incumbents) - (len(kept) - created),
+    )
+
+
+def known_artist_ids(interests: list[UserArtistInterest]) -> set[uuid.UUID]:
+    """Artists the user demonstrably listens to: a loved track (an explicit
+    act, no floor), or a top-artist playcount clearing the floor."""
+    known = set()
+    for interest in interests:
+        if interest.kind == LOVED_TRACKS_KIND:
+            known.add(interest.artist_id)
+        elif interest.kind == TOP_ARTIST_KIND and (interest.weight or 0) >= KNOWN_PLAYCOUNT_FLOOR:
+            known.add(interest.artist_id)
+    return known
+
+
+def seed_affinities(interests: list[UserArtistInterest]) -> dict[uuid.UUID, float]:
+    """Affinity (0-1) for every known artist; an artist known through both
+    signals takes the stronger."""
+    playcounts: dict[uuid.UUID, float] = {}
+    track_counts: dict[uuid.UUID, float] = {}
+    for interest in interests:
+        if interest.weight is None:
+            continue
+        if interest.kind == TOP_ARTIST_KIND:
+            playcounts[interest.artist_id] = interest.weight
+        elif interest.kind == LOVED_TRACKS_KIND:
+            track_counts[interest.artist_id] = interest.weight
+
+    max_playcount = max(playcounts.values(), default=0.0)
+    affinities: dict[uuid.UUID, float] = {}
+    for artist_id in known_artist_ids(interests):
+        affinity = 0.0
+        playcount = playcounts.get(artist_id)
+        if playcount and max_playcount > 0:
+            affinity = math.log1p(playcount) / math.log1p(max_playcount)
+        track_count = track_counts.get(artist_id)
+        if track_count:
+            affinity = max(
+                affinity, min(LOVED_AFFINITY_BASE + LOVED_AFFINITY_PER_TRACK * track_count, 1.0)
+            )
+        affinities[artist_id] = affinity
+    return affinities
+
+
+def score_candidates(
+    edges: list[LastfmSimilarArtist],
+    affinities: dict[uuid.UUID, float],
+    seed_names: dict[uuid.UUID, str],
+) -> list[Candidate]:
+    """Aggregate edges into per-candidate scores: best path first, plus a
+    small capped bonus for consensus across seeds."""
+    grouped: dict[str, list[tuple[LastfmSimilarArtist, Path]]] = {}
+    for edge in edges:
+        affinity = affinities.get(edge.artist_id)
+        if not affinity:
+            continue
+        path = Path(
+            seed_artist_id=edge.artist_id,
+            seed_name=seed_names.get(edge.artist_id, ""),
+            match=edge.match,
+            value=edge.match * affinity,
+        )
+        grouped.setdefault(edge.name_key, []).append((edge, path))
+
+    candidates = []
+    for key, pairs in grouped.items():
+        pairs.sort(key=lambda pair: (-pair[1].value, pair[1].seed_name))
+        paths = [path for _, path in pairs]
+        consensus = sum(1 for path in paths[1:] if path.value >= QUALIFYING_PATH_VALUE)
+        score = paths[0].value + CONSENSUS_BONUS * min(consensus, CONSENSUS_MAX_PATHS)
+        best_edge = pairs[0][0]
+        mbid = next((edge.mbid for edge, _ in pairs if edge.mbid), None)
+        candidates.append(
+            Candidate(name=best_edge.name, name_key=key, mbid=mbid, score=score, paths=paths)
+        )
+    return candidates
+
+
+def select_suggestions(
+    candidates: list[Candidate],
+    artist_ids_by_key: dict[str, uuid.UUID],
+    *,
+    incumbent_ids: set[uuid.UUID],
+    known_ids: set[uuid.UUID],
+    blocked_keys: set[str],
+    excluded_ids: set[uuid.UUID],
+    graced_ids: set[uuid.UUID],
+) -> list[Candidate]:
+    """Apply thresholds with hysteresis, the known-artist filter with its
+    show-tied grace, exclusions, and the budget. Deterministic: ties break by
+    incumbency, then name_key."""
+
+    def incumbent(candidate: Candidate) -> bool:
+        return artist_ids_by_key.get(candidate.name_key) in incumbent_ids
+
+    kept = []
+    for candidate in candidates:
+        threshold = SUGGESTION_EXIT_SCORE if incumbent(candidate) else SUGGESTION_ENTER_SCORE
+        if candidate.score < threshold:
+            continue
+        artist_id = artist_ids_by_key.get(candidate.name_key)
+        if artist_id in excluded_ids:
+            continue
+        known = artist_id in known_ids or candidate.name_key in blocked_keys
+        if known and not (incumbent(candidate) and artist_id in graced_ids):
+            continue
+        kept.append(candidate)
+
+    kept.sort(key=lambda c: (-c.score, not incumbent(c), c.name_key))
+    return kept[:SUGGESTION_BUDGET]
+
+
+async def _refresh_seed_edges(
+    session: AsyncSession, lastfm: LastfmClient, seeds: list[LastfmArtist], now: datetime
+) -> tuple[int, int]:
+    """Re-fetch stale seeds' similar lists, replacing each seed's whole edge
+    set. Fetches run concurrently; all session writes stay on this task."""
+    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+    outcomes = await asyncio.gather(
+        *(_fetch_similar(lastfm, seed.name, semaphore) for seed in seeds)
+    )
+
+    synced = failed = 0
+    for seed, similar in zip(seeds, outcomes, strict=True):
+        if similar is None:
+            # Leave similar_synced_at untouched so the next sync retries.
+            failed += 1
+            continue
+        await session.execute(
+            delete(LastfmSimilarArtist).where(LastfmSimilarArtist.artist_id == seed.artist_id)
+        )
+        deduped: dict[str, LastfmSimilarArtistData] = {}
+        for entry in similar:
+            deduped.setdefault(name_key(entry.name), entry)
+        for key, entry in deduped.items():
+            session.add(
+                LastfmSimilarArtist(
+                    artist_id=seed.artist_id,
+                    name=entry.name,
+                    name_key=key,
+                    mbid=entry.mbid,
+                    match=entry.match,
+                )
+            )
+        seed.similar_synced_at = now
+        synced += 1
+    return synced, failed
+
+
+async def _fetch_similar(
+    lastfm: LastfmClient, name: str, semaphore: asyncio.Semaphore
+) -> list[LastfmSimilarArtistData] | None:
+    """None means a transient failure that should not stamp the freshness
+    timestamp; an artist unknown to Last.fm is a durable empty result."""
+    async with semaphore:
+        try:
+            return await lastfm.get_similar_artists(name, limit=SIMILAR_FETCH_LIMIT)
+        except LastfmArtistNotFoundError:
+            return []
+        except LastfmApiError, httpx.HTTPError:
+            return None
+
+
+async def _blocked_name_keys(lastfm: LastfmClient, username: str) -> set[str]:
+    """The user's overall-period top artists above the playcount floor, as an
+    in-memory blocklist: catches artists known well but not played lately."""
+    top_artists = await lastfm.get_top_artists(
+        username, period="overall", limit=OVERALL_TOP_ARTISTS_LIMIT
+    )
+    return {
+        name_key(artist.name)
+        for artist in top_artists
+        if artist.playcount is not None and artist.playcount >= KNOWN_PLAYCOUNT_FLOOR
+    }
+
+
+async def _canonical_ids_by_key(
+    session: AsyncSession, name_keys: list[str]
+) -> dict[str, uuid.UUID]:
+    if not name_keys:
+        return {}
+    result = await session.execute(
+        select(LastfmArtist.name_key, LastfmArtist.artist_id).where(
+            LastfmArtist.name_key.in_(name_keys)
+        )
+    )
+    return {key: artist_id for key, artist_id in result.all()}
+
+
+async def _graced_artist_ids(
+    session: AsyncSession, user: User, incumbent_ids: set[uuid.UUID]
+) -> set[uuid.UUID]:
+    """Incumbents with an upcoming show near any of the user's playlist
+    target cities - the same servable predicate the match join runs on.
+    Grace retains, never admits: it only ever excuses known-ness."""
+    if not incumbent_ids:
+        return set()
+    result = await session.execute(
+        select(Playlist.city_id).where(Playlist.user_id == user.id, Playlist.city_id.is_not(None))
+    )
+    city_ids = set(result.scalars())
+    if user.city_id is not None:
+        city_ids.add(user.city_id)
+    if not city_ids:
+        return set()
+    result = await session.execute(select(City).where(City.geonameid.in_(city_ids)))
+    cities = list(result.scalars())
+
+    nearby = or_(
+        *(distance_km(city.latitude, city.longitude) <= EVENT_MATCH_RADIUS_KM for city in cities)
+    )
+    result = await session.execute(
+        select(EventArtist.artist_id)
+        .join(Event, Event.id == EventArtist.event_id)
+        .where(EventArtist.artist_id.in_(incumbent_ids), Event.starts_at > func.now(), nearby)
+        .distinct()
+    )
+    return set(result.scalars())
+
+
+async def _reconcile_interests(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    kept: list[Candidate],
+    incumbents: dict[uuid.UUID, UserArtistInterest],
+) -> int:
+    """Write the selected suggestions as similar_artist interest rows:
+    survivors updated in place (created_at preserved as "first suggested"),
+    the rest deleted. Returns how many rows are new."""
+    signals = [
+        ArtistSignal(name=candidate.name, url=None, mbid=candidate.mbid, evidence={})
+        for candidate in kept
+    ]
+    artist_ids = await upsert_lastfm_artists(session, signals)
+
+    created = 0
+    stale = dict(incumbents)
+    for candidate in kept:
+        artist_id = artist_ids[candidate.name_key]
+        evidence = _evidence(candidate)
+        interest = stale.pop(artist_id, None)
+        if interest is None:
+            session.add(
+                UserArtistInterest(
+                    user_id=user_id,
+                    artist_id=artist_id,
+                    kind=SIMILAR_ARTIST_KIND,
+                    source=Source.INTERNAL,
+                    evidence=evidence,
+                    weight=candidate.score,
+                )
+            )
+            created += 1
+        elif (interest.evidence, interest.weight) != (evidence, candidate.score):
+            interest.evidence = evidence
+            interest.weight = candidate.score
+    for interest in stale.values():
+        await session.delete(interest)
+    return created
+
+
+def _evidence(candidate: Candidate) -> dict:
+    return {
+        "score": round(candidate.score, 4),
+        "paths": [
+            {
+                "seed_artist_id": str(path.seed_artist_id),
+                "seed_name": path.seed_name,
+                "match": path.match,
+            }
+            for path in candidate.paths[:EVIDENCE_PATH_COUNT]
+        ],
+    }

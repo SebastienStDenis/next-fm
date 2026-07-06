@@ -2,16 +2,18 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, UniqueConstraint, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, UniqueConstraint, false, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Source(enum.StrEnum):
-    """External systems we ingest data from."""
+    """Where an interest row comes from: an external system we ingest data
+    from, or our own suggestion engine."""
 
     LASTFM = "lastfm"
     BANDSINTOWN = "bandsintown"
+    INTERNAL = "internal"
 
 
 class Base(DeclarativeBase):
@@ -55,6 +57,7 @@ class User(Base):
     city_id: Mapped[int | None] = mapped_column(
         ForeignKey("cities.geonameid", ondelete="SET NULL"), index=True
     )
+    include_known_artists: Mapped[bool] = mapped_column(default=False, server_default=false())
 
 
 class LastfmAccount(Base):
@@ -129,6 +132,31 @@ class LastfmArtist(Base):
     playcount: Mapped[int | None] = mapped_column(BigInteger)
     tags: Mapped[list | None] = mapped_column(JSONB)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    similar_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class LastfmSimilarArtist(Base):
+    """Cached artist.getSimilar edges from a seed artist, global and shared
+    across users. Targets are named by name_key, not FK: only candidates that
+    become suggestions get canonical artist rows."""
+
+    __tablename__ = "lastfm_similar_artists"
+    __table_args__ = (UniqueConstraint("artist_id", "name_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str]
+    name_key: Mapped[str] = mapped_column(index=True)
+    mbid: Mapped[str | None]
+    match: Mapped[float]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -216,10 +244,28 @@ class UserArtistInterest(Base):
     kind: Mapped[str]
     source: Mapped[str]
     evidence: Mapped[dict] = mapped_column(JSONB)
+    weight: Mapped[float | None]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class UserArtistExclusion(Base):
+    """User policy: never suggest, never seed, never match this artist.
+    Durable, owned by no sync, never pruned."""
+
+    __tablename__ = "user_artist_exclusions"
+    __table_args__ = (UniqueConstraint("user_id", "artist_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SpotifyArtist(Base):

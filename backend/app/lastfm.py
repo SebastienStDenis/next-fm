@@ -63,6 +63,12 @@ class LastfmArtistTopTrack(BaseModel):
     playcount: int | None
 
 
+class LastfmSimilarArtistData(BaseModel):
+    name: str
+    mbid: str | None
+    match: float
+
+
 class LastfmClient:
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
@@ -118,6 +124,26 @@ class LastfmClient:
             # Error 6 means "not found" for whatever entity the method takes.
             raise LastfmArtistNotFoundError(artist) from None
         return [_parse_artist_top_track(track) for track in _as_list(payload["toptracks"], "track")]
+
+    async def get_similar_artists(
+        self, artist: str, limit: int = 100
+    ) -> list[LastfmSimilarArtistData]:
+        """Artists similar to the given one, with Last.fm's 0-1 match score."""
+        try:
+            payload = await self._get(
+                {
+                    "method": "artist.getsimilar",
+                    "artist": artist,
+                    "autocorrect": 1,
+                    "limit": limit,
+                }
+            )
+        except LastfmUserNotFoundError:
+            # Error 6 means "not found" for whatever entity the method takes.
+            raise LastfmArtistNotFoundError(artist) from None
+        return [
+            _parse_similar_artist(entry) for entry in _as_list(payload["similarartists"], "artist")
+        ]
 
     async def _get(self, params: dict) -> dict:
         params = {**params, "api_key": self._api_key, "format": "json"}
@@ -180,6 +206,14 @@ def _parse_artist_top_track(track: dict) -> LastfmArtistTopTrack:
         title=track["name"],
         rank=_int_or_none(track.get("@attr", {}).get("rank")),
         playcount=_int_or_none(track.get("playcount")),
+    )
+
+
+def _parse_similar_artist(artist: dict) -> LastfmSimilarArtistData:
+    return LastfmSimilarArtistData(
+        name=artist["name"],
+        mbid=_text_or_none(artist.get("mbid")),
+        match=float(artist.get("match") or 0.0),
     )
 
 

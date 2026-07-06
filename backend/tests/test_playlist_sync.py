@@ -10,6 +10,7 @@ from app.lastfm import (
     LastfmArtistTopTrack,
     LastfmClient,
 )
+from app.matching import ArtistMatch
 from app.models import (
     Artist,
     ArtistTopTrack,
@@ -27,7 +28,6 @@ from app.playlist_sync import (
     PLAYLIST_MAX_TRACKS,
     TOP_TRACKS_FETCH_LIMIT,
     TOP_TRACKS_PER_ARTIST,
-    ArtistMatch,
     _refresh_top_tracks,
     _resolve_artist,
     _sync_playlist,
@@ -81,7 +81,7 @@ def test_desired_tracks_caps_tracks_per_artist() -> None:
 
     desired = desired_tracks([make_match(artist_id)], {artist_id: tracks})
 
-    assert [track.spotify_track_id for track in desired] == ["t1", "t2", "t3", "t4", "t5"]
+    assert [track.spotify_track_id for track in desired] == ["t1", "t2", "t3"]
     assert len(desired) == TOP_TRACKS_PER_ARTIST
 
 
@@ -103,17 +103,17 @@ def test_desired_tracks_dedupes_uris_keeping_soonest_artist() -> None:
 def test_desired_tracks_truncates_to_playlist_cap() -> None:
     matches = []
     top_tracks = {}
-    for artist in range(21):
+    for artist in range(35):
         artist_id = uuid.uuid7()
         matches.append(make_match(artist_id, days=artist))
         top_tracks[artist_id] = [
-            cached_track(artist_id, f"a{artist}-t{rank}", rank) for rank in range(1, 6)
+            cached_track(artist_id, f"a{artist}-t{rank}", rank) for rank in range(1, 4)
         ]
 
     desired = desired_tracks(matches, top_tracks)
 
     assert len(desired) == PLAYLIST_MAX_TRACKS
-    assert desired[-1].spotify_track_id == "a19-t5"
+    assert desired[-1].spotify_track_id == "a33-t1"
 
 
 def test_desired_tracks_skips_artists_without_cached_tracks() -> None:
@@ -134,12 +134,17 @@ def test_playlist_title_with_and_without_city() -> None:
     assert playlist_title("Alice", None) == "Alice's shows"
 
 
-def test_playlist_description_formats_month_and_year() -> None:
+def test_playlist_description_chooses_copy_by_setting() -> None:
     now = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
 
-    description = playlist_description("Montréal", now)
-
-    assert description == "Artists you love playing near Montréal. Updated July 2026."
+    assert (
+        playlist_description("Montréal", now, include_known_artists=False)
+        == "New artists you might like playing near Montréal. Updated July 2026."
+    )
+    assert (
+        playlist_description("Montréal", now, include_known_artists=True)
+        == "Artists you love playing near Montréal. Updated July 2026."
+    )
 
 
 def make_spotify_row(
@@ -417,7 +422,7 @@ def make_playlist(spotify_playlist_id: str | None = "pl-1") -> Playlist:
         user_id=uuid.uuid7(),
         kind="city_shows",
         name=playlist_title("Alice", "Montréal"),
-        description=playlist_description("Montréal", SYNC_NOW),
+        description=playlist_description("Montréal", SYNC_NOW, include_known_artists=False),
         spotify_playlist_id=spotify_playlist_id,
         snapshot_id="snap-0",
     )
@@ -440,7 +445,7 @@ async def run_sync_playlist(
         session,
         spotify,
         playlist,
-        User(id=playlist.user_id, name="Alice"),
+        User(id=playlist.user_id, name="Alice", include_known_artists=False),
         City(geonameid=6077243, name="Montréal"),
         matches,
         SYNC_NOW,
@@ -516,7 +521,8 @@ async def test_sync_playlist_skips_replace_for_fresh_empty_playlist() -> None:
     item = await run_sync_playlist(session, spotify, playlist, [])
 
     spotify.create_playlist.assert_awaited_once_with(
-        playlist_title("Alice", "Montréal"), playlist_description("Montréal", SYNC_NOW)
+        playlist_title("Alice", "Montréal"),
+        playlist_description("Montréal", SYNC_NOW, include_known_artists=False),
     )
     spotify.replace_playlist_items.assert_not_awaited()
     session.commit.assert_awaited_once()  # the remote id is persisted right after creation

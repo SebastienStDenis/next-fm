@@ -23,7 +23,7 @@ from app.lastfm import (
     LastfmUserInfo,
     LastfmUserNotFoundError,
 )
-from app.matching import EVENT_MATCH_RADIUS_KM, distance_km
+from app.matching import EVENT_MATCH_RADIUS_KM, artist_qualifies, distance_km
 from app.models import (
     Artist,
     ArtistTopTrack,
@@ -59,12 +59,15 @@ from app.schemas import (
     PlaylistRead,
     PlaylistSyncResult,
     PlaylistTrackRead,
+    SuggestionSyncResult,
     UserArtistRead,
     UserCreate,
     UserEventRead,
     UserRead,
+    UserUpdate,
 )
 from app.spotify import SpotifyApiError, SpotifyAuthError, SpotifyClient
+from app.suggestion_sync import sync_user_suggestions
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -204,6 +207,16 @@ async def create_user(payload: UserCreate, session: SessionDep) -> User:
 async def get_user(user_id: uuid.UUID, session: SessionDep) -> User:
     """Fetch a single user."""
     return await _require_user(session, user_id)
+
+
+@app.patch("/users/{user_id}", response_model=UserRead)
+async def update_user(user_id: uuid.UUID, payload: UserUpdate, session: SessionDep) -> User:
+    """Update the user's settings."""
+    user = await _require_user(session, user_id)
+    if payload.include_known_artists is not None:
+        user.include_known_artists = payload.include_known_artists
+    await session.commit()
+    return user
 
 
 @app.delete("/users/{user_id}", status_code=204)
@@ -417,6 +430,24 @@ async def list_artists(session: SessionDep) -> list[Artist]:
     return list(result.scalars())
 
 
+@app.post("/users/{user_id}/suggestions/sync", response_model=SuggestionSyncResult)
+async def sync_suggestions_for_user(
+    user_id: uuid.UUID,
+    session: SessionDep,
+    lastfm: LastfmClientDep,
+) -> SuggestionSyncResult:
+    """Recompute the user's suggested artists from their taste (similar-artist
+    edges, scoring, thresholds) and reconcile their suggestion interests."""
+    user = await _require_user(session, user_id)
+    account = await _linked_lastfm_account(session, user_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="No Last.fm account linked")
+
+    result = await sync_user_suggestions(session, lastfm, user, account.username)
+    await session.commit()
+    return result
+
+
 @app.post("/users/{user_id}/events/sync", response_model=EventSyncResult)
 async def sync_events_for_user(
     user_id: uuid.UUID,
@@ -436,9 +467,11 @@ async def list_user_events(
     session: SessionDep,
     radius_km: Annotated[float, Query(gt=0, le=500)] = EVENT_MATCH_RADIUS_KM,
     geonameid: int | None = None,
+    include_known_artists: bool | None = None,
 ) -> list[UserEventRead]:
-    """List upcoming events by artists the user has an interest in, near the
-    given city (defaulting to the user's own)."""
+    """List upcoming events by the user's servable artists near the given
+    city (defaulting to the user's own). include_known_artists overrides the
+    user's setting, letting the UI show everything."""
     user = await _require_user(session, user_id)
     if geonameid is not None:
         city = await session.get(City, geonameid)
@@ -449,20 +482,20 @@ async def list_user_events(
         if city is None:
             raise HTTPException(status_code=409, detail="Set a city to match events")
 
+    if include_known_artists is None:
+        include_known_artists = user.include_known_artists
     distance = distance_km(city.latitude, city.longitude).label("distance_km")
     result = await session.execute(
         select(Event, Artist, BandsintownEvent.url, distance)
         .join(EventArtist, EventArtist.event_id == Event.id)
         .join(Artist, Artist.id == EventArtist.artist_id)
-        .join(UserArtistInterest, UserArtistInterest.artist_id == Artist.id)
         .outerjoin(BandsintownEvent, BandsintownEvent.event_id == Event.id)
         .where(
-            UserArtistInterest.user_id == user_id,
+            artist_qualifies(user_id, EventArtist.artist_id, include_known_artists),
             Event.starts_at > func.now(),
             distance <= radius_km,
         )
         .order_by(Event.starts_at, Event.id)
-        .distinct()
     )
     grouped: dict[uuid.UUID, UserEventRead] = {}
     for event, artist, url, km in result.all():

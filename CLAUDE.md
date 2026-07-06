@@ -67,9 +67,10 @@ Small layered FastAPI app; keep the separation when adding features:
 - `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/playlist-plan.md`.
 - `musicbrainz.py` - async MusicBrainz client (MBID -> Spotify artist link), throttled to 1 req/s.
 - `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/artist-ingestion-plan.md`).
+- `suggestion_sync.py` - recomputes each user's suggested artists from Last.fm similar-artist edges: seed affinity, scoring, selection with hysteresis, known-artist floors, show-tied grace (see `docs/artist-suggestions-plan.md`).
 - `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/event-ingestion-plan.md`).
 - `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/playlist-plan.md`).
-- `matching.py` - the artist/event match join pieces shared by events and playlists (haversine distance, radius).
+- `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the match join, haversine distance.
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
 - `seed.py` - idempotent seed script (`python -m app.seed`).

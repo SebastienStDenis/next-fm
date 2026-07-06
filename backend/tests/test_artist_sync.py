@@ -51,6 +51,7 @@ def test_top_artist_signals_builds_rank_evidence() -> None:
     assert signals[0].name == "Autechre"
     assert signals[0].url == "https://www.last.fm/music/Autechre"
     assert signals[0].evidence == {"rank": 1, "playcount": 321, "period": "12month"}
+    assert signals[0].weight == 321.0
 
 
 def test_top_artist_signals_keeps_missing_fields_as_none() -> None:
@@ -59,6 +60,7 @@ def test_top_artist_signals_keeps_missing_fields_as_none() -> None:
     )
 
     assert signals[0].evidence == {"rank": None, "playcount": None, "period": "12month"}
+    assert signals[0].weight is None
 
 
 def test_top_artist_signals_dedupes_case_insensitively() -> None:
@@ -83,7 +85,9 @@ def test_loved_track_signals_counts_tracks_per_artist() -> None:
     by_name = {signal.name: signal for signal in signals}
     assert set(by_name) == {"Aphex Twin", "Boards of Canada"}
     assert by_name["Aphex Twin"].evidence == {"track_count": 2}
+    assert by_name["Aphex Twin"].weight == 2.0
     assert by_name["Boards of Canada"].evidence == {"track_count": 1}
+    assert by_name["Boards of Canada"].weight == 1.0
 
 
 def test_signal_builders_handle_empty_input() -> None:
@@ -139,6 +143,7 @@ async def test_sync_creates_artists_and_interests() -> None:
         {"rank": 2, "playcount": 210, "period": "12month"},
         {"track_count": 1},
     ]
+    assert [interest.weight for interest in interests] == [321.0, 210.0, 1.0]
     assert all(interest.user_id == USER_ID for interest in interests)
     assert all(interest.source == "lastfm" for interest in interests)
     session.commit.assert_awaited_once()
@@ -186,6 +191,7 @@ async def test_resync_updates_and_prunes_interests() -> None:
         "interests_removed": 1,
     }
     assert kept.evidence == {"rank": 1, "playcount": 321, "period": "12month"}
+    assert kept.weight == 321.0
     session.delete.assert_awaited_once_with(gone)
     session.add.assert_not_called()
     session.commit.assert_awaited_once()

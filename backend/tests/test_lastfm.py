@@ -12,6 +12,7 @@ from app.lastfm import (
     LastfmClient,
     LastfmLovedTrack,
     LastfmPrivateDataError,
+    LastfmSimilarArtistData,
     LastfmUserInfo,
     LastfmUserNotFoundError,
     _as_list,
@@ -360,6 +361,36 @@ async def test_get_artist_top_tracks_raises_on_unknown_artist(
 
     with pytest.raises(LastfmArtistNotFoundError):
         await LastfmClient("key").get_artist_top_tracks("nope")
+
+
+async def test_get_similar_artists_parses_match_scores(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_lastfm_api(
+        monkeypatch,
+        {
+            "similarartists": {
+                "artist": [
+                    {"name": "Boards of Canada", "mbid": "mbid-boc", "match": "1"},
+                    {"name": "Plaid", "mbid": "", "match": "0.72"},
+                ]
+            }
+        },
+    )
+
+    similar = await LastfmClient("key").get_similar_artists("Autechre")
+
+    assert similar == [
+        LastfmSimilarArtistData(name="Boards of Canada", mbid="mbid-boc", match=1.0),
+        LastfmSimilarArtistData(name="Plaid", mbid=None, match=0.72),
+    ]
+
+
+async def test_get_similar_artists_raises_on_unknown_artist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_lastfm_api(monkeypatch, {"error": 6, "message": "The artist could not be found"})
+
+    with pytest.raises(LastfmArtistNotFoundError):
+        await LastfmClient("key").get_similar_artists("nope")
 
 
 async def test_refresh_when_not_linked() -> None:
