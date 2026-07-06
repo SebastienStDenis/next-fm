@@ -169,6 +169,16 @@ Design notes:
   `event_id` answer "why is this song here" for the UI, and the rows are the diff base
   for sync. When a track is justified by several shows, the row carries the soonest;
   every sync rewrites provenance along with the tracklist, so it never goes stale.
+- **Playlists are one layer, not two, unlike artists and events.** The two-layer
+  pattern exists for ingested entities, where the same real-world thing arrives from
+  several sources and duplicates must eventually merge. Playlists are the opposite: we
+  own them and project them outward to a provider, so there is no cross-source identity
+  problem to prepare for. If a second streaming target ever lands, the split happens
+  then, mechanically: `playlists` keeps the intent (user, kind, name) and a per-provider
+  table (`spotify_playlists`, ...) takes the external id, snapshot, and written-track
+  rows. The stored tracklist stays provider-level in that world by nature - it is the
+  record of what we last wrote to *that provider*, in that provider's track ids - while
+  the canonical tracklist remains the desired-state query, never a stored row.
 - **No canonical tracks table.** Tracks exist only to fill Spotify playlists; a
   two-layer registry like artists/events would be pattern-matching without a payoff.
   If an Apple Music target ever lands, revisit.
