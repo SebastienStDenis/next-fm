@@ -1,6 +1,11 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import {
+  useActionState,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 
 import { createCityPlaylist, deletePlaylist, syncPlaylists } from "./actions";
 import type { City } from "./city-panel";
@@ -44,6 +49,19 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
 });
+
+const emptySubscribe = () => () => {};
+
+function SyncedAtLabel({ iso }: { iso: string }) {
+  // Formats in the viewer's timezone, which the server can't know - render
+  // only after hydration so server and client HTML always match.
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  return hydrated && ` · synced ${syncedAtFormat.format(new Date(iso))}`;
+}
 
 export function PlaylistsPanel({
   userId,
@@ -154,8 +172,9 @@ function PlaylistCard({
         ) : (
           "Not on Spotify yet - sync to create it."
         )}
-        {playlist.last_synced_at &&
-          ` · synced ${syncedAtFormat.format(new Date(playlist.last_synced_at))}`}
+        {playlist.last_synced_at && (
+          <SyncedAtLabel iso={playlist.last_synced_at} />
+        )}
       </p>
       {playlist.tracks.length > 0 && (
         <details className="mt-2">
