@@ -11,6 +11,7 @@ import { DeleteUserButton } from "./delete-user-button";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
+import { Tabs } from "./tabs";
 
 type User = {
   id: string;
@@ -81,30 +82,45 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         <CityPanel userId={user.id} city={city} />
       </section>
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-medium">Artists</h2>
-        <ArtistsPanel
-          userId={user.id}
-          lastfmLinked={lastfm !== null}
-          userArtists={userArtists}
-          allArtists={allArtists}
-        />
-      </section>
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-medium">Concerts</h2>
-        <EventsPanel
-          userId={user.id}
-          hasCity={city !== null}
-          hasArtists={userArtists.length > 0}
-          events={events}
-        />
-      </section>
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-medium">Playlists</h2>
-        <PlaylistsPanel
-          userId={user.id}
-          hasCity={city !== null}
-          hasArtists={userArtists.length > 0}
-          playlists={playlists}
+        <Tabs
+          tabs={[
+            {
+              key: "artists",
+              label: `Artists (${userArtists.length})`,
+              content: (
+                <ArtistsPanel
+                  userId={user.id}
+                  lastfmLinked={lastfm !== null}
+                  userArtists={userArtists}
+                  allArtists={allArtists}
+                />
+              ),
+            },
+            {
+              key: "concerts",
+              label: `Concerts (${events.length})`,
+              content: (
+                <EventsPanel
+                  userId={user.id}
+                  hasCity={city !== null}
+                  hasArtists={userArtists.length > 0}
+                  events={events}
+                />
+              ),
+            },
+            {
+              key: "playlists",
+              label: `Playlists (${playlists.length})`,
+              content: (
+                <PlaylistsPanel
+                  userId={user.id}
+                  hasCity={city !== null}
+                  hasArtists={userArtists.length > 0}
+                  playlists={playlists}
+                />
+              ),
+            },
+          ]}
         />
       </section>
       <section className="mt-8">
