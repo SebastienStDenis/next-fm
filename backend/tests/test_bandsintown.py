@@ -86,10 +86,13 @@ def test_encode_artist_name_double_encodes_reserved_characters() -> None:
 
 
 def stub_bandsintown_api(
-    monkeypatch: pytest.MonkeyPatch, status_code: int, payload: object
+    monkeypatch: pytest.MonkeyPatch, status_code: int, payload: object, text: str | None = None
 ) -> None:
     async def get(self: httpx.AsyncClient, url: str, params: dict | None = None) -> httpx.Response:
-        return httpx.Response(status_code, json=payload, request=httpx.Request("GET", url))
+        request = httpx.Request("GET", url)
+        if text is not None:
+            return httpx.Response(status_code, text=text, request=request)
+        return httpx.Response(status_code, json=payload, request=request)
 
     monkeypatch.setattr(httpx.AsyncClient, "get", get)
 
@@ -117,3 +120,21 @@ async def test_get_artist_events_raises_on_api_error(monkeypatch: pytest.MonkeyP
 
     with pytest.raises(BandsintownApiError):
         await BandsintownClient("bad").get_artist_events("Metallica")
+
+
+async def test_get_artist_events_treats_invalid_name_as_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_bandsintown_api(monkeypatch, 401, None, text="\n\n{message=invalid parameter}\n")
+
+    with pytest.raises(BandsintownArtistNotFoundError):
+        await BandsintownClient("app-id").get_artist_events("ニュー・ファウンド・グローリー")
+
+
+async def test_get_artist_events_raises_on_unparseable_error_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_bandsintown_api(monkeypatch, 500, None, text="<html>Server Error</html>")
+
+    with pytest.raises(BandsintownApiError):
+        await BandsintownClient("app-id").get_artist_events("Metallica")

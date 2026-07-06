@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from urllib.parse import quote
 
@@ -47,10 +48,21 @@ class BandsintownClient:
             f"/artists/{_encode_artist_name(name)}/events",
             params={"app_id": self._app_id, "date": "upcoming"},
         )
-        payload = response.json()
+        try:
+            payload = response.json()
+        except json.JSONDecodeError:
+            # Error bodies are not always JSON, e.g. "{message=invalid parameter}".
+            payload = {"message": response.text.strip()}
         if isinstance(payload, dict):
-            message = payload.get("errorMessage") or payload.get("message")
-            if response.status_code == 404 or (message and "[NotFound]" in message):
+            message = payload.get("errorMessage") or payload.get("message") or ""
+            if (
+                response.status_code == 404
+                or "[NotFound]" in message
+                # Bandsintown 401s some artist names (e.g. non-latin scripts) as
+                # "invalid parameter"; treat that as a per-artist lookup failure
+                # rather than failing the whole sync.
+                or "invalid parameter" in message
+            ):
                 raise BandsintownArtistNotFoundError(name)
             raise BandsintownApiError(response.status_code, message)
         response.raise_for_status()
