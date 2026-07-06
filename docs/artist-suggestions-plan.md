@@ -288,10 +288,24 @@ names so the UI renders "because you listen to Slowdive" without joins.
 
 ## Lifecycle: suggestions are derived state, recomputed and replaced
 
-Each suggestion sync recomputes the desired suggestion set from current inputs (seeds,
-edges, exclusions, known-artist set) and replaces the user's `similar_artist` rows -
-the same recompute-and-reconcile principle as playlists, one layer down. Removal
-handling therefore needs no per-cause code:
+Each suggestion sync recomputes the desired suggestion set and reconciles the user's
+`similar_artist` rows against it. The inputs are the current taste data (seeds,
+edges, exclusions, known-artist set) *plus the previous suggestion set itself*: the
+path-dependence is deliberate, because incumbency is what the exit threshold and
+show-tied grace are defined over. This is one careful step away from the playlist
+layer's reconcile - a playlist's desired tracklist is memoryless, recomputed
+identically no matter what was written before, while the suggestion set is
+recomputed *given* its predecessor. A from-scratch rewrite would silently lose
+hysteresis and grace.
+
+The write is correspondingly not a blind replace. Invariant: **every existing
+suggestion row is explicitly re-confirmed or deleted, each sync.** The retention
+loop runs over candidates ∪ incumbents; an incumbent absent from the scoring output
+(every supporting seed gone) is not "unknown", it is a zero - a loop over scored
+candidates alone would leak orphaned rows forever. Survivors are updated in place
+(evidence and weight refreshed, `created_at` preserved as "first suggested"), the
+rest deleted, in one transaction. Removal handling therefore needs no per-cause
+code:
 
 - **A seed drops out of the user's top artists**: taste sync deletes its
   `lastfm_top_artist` row; on the next suggestion sync every path through that seed is
@@ -349,8 +363,16 @@ Two mechanisms close the loop, plus a deliberate line on what "known" means:
   playlist even mid-window - with no live evidence behind it, serving it is inertia,
   not conviction. Score *noise* is hysteresis's job, not grace's. (Exclusion of the
   artist itself always wins - "ignore this artist" takes effect immediately.) Graced
-  incumbents still count against `SUGGESTION_BUDGET`, and the check is one local
-  query against events - no API cost.
+  incumbents still count against `SUGGESTION_BUDGET`. Mechanics: grace retains,
+  never admits - the graced set is computed over incumbents only, one local query
+  for an upcoming show within `EVENT_MATCH_RADIUS_KM` of any of the user's playlist
+  target cities (`users.city_id` plus pinned cities), the same servable predicate
+  the match join runs on. Deliberately *not* "any upcoming show anywhere" (touring
+  artists always have a future date somewhere, so grace would become permanent) and
+  *not* playlist membership (cap shuffles and resolution failures would feed the
+  playlist's own output back into its input and churn). Un-gracing is lazy: once
+  the show passes, is canceled, or the user moves cities, the next recompute's
+  query simply stops returning the artist - no scheduler, no stored state.
 
 Above the floor, plays count no matter who caused them: **known measures
 familiarity, not provenance**. A user who has heard an artist twenty times knows
@@ -431,8 +453,10 @@ suggested-artist events by default, which is the intended product pivot.
 The per-kind weighting the playlist plan reserved space for:
 `TOP_TRACKS_PER_ARTIST` stays 5 for known artists, `SUGGESTED_TRACKS_PER_ARTIST = 3`
 for suggested artists. A suggested artist is a cheaper bet at three tracks, and a
-suggested-only playlist fits more artists under the 100-track cap. Ordering, dedupe, provenance, and the full-replace write are
-untouched.
+suggested-only playlist fits more artists under the 100-track cap. An artist briefly
+holding both row types (the grace window, sync lag) gets the known count - known
+wins, decidable in SQL as a weight-floor check on the known-kind row. Ordering,
+dedupe, provenance, and the full-replace write are untouched.
 
 ## Volume and rate limits
 
