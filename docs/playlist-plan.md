@@ -153,8 +153,8 @@ playlist_tracks              -- what we last wrote, with provenance
   playlist_id         FK -> playlists.id (cascade, index)
   position            int
   spotify_track_id    str
-  artist_id           FK -> artists.id (cascade)   -- why this song is here
-  event_id            FK -> events.id (cascade)    -- the show that justified it
+  artist_id           FK -> artists.id | None (set null)  -- why this song is here
+  event_id            FK -> events.id | None (set null)   -- the show that justified it
   created_at / updated_at
   unique (playlist_id, spotify_track_id)
 ```
@@ -176,8 +176,19 @@ Design notes:
   this design.
 - **`playlist_tracks` is the provenance IOU from the event plan**: `artist_id` +
   `event_id` answer "why is this song here" for the UI, and the rows are the diff base
-  for sync. When a track is justified by several shows, the row carries the soonest;
+  for sync. When a track is justified by several shows - or several artists, a
+  collaboration charting for both - the row carries the soonest show and its artist;
   every sync rewrites provenance along with the tracklist, so it never goes stale.
+- **Written state stands alone: rows point at facts, never at caches, and only the
+  playlist sync may delete them.** No FK to `artist_top_tracks` - the cache is
+  volatile (whole-set replacement on re-fetch, purged on re-resolution), while the
+  record of what Spotify currently holds must survive anything the cache does. For the
+  same reason the provenance FKs are `SET NULL`, not cascade: event sync hard-deletes
+  canceled shows, and a cascade here would take the written-state row with it - then
+  the next diff, with the track absent from both the desired list and the local
+  record, would never issue the Spotify removal, orphaning the song in the playlist
+  forever. Under `SET NULL` the row survives with blank provenance exactly long enough
+  for the next sync to see current-but-not-desired and remove the track on both sides.
 - **Playlists are one layer, not two, unlike artists and events.** The two-layer
   pattern exists for ingested entities, where the same real-world thing arrives from
   several sources and duplicates must eventually merge. Playlists are the opposite: we
