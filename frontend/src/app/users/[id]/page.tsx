@@ -10,6 +10,7 @@ import { CityPanel, type City } from "./city-panel";
 import { DeleteUserButton } from "./delete-user-button";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
+import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 
 type User = {
   id: string;
@@ -49,7 +50,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
   }
   const user: User = await userRes.json();
 
-  const [lastfm, city, userArtists, allArtists] = await Promise.all([
+  const [lastfm, city, userArtists, allArtists, playlists] = await Promise.all([
     fetchOptional<LastfmAccount>(
       `${apiUrl}/users/${id}/lastfm`,
       "Last.fm account",
@@ -57,6 +58,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
     fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
     fetchJson<Artist[]>(`${apiUrl}/artists`, "artists"),
+    fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
   ]);
 
   const events =
@@ -94,6 +96,15 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
           hasCity={city !== null}
           hasArtists={userArtists.length > 0}
           events={events}
+        />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">Playlists</h2>
+        <PlaylistsPanel
+          userId={user.id}
+          hasCity={city !== null}
+          hasArtists={userArtists.length > 0}
+          playlists={playlists}
         />
       </section>
       <section className="mt-8">
