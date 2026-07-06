@@ -191,6 +191,16 @@ Design notes:
 - **No canonical tracks table.** Tracks exist only to fill Spotify playlists; a
   two-layer registry like artists/events would be pattern-matching without a payoff.
   If an Apple Music target ever lands, revisit.
+- **`artist_top_tracks` parents the canonical artist, not `spotify_artists`.** The
+  ranking (`rank`, `title`) is a fact about the artist, sourced from Last.fm;
+  `spotify_track_id` is a resolution detail - the same split the provider-migration
+  note above relies on. Consumers also speak canonical: the desired-state query joins
+  interests -> events -> `artists.id` -> top tracks with no identity-row hop. The cost
+  is invalidation: the cache is only valid for the Spotify resolution its tracks were
+  verified against, so replacing an artist's `spotify_artists` row (correcting a bad
+  fuzzy match) must also purge their `artist_top_tracks` rows - a cascade would have
+  done this for free, but resolutions change rarely and the purge is one line in the
+  same code path.
 - **Cache freshness lives on `spotify_artists.top_tracks_synced_at`** (the same shape
   as `lastfm_artists.last_synced_at`): one timestamp per artist, globally shared, TTL
   around 30 days. Each re-sync replaces the artist's whole `artist_top_tracks` set.
