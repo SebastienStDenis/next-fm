@@ -92,9 +92,10 @@ canceled show's event row was already deleted by event sync, and either way the 
 it justified vanish from the computed tracklist and the diff removes them.
 
 This is the event plan's "matching is a query, not a table" principle extended one
-layer up. The desired tracklist is a query. The only thing that *must* be durable is
-the record of what we last pushed to Spotify - because Spotify is external mutable
-state we cannot cheaply re-read and diff on every sync.
+layer up. The desired tracklist is a query. The durable record of what we last wrote
+(`playlist_tracks`) exists for provenance and change reporting, not as a diff base:
+since the write is a full replace, sync never needs to know what Spotify currently
+holds.
 
 ### Desired-state computation
 
@@ -109,8 +110,8 @@ For a playlist of kind `city_shows`:
 3. Order by soonest show per artist, then track rank, so the playlist reads as "what's
    coming up next". Dedupe URIs (a track can chart for two artists via collaborations).
 4. Cap the playlist at 100 tracks, dropping lowest-rank tracks from furthest-out shows
-   first. The cap keeps the playlist listenable and every delta batch within a single
-   100-URI request.
+   first. The cap keeps the playlist listenable and the whole tracklist within a
+   single 100-URI replace request.
 
 ## Schema
 
@@ -180,20 +181,19 @@ Design notes:
   already local, and each playlist just runs the match join around different
   coordinates.
 - **`playlist_tracks` is the provenance IOU from the event plan**: `artist_id` +
-  `event_id` answer "why is this song here" for the UI, and the rows are the diff base
-  for sync. When a track is justified by several shows - or several artists, a
-  collaboration charting for both - the row carries the soonest show and its artist;
-  every sync rewrites provenance along with the tracklist, so it never goes stale.
+  `event_id` answer "why is this song here" for the UI, and the rows are what sync
+  reports its changes against. When a track is justified by several shows - or several
+  artists, a collaboration charting for both - the row carries the soonest show and its
+  artist; every sync rewrites provenance along with the tracklist, so it never goes
+  stale.
 - **Written state stands alone: rows point at facts, never at caches, and only the
   playlist sync may delete them.** No FK to `artist_top_tracks` - the cache is
   volatile (whole-set replacement on re-fetch, purged on re-resolution), while the
-  record of what Spotify currently holds must survive anything the cache does. For the
+  record of what we wrote to Spotify must survive anything the cache does. For the
   same reason the provenance FKs are `SET NULL`, not cascade: event sync hard-deletes
-  canceled shows, and a cascade here would take the written-state row with it - then
-  the next diff, with the track absent from both the desired list and the local
-  record, would never issue the Spotify removal, orphaning the song in the playlist
-  forever. Under `SET NULL` the row survives with blank provenance exactly long enough
-  for the next sync to see current-but-not-desired and remove the track on both sides.
+  canceled shows, and a cascade here would silently delete the written-state row,
+  leaving the record lying about what the last write contained. Under `SET NULL` the
+  row survives with blank provenance until the next sync rewrites it.
 - **Playlists are one layer, not two, unlike artists and events.** The two-layer
   pattern exists for ingested entities, where the same real-world thing arrives from
   several sources and duplicates must eventually merge. Playlists are the opposite: we
@@ -243,31 +243,22 @@ Design notes:
    (`POST /v1/me/playlists`, public) and store the ID and URL. Created lazily on
    first sync, even if the tracklist is currently empty - an empty playlist with the
    right name and description is a working product surface.
-4. If the desired list differs from `playlist_tracks`, write the difference:
-   removals first (`DELETE /v1/playlists/{id}/items`, batches of 100), then additions
-   at their desired positions (`POST`, batches of 100), then - only when surviving
-   tracks' relative order changed, which takes show dates shifting against each other
-   between syncs - reorder calls (`PUT` in `range_start`/`insert_before` mode), which
-   move items without re-adding them. Rewrite `playlist_tracks` to match in the same
-   transaction and store the returned `snapshot_id`. If name or description changed,
-   push those too.
+4. Write the whole desired list as one full replace (`PUT /v1/playlists/{id}/items`
+   with `uris`; the 100-track cap keeps it a single request). Rewrite
+   `playlist_tracks` to match when it changed, and store the returned `snapshot_id`.
+   If name or description changed, push those too.
 5. Touch `last_synced_at`.
 
-Deltas instead of a single full replace (`PUT` with `uris`) for a user-visible reason:
-replace removes and re-adds every track, resetting Spotify's per-item `added_at` on
-every sync. Preserved `added_at` is what makes the client's "Date added" sort a free
-"newly announced shows and newly discovered artists first" view on top of the
-canonical soonest-show order. Under deltas, surviving tracks keep their timestamps, a
-new track reads as just-added exactly because its show was just announced, and a song
-that leaves (show passed) and later returns (new show announced) correctly reads as
-newly added again.
-
-What full replace would have bought is drift-healing by brute force. In practice the
-bot is the only writer of its own non-collaborative playlists, so `playlist_tracks`
-can be trusted as the remote image for diffing; `snapshot_id` is the tripwire on that
-assumption - if Spotify's returned snapshot chain diverges from the stored one,
-re-read the playlist (`GET /v1/playlists/{id}/items`, available for the bot's own
-playlists) and heal before diffing again.
+The original design used delta writes (remove/add/reorder) to protect Spotify's
+per-item `added_at`, on the community-lore assumption that a full replace resets it.
+Phase 0 disproved that: replace preserves `added_at` for surviving tracks (see the
+findings under Phases). That collapses the trade-off - replace is atomic, needs no
+diff base, and is self-healing by construction (drift from manual edits on the
+Spotify side is overwritten on every sync, no `snapshot_id` tripwire needed). The
+`added_at` semantics the "Date added" sort relies on survive intact: surviving tracks
+keep their timestamps, a new track reads as just-added exactly because its show was
+just announced, and a song that leaves (show passed) and later returns (new show
+announced) correctly reads as newly added again.
 
 Deleting a playlist (user deleted, or a future "turn it off") means unfollowing it on
 the Spotify side (`DELETE /v1/playlists/{id}/followers` - Spotify has no true delete)
@@ -332,11 +323,20 @@ really is gone, and confirm the `added_at` behavior the delta-write design rests
 (full replace resets it, reorder preserves it) - community-confirmed, not documented.
 Everything below assumes these hold.
 
+Findings (verified July 2026, `python -m app.spotify_verify`): search, create,
+replace, details update, and item reads all work as designed; `top-tracks` and
+batch `/artists?ids=` return 403; `popularity`/`followers` are stripped; search
+`limit` caps at 10. One shape change vs. the classic API: the items payload nests
+the track under `item` (not `track`). One assumption did not survive: full replace
+(`PUT` with `uris`) now *preserves* `added_at` for surviving tracks - including
+across reorders and removals, and `{"uris": []}` cleanly empties a playlist - so
+the sync writes a single full replace instead of the delta calls this plan
+originally specified (see Sync semantics).
+
 **Phase 1 - schema + client.** One migration for the four tables. `SpotifyClient` with
-`search_artist`, `search_track`, `create_playlist`, `add_playlist_items`,
-`remove_playlist_items`, `reorder_playlist_items`, `update_playlist_details`, plus the
-token-refresh plumbing and the `spotify_auth` CLI
-helper. Extend `LastfmClient` with `get_artist_top_tracks`.
+`search_artists`, `search_tracks`, `create_playlist`, `replace_playlist_items`,
+`update_playlist_details`, `unfollow_playlist`, plus the token-refresh plumbing and
+the `spotify_auth` CLI helper. Extend `LastfmClient` with `get_artist_top_tracks`.
 
 **Phase 2 - artist resolution + track cache.** Resolve matched artists to
 `spotify_artists` (MBID path, then search path), ingest `artist_top_tracks` with the

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -117,3 +118,46 @@ class ArtistSyncKindResult(BaseModel):
 class ArtistSyncResult(BaseModel):
     synced_at: datetime
     results: list[ArtistSyncKindResult]
+
+
+class PlaylistTrackRead(BaseModel):
+    position: int
+    spotify_track_id: str
+    title: str | None
+    artist: ArtistRead | None
+    event: EventRead | None
+
+
+class PlaylistRead(BaseModel):
+    id: uuid.UUID
+    kind: str
+    name: str
+    description: str | None
+    city: CityRead | None
+    spotify_playlist_id: str | None
+    spotify_url: str | None
+    last_synced_at: datetime | None
+    tracks: list[PlaylistTrackRead]
+
+
+class PlaylistCreate(BaseModel):
+    geonameid: int
+
+
+class PlaylistSyncItem(BaseModel):
+    playlist_id: uuid.UUID
+    name: str
+    status: Literal["synced", "no_city"]
+    created_remotely: bool = False
+    tracks_added: int = 0
+    tracks_removed: int = 0
+    tracks_total: int = 0
+
+
+class PlaylistSyncResult(BaseModel):
+    synced_at: datetime
+    artists_matched: int
+    artists_resolved: int
+    artists_unresolved: int
+    top_tracks_refreshed: int
+    playlists: list[PlaylistSyncItem]

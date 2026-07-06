@@ -166,6 +166,75 @@ export async function syncEvents(
   return { error: null, summary };
 }
 
+type SyncPlaylistsResponse = {
+  artists_matched: number;
+  artists_resolved: number;
+  artists_unresolved: number;
+  top_tracks_refreshed: number;
+  playlists: {
+    status: string;
+    created_remotely: boolean;
+    tracks_added: number;
+    tracks_removed: number;
+    tracks_total: number;
+  }[];
+};
+
+export async function syncPlaylists(
+  userId: string,
+): Promise<SyncArtistsActionState> {
+  const res = await fetch(`${apiUrl}/users/${userId}/playlists/sync`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    return {
+      error: await errorMessage(res, "Failed to sync playlists."),
+      summary: null,
+    };
+  }
+
+  const body: SyncPlaylistsResponse = await res.json();
+  const synced = body.playlists.filter((p) => p.status === "synced");
+  const added = synced.reduce((sum, p) => sum + p.tracks_added, 0);
+  const removed = synced.reduce((sum, p) => sum + p.tracks_removed, 0);
+  const unresolved =
+    body.artists_unresolved > 0
+      ? `, ${body.artists_unresolved} not found on Spotify`
+      : "";
+  const summary = `Synced ${synced.length} ${synced.length === 1 ? "playlist" : "playlists"} · ${added} tracks added, ${removed} removed · ${body.artists_matched} artists with shows nearby${unresolved}`;
+
+  revalidatePath(`/users/${userId}`);
+  return { error: null, summary };
+}
+
+export async function createCityPlaylist(
+  userId: string,
+  geonameid: number,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/playlists`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geonameid }),
+    },
+    "Failed to create playlist.",
+    `/users/${userId}`,
+  );
+}
+
+export async function deletePlaylist(
+  userId: string,
+  playlistId: string,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/playlists/${playlistId}`,
+    { method: "DELETE" },
+    "Failed to delete playlist.",
+    `/users/${userId}`,
+  );
+}
+
 export async function deleteUser(userId: string): Promise<ActionState> {
   const result = await callApi(
     `/users/${userId}`,

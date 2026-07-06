@@ -7,12 +7,15 @@ import pytest
 
 from app.lastfm import (
     LastfmApiError,
+    LastfmArtistNotFoundError,
+    LastfmArtistTopTrack,
     LastfmClient,
     LastfmLovedTrack,
     LastfmPrivateDataError,
     LastfmUserInfo,
     LastfmUserNotFoundError,
     _as_list,
+    _parse_artist_top_track,
     _parse_loved_track,
     _parse_top_artist,
     _parse_user_info,
@@ -245,6 +248,24 @@ def test_parse_loved_track_treats_placeholders_as_none() -> None:
     assert track.artist_mbid is None
 
 
+def test_parse_artist_top_track() -> None:
+    track = _parse_artist_top_track(
+        {"name": "Windowlicker", "playcount": "999", "@attr": {"rank": "2"}}
+    )
+
+    assert track.title == "Windowlicker"
+    assert track.rank == 2
+    assert track.playcount == 999
+
+
+def test_parse_artist_top_track_treats_placeholders_as_none() -> None:
+    track = _parse_artist_top_track({"name": "Untitled", "playcount": ""})
+
+    assert track.title == "Untitled"
+    assert track.rank is None
+    assert track.playcount is None
+
+
 def test_as_list_wraps_single_object() -> None:
     assert _as_list({"artist": {"name": "Solo"}}, "artist") == [{"name": "Solo"}]
 
@@ -309,6 +330,36 @@ async def test_get_loved_tracks_defaults_to_one_page(monkeypatch: pytest.MonkeyP
 
     assert page.total_pages == 1
     assert page.tracks == []
+
+
+async def test_get_artist_top_tracks_parses_ranked_tracks(monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_lastfm_api(
+        monkeypatch,
+        {
+            "toptracks": {
+                "track": [
+                    {"name": "Windowlicker", "playcount": "999", "@attr": {"rank": "1"}},
+                    {"name": "Avril 14th", "playcount": "888", "@attr": {"rank": "2"}},
+                ]
+            }
+        },
+    )
+
+    tracks = await LastfmClient("key").get_artist_top_tracks("Aphex Twin")
+
+    assert tracks == [
+        LastfmArtistTopTrack(title="Windowlicker", rank=1, playcount=999),
+        LastfmArtistTopTrack(title="Avril 14th", rank=2, playcount=888),
+    ]
+
+
+async def test_get_artist_top_tracks_raises_on_unknown_artist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub_lastfm_api(monkeypatch, {"error": 6, "message": "The artist could not be found"})
+
+    with pytest.raises(LastfmArtistNotFoundError):
+        await LastfmClient("key").get_artist_top_tracks("nope")
 
 
 async def test_refresh_when_not_linked() -> None:
