@@ -14,9 +14,10 @@ artist itself (the same artist can be known to one user, suggested to another, a
 neither to a third, sitting in the registry only because of someone else's taste):
 
 - **Known artist**: the user has at least one interest of a *known kind* - a kind
-  asserting they demonstrably listen to the artist. `KNOWN_ARTIST_KINDS =
-  {lastfm_top_artist, lastfm_loved_tracks}`; future taste sources add their kinds
-  here.
+  asserting they demonstrably listen to the artist - clearing that kind's weight
+  floor (floors close the scrobble feedback loop; see "The playlist scrobbles
+  back"). `KNOWN_ARTIST_KINDS = {lastfm_top_artist, lastfm_loved_tracks}`; future
+  taste sources add their kinds here.
 - **Suggested artist**: the user has at least one interest of a *suggested kind* - a
   kind written by the suggestion engine - and **no known-kind interest**.
   `SUGGESTED_ARTIST_KINDS = {similar_artist}`; a future suggestion signal
@@ -125,8 +126,10 @@ score(cand)      = best path + 0.05 * min(count of other paths >= 0.2, 4)
 
 A suggested artist must not be a known artist, so candidates are dropped when:
 
-- they are already known (any `KNOWN_ARTIST_KINDS` interest), or
-- they appear in the user's *overall*-period top artists: one extra
+- they are already known (a `KNOWN_ARTIST_KINDS` interest clearing its weight floor,
+  per "The playlist scrobbles back"), or
+- they appear in the user's *overall*-period top artists with the same playcount
+  floor applied (the response carries playcounts): one extra
   `user.getTopArtists(period="overall", limit=1000)` call at suggestion-sync time,
   used purely as an in-memory blocklist, never stored. The 12-month top-200 misses
   artists the user knows well but hasn't played lately; this catches most of them for
@@ -139,7 +142,10 @@ A suggested artist must not be a known artist, so candidates are dropped when:
 A candidate becomes or stays a suggestion when:
 
 - score >= `SUGGESTION_ENTER_SCORE = 0.45` (new suggestions), or
-- score >= `SUGGESTION_EXIT_SCORE = 0.35` and it is already a suggestion (incumbents).
+- score >= `SUGGESTION_EXIT_SCORE = 0.35` and it is already a suggestion
+  (incumbents), or
+- it is an incumbent whose artist has an upcoming matched show - retained regardless
+  of score or known classification (see "The playlist scrobbles back").
 
 Rank qualifiers by score, incumbents winning ties, and keep the top
 `SUGGESTION_CAP = 50`. The enter/exit gap and the tiebreak damp churn: a candidate
@@ -173,6 +179,11 @@ lastfm_artists                 -- one new column
 users                          -- one new column
   include_known_artists  bool NOT NULL server_default false
 
+user_artist_interests          -- one new column
+  weight             float | None   (kind-specific strength: playcount for
+                                     lastfm_top_artist, track_count for
+                                     lastfm_loved_tracks, score for similar_artist)
+
 user_artist_exclusions        -- user policy: never suggest, never seed, never match
   id                 uuidv7 PK
   user_id            FK -> users.id (cascade)
@@ -183,6 +194,12 @@ user_artist_exclusions        -- user policy: never suggest, never seed, never m
 
 Design notes:
 
+- **`weight` is the column the artist plan deliberately deferred** "until the
+  scoring/playlist layer exists to consume it" - that consumer now exists: the
+  known-classification floors compare against it in SQL, keeping the "resist
+  querying into `evidence`" rule intact. Each sync writes its own kinds' weights;
+  the migration backfills existing rows from evidence
+  (`(evidence->>'playcount')::float`, `(evidence->>'track_count')::float`).
 - **Edges point at the seed canonically but name the target by `name_key`, not FK.**
   Thirty seeds' lists are up to ~3000 names per user, most of which will never clear
   the threshold; minting canonical `artists` rows for all of them would fill the
@@ -224,9 +241,9 @@ Suggestions are ordinary `user_artist_interests` rows:
 our engine's decision (aggregation, thresholds, caps, exclusions). A future suggestion
 signal (Spotify related artists, the pgvector fallback) lands as its own kind added to
 `SUGGESTED_ARTIST_KINDS`, keeping per-kind sync ownership - it changes nothing
-downstream, since everything classifies through the kind sets. Evidence carries
-denormalized seed names so the UI renders "because you listen to Slowdive" without
-joins.
+downstream, since everything classifies through the kind sets. `weight` carries the
+score, so selection and floors never parse JSONB; evidence carries denormalized seed
+names so the UI renders "because you listen to Slowdive" without joins.
 
 ## Lifecycle: suggestions are derived state, recomputed and replaced
 
@@ -241,12 +258,11 @@ handling therefore needs no per-cause code:
   its interest row. Suggestions justified by remaining seeds survive untouched.
 - **The user excludes an artist**: dropped as seed and as candidate at the next
   recompute, plus deleted immediately by the exclusion write (above).
-- **A suggested artist becomes known** (enters the user's top artists): the
-  known-artist filter now drops it, so the suggestion row is pruned - and the new
-  `lastfm_top_artist` row takes over justifying the artist. With
-  `include_known_artists = false` the artist leaves the playlist: correct by the
-  setting's own definition (you demonstrably know them now), worth remembering when
-  judging discovery quality later.
+- **A suggested artist becomes known** (clears the playcount floor, or gets a loved
+  track): the known-artist filter drops it and the known-kind row takes over
+  justifying the artist - but never while it still has an upcoming matched show.
+  Both the floor and that grace exist to keep playlist listening from evicting its
+  own suggestions; see the next section.
 
 Downstream cleanup is automatic and already built: an artist referenced by no
 interest row simply stops being event-synced (the fetch loop is interest-driven), its
@@ -259,18 +275,56 @@ seed stops being anyone's seed. They are a global cache keyed by artist, not per
 state - another user's sync may want them tomorrow, and staleness is already handled
 by the TTL.
 
+## The playlist scrobbles back: closing the feedback loop
+
+The product writes its own input: the user plays the generated playlist, the plays
+scrobble to Last.fm, and suggested artists start climbing the very lists that define
+"known". Untreated, the loop is vicious under the setting's default state - rank in
+the 12-month top 200 exists for any artist with a single scrobble, so a listener with
+fewer than 200 ranked artists mints a `lastfm_top_artist` row for every playlist
+artist after one listen-through, and the overall-top-1000 blocklist trips even
+easier. The next suggestion sync would reclassify them known, prune the suggestions,
+and the following playlist sync would strip their tracks - before the user decided
+whether they like the artist, let alone bought a ticket.
+
+Two mechanisms close the loop, protecting different windows:
+
+- **Playcount floors: presence is not knowing.** A `lastfm_top_artist` interest
+  counts toward the known classification only when its weight (playcount) clears
+  `KNOWN_PLAYCOUNT_FLOOR = 20`, and the overall-top-1000 blocklist applies the same
+  floor. A three-track playlist slot heard a few times stays far under it; genuine
+  adoption crosses it fast. The floor's real job is *re-suggestibility*: after a show
+  passes, an artist carrying a dozen playlist-caused scrobbles must still be eligible
+  for suggestion when their next tour comes through. Loved tracks get no floor -
+  loving a track is an explicit act, not scrobble residue.
+- **Show-tied grace: no mid-decision evictions.** An incumbent suggestion whose
+  artist still has an upcoming matched show is retained through recomputes regardless
+  of score or known classification; it is re-evaluated only once the show has passed.
+  (Exclusion always wins - "ignore this artist" takes effect immediately.) The
+  suggestion exists to sell that show; evicting it while the decision is live defeats
+  the product, and a user who plays a suggested artist forty times before the gig is
+  the success case, not cleanup. Retained incumbents still count against
+  `SUGGESTION_CAP`, keeping the event-fetch commitment bounded, and the check is one
+  local query against events - no API cost.
+
+The floor is a heuristic, not attribution: truly separating "plays we caused" from
+organic listening means trawling `user.getRecentTracks` against `playlist_tracks`
+history - heavy, and blocked entirely by a Last.fm privacy setting for some accounts.
+Deferred unless the floor proves too blunt in calibration.
+
 ## The "include artists I know" setting
 
 `users.include_known_artists`, boolean, default **false**: playlists contain only
 suggested artists unless the user opts known artists in.
 
 - **Semantics when false**: only suggested artists qualify for matching - which, by
-  the terminology section's definition, means a suggested-kind interest *and no
-  known-kind interest*. The second clause is what the definition earns its keep with:
-  between syncs an artist can briefly hold both a stale suggestion row and a fresh
-  `lastfm_top_artist` row, and filtering on "has a suggested-kind row" alone would
-  leak known artists into a suggested-only playlist. When true: known and suggested
-  artists both qualify. Exclusions filter regardless of the setting.
+  the terminology section's definition, means a suggested-kind interest and *not
+  known* (no known-kind interest clearing its weight floor). The second clause is
+  what the definition earns its keep with: between syncs an artist can briefly hold
+  both a stale suggestion row and a fresh known-classifying row, and filtering on
+  "has a suggested-kind row" alone would leak known artists into a suggested-only
+  playlist. When true: known and suggested artists both qualify. Exclusions filter
+  regardless of the setting.
 - **Where it applies**: in the shared match join, which moves from
   `playlist_sync._match_artists` (and its duplicate in the events endpoint) into
   `matching.py`, parameterized by the setting and the exclusion filter. Both the
@@ -337,13 +391,16 @@ inside the ~5 req/s Last.fm ceiling even syncing several users back to back.
 
 **Phase 1 - schema + client.** One migration: `lastfm_similar_artists`,
 `lastfm_artists.similar_synced_at`, `users.include_known_artists`,
-`user_artist_exclusions`. `LastfmClient.get_similar_artists(name, limit)` in the
-existing style, with not-found handled like `get_artist_top_tracks`.
+`user_artist_exclusions`, and `user_artist_interests.weight` (backfilled from
+evidence). Taste sync starts writing weights for its kinds.
+`LastfmClient.get_similar_artists(name, limit)` in the existing style, with
+not-found handled like `get_artist_top_tracks`.
 
 **Phase 2 - suggestion sync.** `app/suggestion_sync.py` (seeds, freshness-gated edge
-fetch, scoring, selection with hysteresis, interest replacement, exclusion
-enforcement), `POST /users/{id}/suggestions/sync` returning a sync-result schema in
-the established shape (seeds synced/skipped, candidates scored, suggestions
+fetch, scoring, selection with hysteresis, known-classification floors, show-tied
+retention of incumbents, interest replacement, exclusion enforcement),
+`POST /users/{id}/suggestions/sync` returning a sync-result schema in the
+established shape (seeds synced/skipped, candidates scored, suggestions
 created/kept/removed). Ends with the calibration run against a real account.
 
 **Phase 3 - the setting + match integration.** Consolidate the match join into
