@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BeforeValidator
-from sqlalchemy import ColumnElement, func, or_, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
@@ -22,16 +22,27 @@ from app.lastfm import (
     LastfmUserInfo,
     LastfmUserNotFoundError,
 )
+from app.matching import EVENT_MATCH_RADIUS_KM, distance_km
 from app.models import (
     Artist,
+    ArtistTopTrack,
     BandsintownEvent,
     City,
     Event,
     EventArtist,
     LastfmAccount,
     LastfmConnection,
+    Playlist,
+    PlaylistTrack,
     User,
     UserArtistInterest,
+)
+from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
+from app.playlist_sync import (
+    CITY_PLAYLIST_CAP,
+    CITY_SHOWS_KIND,
+    playlist_title,
+    sync_user_playlists,
 )
 from app.schemas import (
     ArtistInterestRead,
@@ -43,11 +54,16 @@ from app.schemas import (
     EventSyncResult,
     LastfmAccountRead,
     LastfmLink,
+    PlaylistCreate,
+    PlaylistRead,
+    PlaylistSyncResult,
+    PlaylistTrackRead,
     UserArtistRead,
     UserCreate,
     UserEventRead,
     UserRead,
 )
+from app.spotify import SpotifyApiError, SpotifyAuthError, SpotifyClient
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -79,6 +95,40 @@ async def get_bandsintown_client() -> AsyncIterator[BandsintownClient]:
 
 BandsintownClientDep = Annotated[BandsintownClient, Depends(get_bandsintown_client)]
 
+
+async def get_spotify_client() -> AsyncIterator[SpotifyClient]:
+    settings = get_settings()
+    missing = [
+        key.upper()
+        for key in ("spotify_client_id", "spotify_client_secret", "spotify_refresh_token")
+        if not getattr(settings, key)
+    ]
+    if missing:
+        raise HTTPException(status_code=503, detail=f"{', '.join(missing)} is not configured")
+    client = SpotifyClient(
+        settings.spotify_client_id,
+        settings.spotify_client_secret,
+        settings.spotify_refresh_token,
+    )
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+SpotifyClientDep = Annotated[SpotifyClient, Depends(get_spotify_client)]
+
+
+async def get_musicbrainz_client() -> AsyncIterator[MusicBrainzClient]:
+    client = MusicBrainzClient()
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+MusicBrainzClientDep = Annotated[MusicBrainzClient, Depends(get_musicbrainz_client)]
+
 app = FastAPI(title="live-playlists API")
 
 app.add_middleware(
@@ -108,6 +158,21 @@ async def lastfm_api_error(request: Request, exc: LastfmApiError) -> JSONRespons
 
 @app.exception_handler(BandsintownApiError)
 async def bandsintown_api_error(request: Request, exc: BandsintownApiError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(SpotifyAuthError)
+async def spotify_auth_error(request: Request, exc: SpotifyAuthError) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
+@app.exception_handler(SpotifyApiError)
+async def spotify_api_error(request: Request, exc: SpotifyApiError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(MusicBrainzApiError)
+async def musicbrainz_api_error(request: Request, exc: MusicBrainzApiError) -> JSONResponse:
     return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
@@ -351,22 +416,6 @@ async def list_artists(session: SessionDep) -> list[Artist]:
     return list(result.scalars())
 
 
-EVENT_MATCH_RADIUS_KM = 50.0
-
-
-def _distance_km(latitude: float, longitude: float) -> ColumnElement[float]:
-    """Haversine distance in km from the given point to Event's venue."""
-    lat1, lon1 = func.radians(latitude), func.radians(longitude)
-    lat2, lon2 = func.radians(Event.venue_latitude), func.radians(Event.venue_longitude)
-    central_angle = 2 * func.asin(
-        func.sqrt(
-            func.power(func.sin((lat2 - lat1) / 2), 2)
-            + func.cos(lat1) * func.cos(lat2) * func.power(func.sin((lon2 - lon1) / 2), 2)
-        )
-    )
-    return 6371.0 * central_angle
-
-
 @app.post("/users/{user_id}/events/sync", response_model=EventSyncResult)
 async def sync_events_for_user(
     user_id: uuid.UUID,
@@ -392,7 +441,7 @@ async def list_user_events(
     if city is None:
         raise HTTPException(status_code=409, detail="Set a city to match events")
 
-    distance = _distance_km(city.latitude, city.longitude).label("distance_km")
+    distance = distance_km(city.latitude, city.longitude).label("distance_km")
     result = await session.execute(
         select(Event, Artist, BandsintownEvent.url, distance)
         .join(EventArtist, EventArtist.event_id == Event.id)
@@ -408,18 +457,159 @@ async def list_user_events(
         .distinct()
     )
     grouped: dict[uuid.UUID, UserEventRead] = {}
-    for event, artist, url, distance_km in result.all():
+    for event, artist, url, km in result.all():
         entry = grouped.get(event.id)
         if entry is None:
             entry = UserEventRead(
                 event=EventRead.model_validate(event),
                 url=url,
-                distance_km=round(distance_km, 1),
+                distance_km=round(km, 1),
                 artists=[],
             )
             grouped[event.id] = entry
         entry.artists.append(ArtistRead.model_validate(artist))
     return list(grouped.values())
+
+
+async def _require_playlist(
+    session: AsyncSession, user_id: uuid.UUID, playlist_id: uuid.UUID
+) -> Playlist:
+    playlist = await session.get(Playlist, playlist_id)
+    if playlist is None or playlist.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    return playlist
+
+
+@app.get("/users/{user_id}/playlists", response_model=list[PlaylistRead])
+async def list_user_playlists(user_id: uuid.UUID, session: SessionDep) -> list[PlaylistRead]:
+    """List the user's playlists with tracks and provenance (artist + show per track)."""
+    await _require_user(session, user_id)
+    result = await session.execute(
+        select(Playlist, City)
+        .outerjoin(City, City.geonameid == Playlist.city_id)
+        .where(Playlist.user_id == user_id)
+        .order_by(Playlist.id)
+    )
+    playlists = {
+        playlist.id: PlaylistRead(
+            id=playlist.id,
+            kind=playlist.kind,
+            name=playlist.name,
+            description=playlist.description,
+            city=CityRead.model_validate(city) if city else None,
+            spotify_playlist_id=playlist.spotify_playlist_id,
+            spotify_url=playlist.spotify_url,
+            last_synced_at=playlist.last_synced_at,
+            tracks=[],
+        )
+        for playlist, city in result.all()
+    }
+    if playlists:
+        result = await session.execute(
+            select(PlaylistTrack, Artist, Event, ArtistTopTrack.title)
+            .outerjoin(Artist, Artist.id == PlaylistTrack.artist_id)
+            .outerjoin(Event, Event.id == PlaylistTrack.event_id)
+            .outerjoin(
+                ArtistTopTrack,
+                (ArtistTopTrack.artist_id == PlaylistTrack.artist_id)
+                & (ArtistTopTrack.spotify_track_id == PlaylistTrack.spotify_track_id),
+            )
+            .where(PlaylistTrack.playlist_id.in_(playlists.keys()))
+            .order_by(PlaylistTrack.playlist_id, PlaylistTrack.position)
+        )
+        for track, artist, event, title in result.all():
+            playlists[track.playlist_id].tracks.append(
+                PlaylistTrackRead(
+                    position=track.position,
+                    spotify_track_id=track.spotify_track_id,
+                    title=title,
+                    artist=ArtistRead.model_validate(artist) if artist else None,
+                    event=EventRead.model_validate(event) if event else None,
+                )
+            )
+    return list(playlists.values())
+
+
+@app.post("/users/{user_id}/playlists", response_model=PlaylistRead, status_code=201)
+async def create_pinned_playlist(
+    user_id: uuid.UUID, payload: PlaylistCreate, session: SessionDep
+) -> PlaylistRead:
+    """Pin a playlist to a city, independent of where the user lives."""
+    user = await _require_user(session, user_id)
+    city = await session.get(City, payload.geonameid)
+    if city is None:
+        raise HTTPException(status_code=404, detail="City not found")
+
+    result = await session.execute(
+        select(Playlist).where(
+            Playlist.user_id == user_id,
+            Playlist.kind == CITY_SHOWS_KIND,
+            Playlist.city_id.is_not(None),
+        )
+    )
+    pinned = list(result.scalars())
+    if any(playlist.city_id == city.geonameid for playlist in pinned):
+        raise HTTPException(status_code=409, detail="A playlist for this city already exists")
+    if len(pinned) >= CITY_PLAYLIST_CAP:
+        raise HTTPException(
+            status_code=409, detail=f"At most {CITY_PLAYLIST_CAP} city playlists per user"
+        )
+
+    playlist = Playlist(
+        user_id=user_id,
+        kind=CITY_SHOWS_KIND,
+        city_id=city.geonameid,
+        name=playlist_title(user.name, city.name),
+    )
+    session.add(playlist)
+    await session.commit()
+    return PlaylistRead(
+        id=playlist.id,
+        kind=playlist.kind,
+        name=playlist.name,
+        description=playlist.description,
+        city=CityRead.model_validate(city),
+        spotify_playlist_id=None,
+        spotify_url=None,
+        last_synced_at=None,
+        tracks=[],
+    )
+
+
+@app.post("/users/{user_id}/playlists/sync", response_model=PlaylistSyncResult)
+async def sync_playlists_for_user(
+    user_id: uuid.UUID,
+    session: SessionDep,
+    spotify: SpotifyClientDep,
+    lastfm: LastfmClientDep,
+    musicbrainz: MusicBrainzClientDep,
+) -> PlaylistSyncResult:
+    """Reconcile all of the user's playlists on Spotify against their current
+    matched shows, refreshing artist resolutions and top-track caches as needed."""
+    user = await _require_user(session, user_id)
+    result = await sync_user_playlists(session, spotify, lastfm, musicbrainz, user)
+    await session.commit()
+    return result
+
+
+@app.delete("/users/{user_id}/playlists/{playlist_id}", status_code=204)
+async def delete_playlist(
+    user_id: uuid.UUID,
+    playlist_id: uuid.UUID,
+    session: SessionDep,
+    spotify: SpotifyClientDep,
+) -> None:
+    """Unfollow the playlist on Spotify (its only notion of delete), then drop it locally."""
+    await _require_user(session, user_id)
+    playlist = await _require_playlist(session, user_id, playlist_id)
+    if playlist.spotify_playlist_id is not None:
+        try:
+            await spotify.unfollow_playlist(playlist.spotify_playlist_id)
+        except SpotifyApiError as exc:
+            if exc.status_code != 404:
+                raise
+    await session.delete(playlist)
+    await session.commit()
 
 
 @app.delete("/users/{user_id}/lastfm", status_code=204)

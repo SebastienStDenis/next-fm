@@ -220,3 +220,89 @@ class UserArtistInterest(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class SpotifyArtist(Base):
+    __tablename__ = "spotify_artists"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), unique=True
+    )
+    spotify_id: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str]
+    match_confidence: Mapped[str]
+    top_tracks_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ArtistTopTrack(Base):
+    __tablename__ = "artist_top_tracks"
+    __table_args__ = (UniqueConstraint("artist_id", "spotify_track_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), index=True
+    )
+    rank: Mapped[int]
+    title: Mapped[str]
+    spotify_track_id: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Playlist(Base):
+    __tablename__ = "playlists"
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", "city_id", postgresql_nulls_not_distinct=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str]
+    city_id: Mapped[int | None] = mapped_column(ForeignKey("cities.geonameid", ondelete="SET NULL"))
+    name: Mapped[str]
+    description: Mapped[str | None]
+    spotify_playlist_id: Mapped[str | None] = mapped_column(unique=True)
+    spotify_url: Mapped[str | None]
+    snapshot_id: Mapped[str | None]
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PlaylistTrack(Base):
+    __tablename__ = "playlist_tracks"
+    __table_args__ = (UniqueConstraint("playlist_id", "spotify_track_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    playlist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("playlists.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int]
+    spotify_track_id: Mapped[str]
+    artist_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("artists.id", ondelete="SET NULL")
+    )
+    event_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("events.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

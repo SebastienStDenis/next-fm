@@ -62,11 +62,19 @@ Small layered FastAPI app; keep the separation when adding features:
 - `db.py` - async engine + `async_sessionmaker`; `get_session` is the FastAPI dependency that yields an `AsyncSession`.
 - `models.py` - SQLAlchemy 2.0 ORM models (`DeclarativeBase`, typed `Mapped`/`mapped_column`). Alembic autogenerate diffs against `Base.metadata`.
 - `schemas.py` - Pydantic v2 API schemas. ORM models and Pydantic schemas are deliberately separate (no SQLModel); response models use `ConfigDict(from_attributes=True)`.
-- `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`, `get_top_artists`, `get_loved_tracks`), injected via the `get_lastfm_client` dependency in `main.py`.
+- `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`, `get_top_artists`, `get_loved_tracks`, `get_artist_top_tracks`), injected via the `get_lastfm_client` dependency in `main.py`.
+- `bandsintown.py` - async Bandsintown API client for artists' upcoming events.
+- `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/playlist-plan.md`.
+- `musicbrainz.py` - async MusicBrainz client (MBID -> Spotify artist link), throttled to 1 req/s.
 - `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/artist-ingestion-plan.md`).
+- `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/event-ingestion-plan.md`).
+- `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state diff, delta writes (see `docs/playlist-plan.md`).
+- `matching.py` - the artist/event match join pieces shared by events and playlists (haversine distance, radius).
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
 - `seed.py` - idempotent seed script (`python -m app.seed`).
+- `spotify_auth.py` - CLI for the one-time bot-account authorization (`python -m app.spotify_auth`); prints the `SPOTIFY_REFRESH_TOKEN` for `.env`.
+- `spotify_verify.py` - throwaway Phase 0 script verifying development-mode Spotify API behavior (`python -m app.spotify_verify`).
 
 Everything is async end to end: endpoints, sessions, migrations (`migrations/env.py` uses the async engine and pulls the URL from `app.config`).
 
@@ -78,4 +86,4 @@ Important: `frontend/AGENTS.md` warns that this Next.js version has breaking cha
 
 ### Configuration
 
-All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (currently `LASTFM_API_KEY`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup.
+All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (`LASTFM_API_KEY`, `BANDSINTOWN_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup.

@@ -6,7 +6,15 @@ from httpx import ASGITransport, AsyncClient, Response
 from app.bandsintown import BandsintownClient
 from app.db import get_session
 from app.lastfm import LastfmClient
-from app.main import app, get_bandsintown_client, get_lastfm_client
+from app.main import (
+    app,
+    get_bandsintown_client,
+    get_lastfm_client,
+    get_musicbrainz_client,
+    get_spotify_client,
+)
+from app.musicbrainz import MusicBrainzClient
+from app.spotify import SpotifyClient
 
 
 def make_session() -> AsyncMock:
@@ -52,6 +60,8 @@ async def request(
     session: AsyncMock,
     lastfm: LastfmClient | None = None,
     bandsintown: BandsintownClient | None = None,
+    spotify: SpotifyClient | None = None,
+    musicbrainz: MusicBrainzClient | None = None,
     json: dict | None = None,
 ) -> Response:
     app.dependency_overrides[get_session] = lambda: session
@@ -59,6 +69,10 @@ async def request(
         app.dependency_overrides[get_lastfm_client] = lambda: lastfm
     if bandsintown is not None:
         app.dependency_overrides[get_bandsintown_client] = lambda: bandsintown
+    if spotify is not None:
+        app.dependency_overrides[get_spotify_client] = lambda: spotify
+    if musicbrainz is not None:
+        app.dependency_overrides[get_musicbrainz_client] = lambda: musicbrainz
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             return await client.request(method, url, json=json)

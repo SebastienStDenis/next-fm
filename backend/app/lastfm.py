@@ -12,6 +12,10 @@ class LastfmUserNotFoundError(Exception):
     pass
 
 
+class LastfmArtistNotFoundError(Exception):
+    pass
+
+
 class LastfmPrivateDataError(Exception):
     pass
 
@@ -53,6 +57,12 @@ class LastfmLovedTracksPage(BaseModel):
     total_pages: int
 
 
+class LastfmArtistTopTrack(BaseModel):
+    title: str
+    rank: int | None
+    playcount: int | None
+
+
 class LastfmClient:
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
@@ -90,6 +100,24 @@ class LastfmClient:
             tracks=[_parse_loved_track(track) for track in _as_list(loved, "track")],
             total_pages=_int_or_none(loved.get("@attr", {}).get("totalPages")) or 1,
         )
+
+    async def get_artist_top_tracks(
+        self, artist: str, limit: int = 10
+    ) -> list[LastfmArtistTopTrack]:
+        """An artist's tracks ranked by global playcount, best first."""
+        try:
+            payload = await self._get(
+                {
+                    "method": "artist.gettoptracks",
+                    "artist": artist,
+                    "autocorrect": 1,
+                    "limit": limit,
+                }
+            )
+        except LastfmUserNotFoundError:
+            # Error 6 means "not found" for whatever entity the method takes.
+            raise LastfmArtistNotFoundError(artist) from None
+        return [_parse_artist_top_track(track) for track in _as_list(payload["toptracks"], "track")]
 
     async def _get(self, params: dict) -> dict:
         params = {**params, "api_key": self._api_key, "format": "json"}
@@ -144,6 +172,14 @@ def _parse_loved_track(track: dict) -> LastfmLovedTrack:
         artist_name=artist["name"],
         artist_url=_text_or_none(artist.get("url")),
         artist_mbid=_text_or_none(artist.get("mbid")),
+    )
+
+
+def _parse_artist_top_track(track: dict) -> LastfmArtistTopTrack:
+    return LastfmArtistTopTrack(
+        title=track["name"],
+        rank=_int_or_none(track.get("@attr", {}).get("rank")),
+        playcount=_int_or_none(track.get("playcount")),
     )
 
 
