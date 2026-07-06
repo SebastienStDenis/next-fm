@@ -119,9 +119,13 @@ async def run_checks(client: SpotifyClient) -> None:
             json={"uris": [track_uri(t) for t in seeds]},
         )
         after_replace = await added_at_by_track(client, playlist.id)
+        # Verified July 2026: contrary to the community lore the plan cites,
+        # full replace now PRESERVES added_at for surviving tracks. Deltas are
+        # kept anyway - a no-op sync makes zero write calls.
         check(
-            "full replace resets added_at (why sync uses deltas)",
-            before != after_replace,
+            "full replace preserves added_at for surviving tracks",
+            before == after_replace,
+            f"{before} -> {after_replace}" if before != after_replace else "",
         )
 
         snapshot = await client.remove_playlist_items(playlist.id, [track_uri(seeds[0])])
@@ -147,12 +151,12 @@ async def added_at_by_track(client: SpotifyClient, playlist_id: str) -> dict[str
     payload = await client._request(
         "GET",
         f"/playlists/{playlist_id}/items",
-        params={"fields": "items(added_at,track(id))", "limit": 100},
+        params={"fields": "items(added_at,item(id))", "limit": 100},
     )
     return {
-        item["track"]["id"]: item["added_at"]
+        item["item"]["id"]: item["added_at"]
         for item in payload.get("items", [])
-        if item.get("track")
+        if item.get("item")
     }
 
 

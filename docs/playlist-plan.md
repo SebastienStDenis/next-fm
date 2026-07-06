@@ -332,6 +332,16 @@ really is gone, and confirm the `added_at` behavior the delta-write design rests
 (full replace resets it, reorder preserves it) - community-confirmed, not documented.
 Everything below assumes these hold.
 
+Findings (verified July 2026, `python -m app.spotify_verify`): search, create,
+add/remove/reorder, details update, and snapshot reads all work as designed;
+`top-tracks` and batch `/artists?ids=` return 403; `popularity`/`followers` are
+stripped; search `limit` caps at 10. Two shape changes vs. the classic API: the
+items payload nests the track under `item` (not `track`), and item removal takes
+`{"items": [{"uri": ...}]}` (not `"tracks"`). One assumption did not survive:
+full replace (`PUT` with `uris`) now *preserves* `added_at` for surviving tracks,
+so the delta approach's remaining edge is cost, not semantics - a no-op sync
+makes zero write calls, which matters under development-mode rate limits.
+
 **Phase 1 - schema + client.** One migration for the four tables. `SpotifyClient` with
 `search_artist`, `search_track`, `create_playlist`, `add_playlist_items`,
 `remove_playlist_items`, `reorder_playlist_items`, `update_playlist_details`, plus the

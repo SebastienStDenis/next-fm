@@ -294,7 +294,7 @@ async def test_remove_playlist_items_sends_track_uris() -> None:
     assert api_request.method == "DELETE"
     assert api_request.url.path == "/v1/playlists/p1/items"
     assert json.loads(api_request.content) == {
-        "tracks": [{"uri": "spotify:track:t1"}, {"uri": "spotify:track:t2"}]
+        "items": [{"uri": "spotify:track:t1"}, {"uri": "spotify:track:t2"}]
     }
 
 
@@ -317,8 +317,8 @@ async def test_reorder_playlist_items_sends_range() -> None:
 async def test_get_playlist_track_ids_paginates_and_skips_null_tracks() -> None:
     client, requests = make_client(
         [
-            ok({"items": [{"track": {"id": "t1"}}, {"track": None}], "total": 3}),
-            ok({"items": [{"track": {"id": "t2"}}], "total": 3}),
+            ok({"items": [{"item": {"id": "t1"}}, {"item": None}], "total": 3}),
+            ok({"items": [{"item": {"id": "t2"}}], "total": 3}),
         ]
     )
 

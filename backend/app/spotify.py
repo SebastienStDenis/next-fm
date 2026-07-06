@@ -117,7 +117,7 @@ class SpotifyClient:
         payload = await self._request(
             "DELETE",
             f"/playlists/{playlist_id}/items",
-            json={"tracks": [{"uri": uri} for uri in uris]},
+            json={"items": [{"uri": uri} for uri in uris]},
         )
         return payload.get("snapshot_id")
 
@@ -158,11 +158,11 @@ class SpotifyClient:
             payload = await self._request(
                 "GET",
                 f"/playlists/{playlist_id}/items",
-                params={"fields": "items(track(id)),total", "limit": 100, "offset": offset},
+                params={"fields": "items(item(id)),total", "limit": 100, "offset": offset},
             )
             items = payload.get("items") or []
             track_ids.extend(
-                item["track"]["id"] for item in items if (item.get("track") or {}).get("id")
+                item["item"]["id"] for item in items if (item.get("item") or {}).get("id")
             )
             offset += len(items)
             if not items or offset >= (payload.get("total") or 0):

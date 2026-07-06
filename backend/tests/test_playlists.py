@@ -2,6 +2,9 @@ import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from app.config import Settings
 from app.lastfm import LastfmClient
 from app.models import (
     Artist,
@@ -357,8 +360,12 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
     assert session.commit.await_count == 2
 
 
-async def test_sync_requires_spotify_configuration() -> None:
+async def test_sync_requires_spotify_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
     session = make_session()
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(spotify_client_id="", spotify_client_secret="", spotify_refresh_token=""),
+    )
 
     response = await request("POST", SYNC_URL, session)
 
