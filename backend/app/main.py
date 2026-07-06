@@ -1,26 +1,50 @@
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
 from app.config import get_settings
 from app.db import get_session
-from app.lastfm import LastfmClient, LastfmUserInfo, LastfmUserNotFoundError
-from app.models import City, LastfmAccount, LastfmConnection, User
-from app.schemas import CityRead, CitySet, LastfmAccountRead, LastfmLink, UserCreate, UserRead
+from app.lastfm import (
+    LastfmApiError,
+    LastfmClient,
+    LastfmPrivateDataError,
+    LastfmUserInfo,
+    LastfmUserNotFoundError,
+)
+from app.models import Artist, City, LastfmAccount, LastfmConnection, User, UserArtistInterest
+from app.schemas import (
+    ArtistInterestRead,
+    ArtistRead,
+    ArtistSyncResult,
+    CityRead,
+    CitySet,
+    LastfmAccountRead,
+    LastfmLink,
+    UserArtistRead,
+    UserCreate,
+    UserRead,
+)
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-def get_lastfm_client() -> LastfmClient:
+async def get_lastfm_client() -> AsyncIterator[LastfmClient]:
     api_key = get_settings().lastfm_api_key
     if not api_key:
         raise HTTPException(status_code=503, detail="LASTFM_API_KEY is not configured")
-    return LastfmClient(api_key)
+    client = LastfmClient(api_key)
+    try:
+        yield client
+    finally:
+        await client.aclose()
 
 
 LastfmClientDep = Annotated[LastfmClient, Depends(get_lastfm_client)]
@@ -33,6 +57,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(LastfmUserNotFoundError)
+async def lastfm_user_not_found(request: Request, exc: LastfmUserNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": "Last.fm user not found"})
+
+
+@app.exception_handler(LastfmPrivateDataError)
+async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> JSONResponse:
+    return JSONResponse(
+        status_code=403, content={"detail": "This Last.fm account's listening data is private"}
+    )
+
+
+@app.exception_handler(LastfmApiError)
+async def lastfm_api_error(request: Request, exc: LastfmApiError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
 @app.get("/health")
@@ -158,13 +199,6 @@ def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: da
     account.last_synced_at = synced_at
 
 
-async def _fetch_user_info(lastfm: LastfmClient, username: str) -> LastfmUserInfo:
-    try:
-        return await lastfm.get_user_info(username)
-    except LastfmUserNotFoundError:
-        raise HTTPException(status_code=404, detail="Last.fm user not found") from None
-
-
 @app.get("/users/{user_id}/lastfm", response_model=LastfmAccountRead)
 async def get_linked_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> LastfmAccount:
     """Return the user's linked Last.fm account; 404 if none is linked."""
@@ -184,7 +218,7 @@ async def link_lastfm_account(
 ) -> LastfmAccount:
     """Link the user to a Last.fm account by username, replacing any existing link."""
     await _require_user(session, user_id)
-    info = await _fetch_user_info(lastfm, payload.username)
+    info = await lastfm.get_user_info(payload.username)
 
     result = await session.execute(
         select(LastfmAccount).where(func.lower(LastfmAccount.username) == info.username.lower())
@@ -221,10 +255,54 @@ async def refresh_lastfm_account(
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    info = await _fetch_user_info(lastfm, account.username)
+    info = await lastfm.get_user_info(account.username)
     _apply_user_info(account, info, datetime.now(UTC))
     await session.commit()
     return account
+
+
+@app.post("/users/{user_id}/lastfm/artists/sync", response_model=ArtistSyncResult)
+async def sync_lastfm_artists_for_user(
+    user_id: uuid.UUID,
+    session: SessionDep,
+    lastfm: LastfmClientDep,
+) -> ArtistSyncResult:
+    """Fetch all of the linked Last.fm account's taste signals and upsert artist interests."""
+    await _require_user(session, user_id)
+    account = await _linked_lastfm_account(session, user_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="No Last.fm account linked")
+
+    results = await sync_lastfm_artists(session, lastfm, user_id, account.username, SYNC_KINDS)
+    await session.commit()
+    return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)
+
+
+@app.get("/users/{user_id}/artists", response_model=list[UserArtistRead])
+async def list_user_artists(user_id: uuid.UUID, session: SessionDep) -> list[UserArtistRead]:
+    """List the user's artists of interest, grouped by artist with all reasons."""
+    await _require_user(session, user_id)
+    result = await session.execute(
+        select(UserArtistInterest, Artist)
+        .join(Artist, UserArtistInterest.artist_id == Artist.id)
+        .where(UserArtistInterest.user_id == user_id)
+        .order_by(func.lower(Artist.name), UserArtistInterest.kind)
+    )
+    grouped: dict[uuid.UUID, UserArtistRead] = {}
+    for interest, artist in result.all():
+        entry = grouped.get(artist.id)
+        if entry is None:
+            entry = UserArtistRead(artist=ArtistRead.model_validate(artist), interests=[])
+            grouped[artist.id] = entry
+        entry.interests.append(ArtistInterestRead.model_validate(interest))
+    return list(grouped.values())
+
+
+@app.get("/artists", response_model=list[ArtistRead])
+async def list_artists(session: SessionDep) -> list[Artist]:
+    """List all canonical artists."""
+    result = await session.execute(select(Artist).order_by(func.lower(Artist.name)))
+    return list(result.scalars())
 
 
 @app.delete("/users/{user_id}/lastfm", status_code=204)

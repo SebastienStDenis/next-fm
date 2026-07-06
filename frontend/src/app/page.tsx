@@ -9,12 +9,20 @@ export default function Home() {
       <p className="max-w-md text-center text-lg text-zinc-600 dark:text-zinc-400">
         Live-music discovery through listening.
       </p>
-      <Link
-        className="flex h-12 items-center justify-center rounded-full bg-foreground px-6 font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
-        href="/users"
-      >
-        Users
-      </Link>
+      <div className="flex gap-4">
+        <Link
+          className="flex h-12 items-center justify-center rounded-full bg-foreground px-6 font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
+          href="/users"
+        >
+          Users
+        </Link>
+        <Link
+          className="flex h-12 items-center justify-center rounded-full bg-foreground px-6 font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
+          href="/artists"
+        >
+          Artists
+        </Link>
+      </div>
     </main>
   );
 }

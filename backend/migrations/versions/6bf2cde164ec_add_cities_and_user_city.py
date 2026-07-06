@@ -1,7 +1,7 @@
 """add cities and user city
 
 Revision ID: 6bf2cde164ec
-Revises: e9940c9ec725
+Revises: dfa27e4651a6
 Create Date: 2026-07-05 19:18:25.970522
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "6bf2cde164ec"
-down_revision: str | Sequence[str] | None = "e9940c9ec725"
+down_revision: str | Sequence[str] | None = "dfa27e4651a6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
