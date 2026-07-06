@@ -5,11 +5,15 @@ export async function GET(request: Request) {
   if (q.length < 2) {
     return Response.json([]);
   }
-  const res = await fetch(`${apiUrl}/cities?q=${encodeURIComponent(q)}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${apiUrl}/cities?q=${encodeURIComponent(q)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return Response.json([], { status: 502 });
+    }
+    return Response.json(await res.json());
+  } catch {
     return Response.json([], { status: 502 });
   }
-  return Response.json(await res.json());
 }

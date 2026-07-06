@@ -1,12 +1,9 @@
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
-from httpx import ASGITransport, AsyncClient, Response
-
-from app.db import get_session
 from app.geonames import load_cities
-from app.main import app
 from app.models import City, User
+from tests.helpers import make_session, request
 
 USER_ID = uuid.uuid7()
 
@@ -22,28 +19,10 @@ MONTREAL = City(
 )
 
 
-def make_session() -> AsyncMock:
-    return AsyncMock()
-
-
 def result_returning_all(values: list[object]) -> MagicMock:
     result = MagicMock()
     result.scalars.return_value = values
     return result
-
-
-async def request(
-    method: str,
-    url: str,
-    session: AsyncMock,
-    json: dict | None = None,
-) -> Response:
-    app.dependency_overrides[get_session] = lambda: session
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            return await client.request(method, url, json=json)
-    finally:
-        app.dependency_overrides.clear()
 
 
 async def test_search_cities() -> None:
@@ -79,6 +58,15 @@ async def test_search_cities_rejects_short_query() -> None:
     session = make_session()
 
     response = await request("GET", "/cities?q=m", session)
+
+    assert response.status_code == 422
+    session.execute.assert_not_awaited()
+
+
+async def test_search_cities_rejects_whitespace_query() -> None:
+    session = make_session()
+
+    response = await request("GET", "/cities?q=%20%20%20", session)
 
     assert response.status_code == 422
     session.execute.assert_not_awaited()

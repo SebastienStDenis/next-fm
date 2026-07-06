@@ -19,6 +19,21 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
   return typeof body?.detail === "string" ? body.detail : fallback;
 }
 
+async function callApi(
+  path: string,
+  init: RequestInit,
+  fallback: string,
+  revalidate: string,
+): Promise<ActionState> {
+  const res = await fetch(`${apiUrl}${path}`, init);
+  if (!res.ok) {
+    return { error: await errorMessage(res, fallback) };
+  }
+
+  revalidatePath(revalidate);
+  return { error: null };
+}
+
 export async function linkLastfm(
   userId: string,
   _prev: ActionState,
@@ -29,70 +44,59 @@ export async function linkLastfm(
     return { error: "Enter a Last.fm username." };
   }
 
-  const res = await fetch(`${apiUrl}/users/${userId}/lastfm`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: username.trim() }),
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to link Last.fm account.") };
-  }
-
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+  return callApi(
+    `/users/${userId}/lastfm`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: username.trim() }),
+    },
+    "Failed to link Last.fm account.",
+    `/users/${userId}`,
+  );
 }
 
 export async function refreshLastfm(userId: string): Promise<ActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}/lastfm/refresh`, {
-    method: "POST",
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to refresh Last.fm account.") };
-  }
-
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+  return callApi(
+    `/users/${userId}/lastfm/refresh`,
+    { method: "POST" },
+    "Failed to refresh Last.fm account.",
+    `/users/${userId}`,
+  );
 }
 
 export async function unlinkLastfm(userId: string): Promise<ActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}/lastfm`, {
-    method: "DELETE",
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to unlink Last.fm account.") };
-  }
-
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+  return callApi(
+    `/users/${userId}/lastfm`,
+    { method: "DELETE" },
+    "Failed to unlink Last.fm account.",
+    `/users/${userId}`,
+  );
 }
 
 export async function setCity(
   userId: string,
   geonameid: number,
 ): Promise<ActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}/city`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ geonameid }),
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to set city.") };
-  }
-
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+  return callApi(
+    `/users/${userId}/city`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geonameid }),
+    },
+    "Failed to set city.",
+    `/users/${userId}`,
+  );
 }
 
 export async function clearCity(userId: string): Promise<ActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}/city`, {
-    method: "DELETE",
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to clear city.") };
-  }
-
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+  return callApi(
+    `/users/${userId}/city`,
+    { method: "DELETE" },
+    "Failed to clear city.",
+    `/users/${userId}`,
+  );
 }
 
 type SyncArtistsResponse = {
@@ -130,11 +134,15 @@ export async function syncLastfmArtists(
 }
 
 export async function deleteUser(userId: string): Promise<ActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}`, { method: "DELETE" });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to delete user.") };
+  const result = await callApi(
+    `/users/${userId}`,
+    { method: "DELETE" },
+    "Failed to delete user.",
+    "/users",
+  );
+  if (result.error) {
+    return result;
   }
 
-  revalidatePath("/users");
   redirect("/users");
 }

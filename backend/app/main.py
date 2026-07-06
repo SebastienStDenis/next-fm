@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BeforeValidator
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -120,24 +121,19 @@ async def _require_user(session: AsyncSession, user_id: uuid.UUID) -> User:
     return user
 
 
-def _escape_like(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
-
-
 @app.get("/cities", response_model=list[CityRead])
 async def search_cities(
-    q: Annotated[str, Query(min_length=2)],
+    q: Annotated[str, BeforeValidator(str.strip), Query(min_length=2)],
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=25)] = 10,
 ) -> list[City]:
     """Search cities by name, most populous first."""
-    pattern = f"%{_escape_like(q.strip())}%"
     result = await session.execute(
         select(City)
         .where(
             or_(
-                City.name.ilike(pattern, escape="\\"),
-                City.ascii_name.ilike(pattern, escape="\\"),
+                City.name.icontains(q, autoescape=True),
+                City.ascii_name.icontains(q, autoescape=True),
             )
         )
         .order_by(City.population.desc(), City.geonameid)

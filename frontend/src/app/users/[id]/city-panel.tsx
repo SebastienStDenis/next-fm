@@ -110,9 +110,13 @@ function CitySearch({
         });
         if (res.ok) {
           setResults(await res.json());
+          setError(null);
+        } else {
+          setResults([]);
+          setError("City search failed.");
         }
       } catch {
-        // aborted or unreachable; keep whatever is shown
+        // aborted; the next keystroke's fetch takes over
       }
     }, 250);
     return () => {

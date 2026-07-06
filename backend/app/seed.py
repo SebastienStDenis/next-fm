@@ -1,6 +1,7 @@
 import asyncio
 
-from sqlalchemy import insert, select
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import session_factory
@@ -19,14 +20,19 @@ async def seed_users(session: AsyncSession) -> None:
 
 
 async def seed_cities(session: AsyncSession) -> None:
-    existing = await session.execute(select(City.geonameid).limit(1))
-    if existing.scalar_one_or_none() is not None:
-        print("Cities already seeded, skipping.")
-        return
     cities = load_cities()
-    await session.execute(insert(City), [dict(city) for city in cities])
+    stmt = pg_insert(City)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[City.geonameid],
+        set_={
+            column.name: getattr(stmt.excluded, column.name)
+            for column in City.__table__.columns
+            if not column.primary_key
+        },
+    )
+    await session.execute(stmt, [dict(city) for city in cities])
     await session.commit()
-    print(f"Seeded {len(cities)} cities.")
+    print(f"Upserted {len(cities)} cities.")
 
 
 async def seed() -> None:
