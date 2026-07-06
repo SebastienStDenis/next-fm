@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -8,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import name_key
-from app.lastfm import LastfmArtistNotFoundError, LastfmClient
+from app.lastfm import LastfmApiError, LastfmArtistNotFoundError, LastfmClient
 from app.matching import EVENT_MATCH_RADIUS_KM, distance_km
 from app.models import (
     Artist,
@@ -36,6 +37,7 @@ MATCH_FUZZY = "fuzzy"
 TOP_TRACKS_TTL = timedelta(days=30)
 TOP_TRACKS_PER_ARTIST = 5
 TOP_TRACKS_FETCH_LIMIT = 10
+FETCH_CONCURRENCY = 4  # conservative: dev-mode rate limits are unpublished and low
 PLAYLIST_MAX_TRACKS = 100  # one 100-URI replace request per sync
 
 
@@ -120,15 +122,26 @@ async def _ensure_default_playlist(session: AsyncSession, user: User) -> list[Pl
     playlists = list(result.scalars())
     if not any(p.kind == CITY_SHOWS_KIND and p.city_id is None for p in playlists):
         city = await session.get(City, user.city_id) if user.city_id is not None else None
-        default = Playlist(
-            user_id=user.id,
-            kind=CITY_SHOWS_KIND,
-            city_id=None,
-            name=playlist_title(user.name, city.name if city else None),
+        # Insert-then-select so a concurrent sync creating the same default
+        # row is adopted instead of raising on the unique constraint.
+        await session.execute(
+            pg_insert(Playlist)
+            .values(
+                user_id=user.id,
+                kind=CITY_SHOWS_KIND,
+                city_id=None,
+                name=playlist_title(user.name, city.name if city else None),
+            )
+            .on_conflict_do_nothing()
         )
-        session.add(default)
-        await session.flush()
-        playlists.insert(0, default)
+        result = await session.execute(
+            select(Playlist).where(
+                Playlist.user_id == user.id,
+                Playlist.kind == CITY_SHOWS_KIND,
+                Playlist.city_id.is_(None),
+            )
+        )
+        playlists.insert(0, result.scalar_one())
     return playlists
 
 
@@ -261,17 +274,24 @@ async def _refresh_top_tracks(
     resolved: list[SpotifyArtist],
 ) -> int:
     """Re-fetch stale top-track caches: Last.fm decides the top N, one Spotify
-    search per track resolves it to something playable by the right artist."""
+    search per track resolves it to something playable by the right artist.
+    Fetches run concurrently across artists; all session writes stay on this
+    task."""
     now = datetime.now(UTC)
+    stale = [
+        row
+        for row in resolved
+        if row.match_confidence != MATCH_FUZZY
+        and not (row.top_tracks_synced_at and now - row.top_tracks_synced_at < TOP_TRACKS_TTL)
+    ]
+    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+    outcomes = await asyncio.gather(
+        *(_fetch_verified_tracks(spotify, lastfm, row, semaphore) for row in stale)
+    )
+
     refreshed = 0
-    for row in resolved:
-        if row.match_confidence == MATCH_FUZZY:
-            continue
-        if row.top_tracks_synced_at and now - row.top_tracks_synced_at < TOP_TRACKS_TTL:
-            continue
-        try:
-            tracks = await _fetch_verified_tracks(spotify, lastfm, row)
-        except SpotifyApiError:
+    for row, tracks in zip(stale, outcomes, strict=True):
+        if tracks is None:
             # Leave top_tracks_synced_at untouched so the next sync retries.
             continue
         await session.execute(
@@ -292,6 +312,19 @@ async def _refresh_top_tracks(
 
 
 async def _fetch_verified_tracks(
+    spotify: SpotifyClient, lastfm: LastfmClient, row: SpotifyArtist, semaphore: asyncio.Semaphore
+) -> list[tuple] | None:
+    """This artist's playable top tracks; None means a transient failure that
+    should not stamp the freshness timestamp. An artist unknown to Last.fm is
+    a durable empty result, not a failure."""
+    async with semaphore:
+        try:
+            return await _fetch_verified_tracks_inner(spotify, lastfm, row)
+        except SpotifyApiError, LastfmApiError, httpx.HTTPError:
+            return None
+
+
+async def _fetch_verified_tracks_inner(
     spotify: SpotifyClient, lastfm: LastfmClient, row: SpotifyArtist
 ) -> list[tuple]:
     try:

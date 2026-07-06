@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.config import Settings
 from app.lastfm import LastfmClient
@@ -22,6 +23,7 @@ from tests.helpers import (
     added_objects,
     make_session,
     request,
+    result_returning,
     result_with_rows,
     result_with_scalars,
 )
@@ -202,6 +204,18 @@ async def test_create_pinned_playlist_unknown_city() -> None:
     session.add.assert_not_called()
 
 
+async def test_create_pinned_playlist_lost_race_is_conflict() -> None:
+    session = make_session()
+    session.get.side_effect = [make_user(), make_city()]
+    session.execute.side_effect = [result_with_scalars([])]
+    session.commit.side_effect = IntegrityError("stmt", {}, Exception("duplicate key"))
+
+    response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 6077243})
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "A playlist for this city already exists"
+
+
 async def test_create_pinned_playlist_duplicate_city() -> None:
     session = make_session()
     session.get.side_effect = [make_user(), make_city()]
@@ -310,10 +324,15 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
         top_tracks_synced_at=datetime.now(UTC),
     )
     cached = ArtistTopTrack(artist_id=artist_id, rank=1, title="Gantz Graf", spotify_track_id="t1")
+    default = make_playlist(
+        city_id=None, name="Alice's shows in Montréal", spotify_playlist_id=None
+    )
     session = make_session()
     session.get.side_effect = [make_user(), city, city]
     session.execute.side_effect = [
         result_with_scalars([]),
+        MagicMock(),
+        result_returning(default),
         result_with_rows([(artist_id, event_id, datetime(2026, 8, 1, 20, 0, tzinfo=UTC))]),
         result_with_scalars([resolved]),
         result_with_scalars([cached]),
@@ -349,9 +368,8 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
     assert item["tracks_total"] == 1
     spotify.create_playlist.assert_awaited_once()
     spotify.replace_playlist_items.assert_awaited_once_with("pl1", ["spotify:track:t1"])
-    created = added_objects(session, Playlist)[0]
-    assert created.spotify_playlist_id == "pl1"
-    assert created.snapshot_id == "s2"
+    assert default.spotify_playlist_id == "pl1"
+    assert default.snapshot_id == "s2"
     tracks = added_objects(session, PlaylistTrack)
     assert [(t.spotify_track_id, t.artist_id, t.event_id) for t in tracks] == [
         ("t1", artist_id, event_id)

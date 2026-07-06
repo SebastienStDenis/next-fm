@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BeforeValidator
 from sqlalchemy import func, or_, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
@@ -562,7 +563,13 @@ async def create_pinned_playlist(
         name=playlist_title(user.name, city.name),
     )
     session.add(playlist)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # A concurrent create for the same city won the unique constraint.
+        raise HTTPException(
+            status_code=409, detail="A playlist for this city already exists"
+        ) from None
     return PlaylistRead(
         id=playlist.id,
         kind=playlist.kind,

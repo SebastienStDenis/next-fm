@@ -77,7 +77,7 @@ class SpotifyClient:
 
     async def search_tracks(self, title: str, artist_name: str) -> list[SpotifyTrackData]:
         """Resolve a known track title + artist name to playable candidates."""
-        query = f'track:"{title}" artist:"{artist_name}"'
+        query = f'track:"{_field_value(title)}" artist:"{_field_value(artist_name)}"'
         payload = await self._request(
             "GET",
             "/search",
@@ -180,6 +180,12 @@ class SpotifyClient:
                 time.monotonic() + float(payload.get("expires_in") or 3600) - TOKEN_EXPIRY_MARGIN
             )
             return self._access_token
+
+
+def _field_value(value: str) -> str:
+    # Quotes can't be escaped inside a field filter; a title like "Heroes"
+    # would otherwise break out of it and match nothing.
+    return value.replace('"', "")
 
 
 def _error_message(response: httpx.Response) -> str | None:

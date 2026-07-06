@@ -4,7 +4,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 from sqlalchemy.dialects import postgresql
 
-from app.lastfm import LastfmArtistNotFoundError, LastfmArtistTopTrack, LastfmClient
+from app.lastfm import (
+    LastfmApiError,
+    LastfmArtistNotFoundError,
+    LastfmArtistTopTrack,
+    LastfmClient,
+)
 from app.models import (
     Artist,
     ArtistTopTrack,
@@ -260,6 +265,25 @@ async def test_refresh_leaves_timestamp_untouched_on_spotify_error() -> None:
     assert row.top_tracks_synced_at is None
     session.execute.assert_not_awaited()
     session.add.assert_not_called()
+
+
+async def test_refresh_skips_artist_on_lastfm_error_without_aborting_sync() -> None:
+    failing = make_spotify_row()
+    healthy = make_spotify_row()
+    session = make_session()
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_top_tracks.side_effect = [
+        LastfmApiError(8, "Operation failed"),
+        [lastfm_track("One", 1)],
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.search_tracks.return_value = [spotify_track("t1", healthy.spotify_id)]
+
+    refreshed = await _refresh_top_tracks(session, spotify, lastfm, [failing, healthy])
+
+    assert refreshed == 1
+    assert failing.top_tracks_synced_at is None
+    assert healthy.top_tracks_synced_at is not None
 
 
 async def test_refresh_stamps_empty_cache_when_lastfm_artist_unknown() -> None:

@@ -238,6 +238,15 @@ async def test_search_tracks_parses_items_with_nested_artists() -> None:
     assert params["q"] == 'track:"Windowlicker" artist:"Aphex Twin"'
 
 
+async def test_search_tracks_strips_quotes_from_field_filters() -> None:
+    client, requests = make_client([ok({"tracks": {"items": []}})])
+
+    await client.search_tracks('"Heroes"', "David Bowie")
+
+    params = api_requests(requests)[0].url.params
+    assert params["q"] == 'track:"Heroes" artist:"David Bowie"'
+
+
 async def test_search_handles_missing_items() -> None:
     client, _ = make_client([ok({"artists": {}})])
 

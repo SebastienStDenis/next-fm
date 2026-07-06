@@ -68,7 +68,7 @@ Small layered FastAPI app; keep the separation when adding features:
 - `musicbrainz.py` - async MusicBrainz client (MBID -> Spotify artist link), throttled to 1 req/s.
 - `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/artist-ingestion-plan.md`).
 - `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/event-ingestion-plan.md`).
-- `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state diff, delta writes (see `docs/playlist-plan.md`).
+- `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/playlist-plan.md`).
 - `matching.py` - the artist/event match join pieces shared by events and playlists (haversine distance, radius).
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
