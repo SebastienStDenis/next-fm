@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8000";
 
-export type LastfmActionState = {
+export type ActionState = {
   error: string | null;
 };
 
@@ -19,51 +19,84 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
   return typeof body?.detail === "string" ? body.detail : fallback;
 }
 
+async function callApi(
+  path: string,
+  init: RequestInit,
+  fallback: string,
+  revalidate: string,
+): Promise<ActionState> {
+  const res = await fetch(`${apiUrl}${path}`, init);
+  if (!res.ok) {
+    return { error: await errorMessage(res, fallback) };
+  }
+
+  revalidatePath(revalidate);
+  return { error: null };
+}
+
 export async function linkLastfm(
   userId: string,
-  _prev: LastfmActionState,
+  _prev: ActionState,
   formData: FormData,
-): Promise<LastfmActionState> {
+): Promise<ActionState> {
   const username = formData.get("username");
   if (typeof username !== "string" || username.trim() === "") {
     return { error: "Enter a Last.fm username." };
   }
 
-  const res = await fetch(`${apiUrl}/users/${userId}/lastfm`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: username.trim() }),
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to link Last.fm account.") };
-  }
-
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+  return callApi(
+    `/users/${userId}/lastfm`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: username.trim() }),
+    },
+    "Failed to link Last.fm account.",
+    `/users/${userId}`,
+  );
 }
 
-export async function refreshLastfm(userId: string): Promise<LastfmActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}/lastfm/refresh`, {
-    method: "POST",
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to refresh Last.fm account.") };
-  }
-
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+export async function refreshLastfm(userId: string): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/lastfm/refresh`,
+    { method: "POST" },
+    "Failed to refresh Last.fm account.",
+    `/users/${userId}`,
+  );
 }
 
-export async function unlinkLastfm(userId: string): Promise<LastfmActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}/lastfm`, {
-    method: "DELETE",
-  });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to unlink Last.fm account.") };
-  }
+export async function unlinkLastfm(userId: string): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/lastfm`,
+    { method: "DELETE" },
+    "Failed to unlink Last.fm account.",
+    `/users/${userId}`,
+  );
+}
 
-  revalidatePath(`/users/${userId}`);
-  return { error: null };
+export async function setCity(
+  userId: string,
+  geonameid: number,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/city`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geonameid }),
+    },
+    "Failed to set city.",
+    `/users/${userId}`,
+  );
+}
+
+export async function clearCity(userId: string): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/city`,
+    { method: "DELETE" },
+    "Failed to clear city.",
+    `/users/${userId}`,
+  );
 }
 
 type SyncArtistsResponse = {
@@ -100,12 +133,16 @@ export async function syncLastfmArtists(
   return { error: null, summary };
 }
 
-export async function deleteUser(userId: string): Promise<LastfmActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}`, { method: "DELETE" });
-  if (!res.ok) {
-    return { error: await errorMessage(res, "Failed to delete user.") };
+export async function deleteUser(userId: string): Promise<ActionState> {
+  const result = await callApi(
+    `/users/${userId}`,
+    { method: "DELETE" },
+    "Failed to delete user.",
+    "/users",
+  );
+  if (result.error) {
+    return result;
   }
 
-  revalidatePath("/users");
   redirect("/users");
 }

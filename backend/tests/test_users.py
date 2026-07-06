@@ -1,11 +1,8 @@
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
-from httpx import ASGITransport, AsyncClient, Response
-
-from app.db import get_session
-from app.main import app
 from app.models import User
+from tests.helpers import request
 
 USER_ID = uuid.uuid7()
 
@@ -22,20 +19,6 @@ def make_session() -> AsyncMock:
 
     session.commit = commit
     return session
-
-
-async def request(
-    method: str,
-    url: str,
-    session: AsyncMock,
-    json: dict | None = None,
-) -> Response:
-    app.dependency_overrides[get_session] = lambda: session
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            return await client.request(method, url, json=json)
-    finally:
-        app.dependency_overrides.clear()
 
 
 async def test_create_user() -> None:

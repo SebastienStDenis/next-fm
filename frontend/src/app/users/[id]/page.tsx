@@ -6,6 +6,7 @@ import {
   type Artist,
   type UserArtist,
 } from "./artists-panel";
+import { CityPanel, type City } from "./city-panel";
 import { DeleteUserButton } from "./delete-user-button";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 
@@ -15,6 +16,25 @@ type User = {
 };
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8000";
+
+async function fetchJson<T>(url: string, what: string): Promise<T> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Failed to load ${what}: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function fetchOptional<T>(url: string, what: string): Promise<T | null> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (res.status === 404) {
+    return null;
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to load ${what}: ${res.status}`);
+  }
+  return res.json();
+}
 
 export default async function UserPage(props: PageProps<"/users/[id]">) {
   const { id } = await props.params;
@@ -28,31 +48,15 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
   }
   const user: User = await userRes.json();
 
-  const lastfmRes = await fetch(`${apiUrl}/users/${id}/lastfm`, {
-    cache: "no-store",
-  });
-  if (!lastfmRes.ok && lastfmRes.status !== 404) {
-    throw new Error(`Failed to load Last.fm account: ${lastfmRes.status}`);
-  }
-  const lastfm: LastfmAccount | null = lastfmRes.ok
-    ? await lastfmRes.json()
-    : null;
-
-  const userArtistsRes = await fetch(`${apiUrl}/users/${id}/artists`, {
-    cache: "no-store",
-  });
-  if (!userArtistsRes.ok) {
-    throw new Error(`Failed to load user artists: ${userArtistsRes.status}`);
-  }
-  const userArtists: UserArtist[] = await userArtistsRes.json();
-
-  const allArtistsRes = await fetch(`${apiUrl}/artists`, {
-    cache: "no-store",
-  });
-  if (!allArtistsRes.ok) {
-    throw new Error(`Failed to load artists: ${allArtistsRes.status}`);
-  }
-  const allArtists: Artist[] = await allArtistsRes.json();
+  const [lastfm, city, userArtists, allArtists] = await Promise.all([
+    fetchOptional<LastfmAccount>(
+      `${apiUrl}/users/${id}/lastfm`,
+      "Last.fm account",
+    ),
+    fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
+    fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
+    fetchJson<Artist[]>(`${apiUrl}/artists`, "artists"),
+  ]);
 
   return (
     <main className="mx-auto max-w-xl p-8">
@@ -63,6 +67,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       <section>
         <h2 className="mb-3 text-lg font-medium">Last.fm</h2>
         <LastfmPanel userId={user.id} account={lastfm} />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">City</h2>
+        <CityPanel userId={user.id} city={city} />
       </section>
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-medium">Artists</h2>

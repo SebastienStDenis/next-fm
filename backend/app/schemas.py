@@ -17,6 +17,21 @@ class UserCreate(BaseModel):
     name: str = Field(min_length=1)
 
 
+class CityRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    geonameid: int
+    name: str
+    admin1: str | None
+    country_code: str
+    latitude: float
+    longitude: float
+
+
+class CitySet(BaseModel):
+    geonameid: int
+
+
 class LastfmAccountRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
