@@ -133,6 +133,55 @@ export async function syncLastfmArtists(
   return { error: null, summary };
 }
 
+type SyncSuggestionsResponse = {
+  seeds_total: number;
+  seeds_synced: number;
+  seeds_skipped: number;
+  seeds_failed: number;
+  candidates_scored: number;
+  suggestions_created: number;
+  suggestions_kept: number;
+  suggestions_removed: number;
+};
+
+export async function syncSuggestions(
+  userId: string,
+): Promise<SyncArtistsActionState> {
+  const res = await fetch(`${apiUrl}/users/${userId}/suggestions/sync`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    return {
+      error: await errorMessage(res, "Failed to sync suggestions."),
+      summary: null,
+    };
+  }
+
+  const body: SyncSuggestionsResponse = await res.json();
+  const failed = body.seeds_failed > 0 ? `, ${body.seeds_failed} failed` : "";
+  const seeds = `${body.seeds_total} ${body.seeds_total === 1 ? "seed" : "seeds"} (${body.seeds_skipped} fresh${failed})`;
+  const summary = `Scored ${body.candidates_scored} candidates from ${seeds} · ${body.suggestions_created} suggestions added, ${body.suggestions_kept} kept, ${body.suggestions_removed} removed`;
+
+  revalidatePath(`/users/${userId}`);
+  return { error: null, summary };
+}
+
+export async function setIncludeKnownArtists(
+  userId: string,
+  includeKnownArtists: boolean,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ include_known_artists: includeKnownArtists }),
+    },
+    "Failed to update the setting.",
+    `/users/${userId}`,
+  );
+}
+
 type SyncEventsResponse = {
   artists_total: number;
   artists_synced: number;

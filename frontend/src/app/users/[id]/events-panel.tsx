@@ -45,11 +45,13 @@ export function EventsPanel({
   userId,
   city,
   hasArtists,
+  needsSuggestions,
   events,
 }: {
   userId: string;
   city: City | null;
   hasArtists: boolean;
+  needsSuggestions: boolean;
   events: UserEvent[];
 }) {
   const [state, formAction, pending] = useActionState(
@@ -129,9 +131,11 @@ export function EventsPanel({
         </p>
       ) : shownEvents.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          {viewCity
-            ? `No upcoming concerts by your artists near ${viewCity.name}.`
-            : "No upcoming concerts by your artists nearby. Try syncing events."}
+          {needsSuggestions
+            ? "Concerts show suggested artists only, and you have none yet. Sync suggestions in the Suggested artists tab, or include artists you know via the Discovery setting."
+            : viewCity
+              ? `No upcoming concerts by your artists near ${viewCity.name}.`
+              : "No upcoming concerts by your artists nearby. Try syncing events."}
         </p>
       ) : (
         <>

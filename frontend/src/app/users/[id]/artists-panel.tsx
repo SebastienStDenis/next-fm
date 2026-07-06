@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { syncLastfmArtists } from "./actions";
+import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 
 export type Artist = {
   id: string;
   name: string;
 };
 
-type Interest = {
+export type Interest = {
   kind: string;
   source: string;
   evidence: {
@@ -18,7 +19,10 @@ type Interest = {
     playcount?: number | null;
     period?: string;
     track_count?: number;
+    score?: number;
+    paths?: { seed_artist_id: string; seed_name: string; match: number }[];
   };
+  weight: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -80,6 +84,11 @@ function interestLabel(interest: Interest): string {
   if (interest.kind === "lastfm_loved_tracks") {
     const count = interest.evidence.track_count ?? 0;
     return `${count} loved ${count === 1 ? "track" : "tracks"}`;
+  }
+  if (interest.kind === SIMILAR_ARTIST_KIND) {
+    // A known artist can briefly hold a suggestion row too (the show-grace
+    // window); label it rather than showing the raw kind.
+    return `suggested · score ${(interest.weight ?? 0).toFixed(2)}`;
   }
   return interest.kind;
 }

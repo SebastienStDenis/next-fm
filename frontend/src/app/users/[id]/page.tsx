@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import {
   ArtistsPanel,
   type Artist,
@@ -8,14 +9,17 @@ import {
 } from "./artists-panel";
 import { CityPanel, type City } from "./city-panel";
 import { DeleteUserButton } from "./delete-user-button";
+import { DiscoveryToggle } from "./discovery-toggle";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
+import { SuggestedArtistsPanel } from "./suggested-artists-panel";
 import { Tabs } from "./tabs";
 
 type User = {
   id: string;
   name: string;
+  include_known_artists: boolean;
 };
 
 const apiUrl = process.env.API_URL ?? "http://localhost:8000";
@@ -67,6 +71,17 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       ? await fetchJson<UserEvent[]>(`${apiUrl}/users/${id}/events`, "events")
       : [];
 
+  const isKnown = (userArtist: UserArtist) =>
+    userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind));
+  const knownArtists = userArtists.filter(isKnown);
+  const suggestedArtists = userArtists.filter(
+    (userArtist) =>
+      !isKnown(userArtist) &&
+      userArtist.interests.some(
+        (interest) => interest.kind === SIMILAR_ARTIST_KIND,
+      ),
+  );
+
   return (
     <main className="mx-auto max-w-xl p-8">
       <Link href="/users" className="text-sm text-gray-500 hover:underline">
@@ -82,17 +97,35 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         <CityPanel userId={user.id} city={city} />
       </section>
       <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">Discovery</h2>
+        <DiscoveryToggle
+          userId={user.id}
+          includeKnownArtists={user.include_known_artists}
+        />
+      </section>
+      <section className="mt-8">
         <Tabs
           tabs={[
             {
               key: "artists",
-              label: `Artists (${userArtists.length})`,
+              label: `Known artists (${knownArtists.length})`,
               content: (
                 <ArtistsPanel
                   userId={user.id}
                   lastfmLinked={lastfm !== null}
-                  userArtists={userArtists}
+                  userArtists={knownArtists}
                   allArtists={allArtists}
+                />
+              ),
+            },
+            {
+              key: "suggested",
+              label: `Suggested artists (${suggestedArtists.length})`,
+              content: (
+                <SuggestedArtistsPanel
+                  userId={user.id}
+                  lastfmLinked={lastfm !== null}
+                  suggestedArtists={suggestedArtists}
                 />
               ),
             },
@@ -104,6 +137,9 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
                   userId={user.id}
                   city={city}
                   hasArtists={userArtists.length > 0}
+                  needsSuggestions={
+                    !user.include_known_artists && suggestedArtists.length === 0
+                  }
                   events={events}
                 />
               ),
