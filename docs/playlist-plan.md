@@ -165,6 +165,15 @@ Design notes:
   (a future per-genre or per-weekend playlist is a new kind). `unique (user_id, kind)`
   keeps V1 honest - one city-shows playlist per user - and is dropped the day a kind
   legitimately repeats.
+- **No location column.** A `city_shows` playlist follows `users.city_id` at compute
+  time rather than pinning a copy: one source of truth, and a user moving cities is
+  just another input change the reconcile absorbs (the old city's tracks drop out, the
+  city-referencing description re-renders on the next sync). Which city the current
+  tracklist was computed for is recoverable through provenance
+  (`playlist_tracks.event_id` -> event coordinates). A future "playlist pinned to a
+  city I'm visiting" feature arrives as per-playlist config - a nullable `city_id`
+  override (null = follow the user) widening the unique constraint - not a fork of
+  this design.
 - **`playlist_tracks` is the provenance IOU from the event plan**: `artist_id` +
   `event_id` answer "why is this song here" for the UI, and the rows are the diff base
   for sync. When a track is justified by several shows, the row carries the soonest;
