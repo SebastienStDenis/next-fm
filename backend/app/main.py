@@ -121,22 +121,38 @@ async def _require_user(session: AsyncSession, user_id: uuid.UUID) -> User:
     return user
 
 
+CITY_FUZZY_THRESHOLD = 0.45
+
+
 @app.get("/cities", response_model=list[CityRead])
 async def search_cities(
     q: Annotated[str, BeforeValidator(str.strip), Query(min_length=2)],
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=25)] = 10,
 ) -> list[City]:
-    """Search cities by name, most populous first."""
+    """Search cities by name: substring and fuzzy matches, best first."""
+    similarity = func.greatest(
+        func.word_similarity(q, City.name),
+        func.word_similarity(q, City.ascii_name),
+    )
     result = await session.execute(
         select(City)
         .where(
             or_(
                 City.name.icontains(q, autoescape=True),
                 City.ascii_name.icontains(q, autoescape=True),
+                func.word_similarity(q, City.name) >= CITY_FUZZY_THRESHOLD,
+                func.word_similarity(q, City.ascii_name) >= CITY_FUZZY_THRESHOLD,
             )
         )
-        .order_by(City.population.desc(), City.geonameid)
+        .order_by(
+            City.ascii_name.istartswith(q, autoescape=True).desc(),
+            # bucket similarity so population breaks near-ties instead of
+            # a marginally closer trigram match beating a major city
+            func.floor(similarity * 10).desc(),
+            City.population.desc(),
+            City.geonameid,
+        )
         .limit(limit)
     )
     return list(result.scalars())
