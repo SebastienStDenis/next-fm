@@ -76,9 +76,9 @@ POST /users/{id}/playlists/sync         playlists   (exists, gains the setting f
 Why its own stage rather than a side effect of an existing one:
 
 - **Not inside taste sync**: different cadence (taste moves weekly; similarity lists
-  drift over months), different failure profile (~30 extra API calls that shouldn't
-  fail the taste sync), and the sync-ownership rule stays clean - each stage upserts
-  and prunes only its own interest `kind`.
+  drift over months), different failure profile (up to a couple hundred extra API
+  calls that shouldn't fail the taste sync), and the sync-ownership rule stays clean
+  - each stage upserts and prunes only its own interest `kind`.
 - **Not at event or playlist time**: too late by construction. Interests drive event
   fetching, so suggestions must exist as interests before event sync runs, and the
   playlist layer is a pure function of local data with no API calls of its own.
@@ -90,33 +90,48 @@ evidence as the "because you listen to X" reason - no new read endpoint.
 
 ### Seeds
 
-The user's top `SUGGESTION_SEED_COUNT = 30` artists by `lastfm_top_artist` rank,
-skipping excluded artists (below). Seeds cap the API cost (one `getSimilar` call each,
-freshness-gated) and the top of the list is where taste signal is strongest; artist
-number 150 of 200 says little.
+Every known artist is a potential seed, skipping excluded artists (below) - there is
+no seed-count knob. A rank cutoff ("top 30") would be decision-relevant truncation:
+affinity is still meaningful at any such boundary, so seed #31 could have minted a
+suggestion the cutoff silently discards, and two artists separated by a single play
+would land on opposite sides of an in/out cliff. The only seed filter is *derived*
+from the decision thresholds: a seed's similar list is fetched and scored only when
+its affinity clears the path-qualification bar (`affinity >= 0.2`, the same constant
+the consensus bonus uses below) - a weaker seed cannot reach that bar even with a
+perfect match, so skipping it provably cannot change the output. Same taste data in,
+same suggestions out; the skip is API savings, not a taste judgment. (One truncation
+always remains - Last.fm ends the top-artists list at whatever limit we fetch - but
+that boundary sits in tail territory where affinity cannot clear thresholds, which
+is the test that matters.)
 
 ### Edges
 
-For each stale seed (`similar_synced_at` older than `SIMILAR_TTL = 30 days`), fetch
-`artist.getSimilar(limit=100)` and replace that seed's rows in
+For each stale eligible seed (`similar_synced_at` older than `SIMILAR_TTL = 30
+days`), fetch `artist.getSimilar(limit=100)` and replace that seed's rows in
 `lastfm_similar_artists` (schema below). Similarity lists are near-static, so the TTL
 is long and refreshes are cheap after the first sync.
 
 ### Scoring
 
-For each candidate (any artist appearing in any seed's similar list):
+For each candidate (any artist appearing in any eligible seed's similar list):
 
 ```
-affinity(seed)   = 1 - 0.5 * (rank - 1) / (SEED_COUNT - 1)     # linear 1.0 -> 0.5
-                   * 1.15 if the seed also has a loved-tracks interest, capped at 1.0
+affinity(seed)   = log1p(seed playcount) / log1p(user's max artist playcount)
+                   # loved-tracks-only seeds: min(0.4 + 0.15 * track_count, 1.0);
+                   # an artist known through both signals takes the stronger
 path(seed, cand) = match(seed, cand) * affinity(seed)
 score(cand)      = best path + 0.05 * min(count of other paths >= 0.2, 4)
 ```
 
-- **Affinity is deliberately flat** (1.0 down to 0.5, not 1/rank). Every seed is
-  already a top-30 artist; a steep decay would collapse the effective seed set to a
-  handful and starve eclectic taste - the failure mode the matching notes warned
-  averaging would cause.
+- **Affinity comes from playcount, not rank.** Rank manufactures differences between
+  near-ties - one extra play must not flip an artist's treatment, and with
+  playcount-derived affinity it doesn't (equal playcounts, equal affinity) - and any
+  rank-shaped affinity makes seed cutoffs into cliffs. Log-scaling against the
+  user's *own* maximum normalizes heavy against light listeners; a share-of-total
+  denominator would not (it penalizes broad listeners, whose favorite is 2% of
+  their listening where a casual user's is 15%). The loved-tracks formula is a
+  starting point like every constant here: loving tracks by an artist is a strong
+  signal at any playcount.
 - **Max path first, consensus second.** One strong path is the best predictor (the
   doom-metal argument from the matching notes), but for *suggestions* - where we
   choose what to bet a standing event-sync commitment on - an artist similar to five
@@ -148,10 +163,19 @@ A candidate becomes or stays a suggestion when:
 - it is an incumbent whose artist has an upcoming matched show - retained regardless
   of score or known classification (see "The playlist scrobbles back").
 
-Rank qualifiers by score, incumbents winning ties, and keep the top
-`SUGGESTION_CAP = 50`. The enter/exit gap and the tiebreak damp churn: a candidate
-oscillating around a single cutoff would otherwise flap in and out of the interest
-set, dragging event fetches and playlist rewrites with it every cycle.
+Qualifiers are ranked by score and kept up to `SUGGESTION_BUDGET = 200`, with
+deterministic tie-breaks (incumbency first, then `name_key`) so equal inputs always
+yield equal outputs. The budget is deliberately *not* part of the taste algorithm -
+the thresholds above are the quality boundary. It exists because every suggestion
+interest is a standing commitment to re-fetch that artist's Bandsintown feed every
+event-sync TTL, and score thresholds alone don't bound that volume (a broad-taste
+user can clear the enter score for hundreds of candidates). The user-facing surface
+is already bounded by the real limit (the 100-track playlist); the budget projects
+the ingestion cost upstream, is set generously so most users never touch it, and
+gets tuned against observed Bandsintown volume rather than product intuition. The
+enter/exit gap and the incumbency tie-break damp churn: a candidate oscillating
+around a single cutoff would otherwise flap in and out of the interest set,
+dragging event fetches and playlist rewrites with it every cycle.
 
 Every threshold above is an empirical starting point, not a calibrated value -
 `getSimilar` match scores are normalized per list (a tiny artist's top neighbor gets
@@ -239,6 +263,12 @@ Suggestions are ordinary `user_artist_interests` rows:
 | source   | `internal` |
 | evidence | `{"score": 0.58, "paths": [{"seed_artist_id": "...", "seed_name": "Slowdive", "match": 0.84}, ...]}` (top 3 paths) |
 
+One row per (user, artist, kind): a candidate recommended by many seeds still gets a
+single `similar_artist` row - the multiplicity lives in the edge table and in the
+score's path aggregation, with the top contributors named in evidence. A second
+*kind* is the only thing that adds rows, exactly as known artists already hold
+separate top-artists and loved-tracks rows.
+
 `source` is `internal`, not `lastfm`: the edges come from Last.fm, but the row records
 our engine's decision (aggregation, thresholds, caps, exclusions). A future suggestion
 signal (Spotify related artists, the pgvector fallback) lands as its own kind added to
@@ -305,8 +335,8 @@ Two mechanisms close the loop, plus a deliberate line on what "known" means:
   suggestion exists to sell that show; evicting it while the decision is live defeats
   the product, and a user who plays a suggested artist forty times before the gig is
   the success case, not cleanup. Retained incumbents still count against
-  `SUGGESTION_CAP`, keeping the event-fetch commitment bounded, and the check is one
-  local query against events - no API cost.
+  `SUGGESTION_BUDGET`, keeping the event-fetch commitment bounded (theoretical at a
+  budget of 200), and the check is one local query against events - no API cost.
 
 Above the floor, plays count no matter who caused them: **known measures
 familiarity, not provenance**. A user who has heard an artist twenty times knows
@@ -391,11 +421,12 @@ untouched.
 
 ## Volume and rate limits
 
-Per user, steady state: 30 `getSimilar` calls per 30 days (often fewer - seeds shared
-across users share edges), one `getTopArtists(overall)` call per suggestion sync, and
-up to 50 suggested artists joining the 24h-TTL Bandsintown rotation - the standing
-commitment the event plan flagged, bounded by `SUGGESTION_CAP` exactly as it
-prescribed. Suggested artists that match a show enter Spotify resolution and
+Per user, steady state: up to ~200 `getSimilar` calls per 30 days - one per eligible
+seed, bounded by the top-artists fetch itself, and usually far fewer (the affinity
+eligibility bar trims the tail, and seeds shared across users share edges) - one
+`getTopArtists(overall)` call per suggestion sync, and up to `SUGGESTION_BUDGET`
+suggested artists joining the 24h-TTL Bandsintown rotation - the standing commitment
+the event plan flagged, bounded exactly as it prescribed. Suggested artists that match a show enter Spotify resolution and
 top-track caching like any other artist, already bounded by match count. All well
 inside the ~5 req/s Last.fm ceiling even syncing several users back to back.
 
