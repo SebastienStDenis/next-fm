@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/app"
     lastfm_api_key: str = ""
+    bandsintown_api_key: str = ""
 
 
 @lru_cache

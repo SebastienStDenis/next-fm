@@ -3,9 +3,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 from httpx import ASGITransport, AsyncClient, Response
 
+from app.bandsintown import BandsintownClient
 from app.db import get_session
 from app.lastfm import LastfmClient
-from app.main import app, get_lastfm_client
+from app.main import app, get_bandsintown_client, get_lastfm_client
 
 
 def make_session() -> AsyncMock:
@@ -33,11 +34,14 @@ async def request(
     url: str,
     session: AsyncMock,
     lastfm: LastfmClient | None = None,
+    bandsintown: BandsintownClient | None = None,
     json: dict | None = None,
 ) -> Response:
     app.dependency_overrides[get_session] = lambda: session
     if lastfm is not None:
         app.dependency_overrides[get_lastfm_client] = lambda: lastfm
+    if bandsintown is not None:
+        app.dependency_overrides[get_bandsintown_client] = lambda: bandsintown
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             return await client.request(method, url, json=json)

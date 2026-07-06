@@ -11,6 +11,7 @@ class Source(enum.StrEnum):
     """External systems we ingest data from."""
 
     LASTFM = "lastfm"
+    BANDSINTOWN = "bandsintown"
 
 
 class Base(DeclarativeBase):
@@ -127,6 +128,73 @@ class LastfmArtist(Base):
     listeners: Mapped[int | None] = mapped_column(BigInteger)
     playcount: Mapped[int | None] = mapped_column(BigInteger)
     tags: Mapped[list | None] = mapped_column(JSONB)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Event(Base):
+    __tablename__ = "events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    title: Mapped[str | None]
+    venue_name: Mapped[str]
+    venue_latitude: Mapped[float]
+    venue_longitude: Mapped[float]
+    city_name: Mapped[str]
+    region: Mapped[str | None]
+    country: Mapped[str | None]
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class EventArtist(Base):
+    __tablename__ = "event_artists"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), primary_key=True
+    )
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+
+
+class BandsintownEvent(Base):
+    __tablename__ = "bandsintown_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True
+    )
+    external_id: Mapped[str] = mapped_column(unique=True)
+    url: Mapped[str | None]
+    lineup: Mapped[list | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class BandsintownArtist(Base):
+    __tablename__ = "bandsintown_artists"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), unique=True
+    )
+    name: Mapped[str]
+    external_id: Mapped[str | None]
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

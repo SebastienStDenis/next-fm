@@ -52,7 +52,7 @@ Endpoints:
 
 ### Configuration and secrets
 
-All configuration lives in a single `.env` at the repo root (`cp .env.example .env`). Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real environment variables take precedence). Defaults cover everything except secrets, which are referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup. `LASTFM_API_KEY` needs a [Last.fm API account](https://www.last.fm/api/account/create).
+All configuration lives in a single `.env` at the repo root (`cp .env.example .env`). Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real environment variables take precedence). Defaults cover everything except secrets, which are referenced in `docker-compose.yml` without a default (`${KEY:?set in .env}`) so missing values fail at startup. `LASTFM_API_KEY` needs a [Last.fm API account](https://www.last.fm/api/account/create); `BANDSINTOWN_API_KEY` is the app_id for the [Bandsintown API](https://artists.bandsintown.com/support/api-installation).
 
 ### Managing the stack
 

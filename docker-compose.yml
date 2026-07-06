@@ -25,6 +25,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
       LASTFM_API_KEY: ${LASTFM_API_KEY:?set in .env}
+      BANDSINTOWN_API_KEY: ${BANDSINTOWN_API_KEY:?set in .env}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:

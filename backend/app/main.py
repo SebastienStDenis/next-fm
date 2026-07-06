@@ -7,12 +7,14 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BeforeValidator
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import ColumnElement, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
+from app.bandsintown import BandsintownApiError, BandsintownClient
 from app.config import get_settings
 from app.db import get_session
+from app.event_sync import sync_user_events
 from app.lastfm import (
     LastfmApiError,
     LastfmClient,
@@ -20,17 +22,30 @@ from app.lastfm import (
     LastfmUserInfo,
     LastfmUserNotFoundError,
 )
-from app.models import Artist, City, LastfmAccount, LastfmConnection, User, UserArtistInterest
+from app.models import (
+    Artist,
+    BandsintownEvent,
+    City,
+    Event,
+    EventArtist,
+    LastfmAccount,
+    LastfmConnection,
+    User,
+    UserArtistInterest,
+)
 from app.schemas import (
     ArtistInterestRead,
     ArtistRead,
     ArtistSyncResult,
     CityRead,
     CitySet,
+    EventRead,
+    EventSyncResult,
     LastfmAccountRead,
     LastfmLink,
     UserArtistRead,
     UserCreate,
+    UserEventRead,
     UserRead,
 )
 
@@ -49,6 +64,20 @@ async def get_lastfm_client() -> AsyncIterator[LastfmClient]:
 
 
 LastfmClientDep = Annotated[LastfmClient, Depends(get_lastfm_client)]
+
+
+async def get_bandsintown_client() -> AsyncIterator[BandsintownClient]:
+    app_id = get_settings().bandsintown_api_key
+    if not app_id:
+        raise HTTPException(status_code=503, detail="BANDSINTOWN_API_KEY is not configured")
+    client = BandsintownClient(app_id)
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+BandsintownClientDep = Annotated[BandsintownClient, Depends(get_bandsintown_client)]
 
 app = FastAPI(title="live-playlists API")
 
@@ -74,6 +103,11 @@ async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> 
 
 @app.exception_handler(LastfmApiError)
 async def lastfm_api_error(request: Request, exc: LastfmApiError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(BandsintownApiError)
+async def bandsintown_api_error(request: Request, exc: BandsintownApiError) -> JSONResponse:
     return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
@@ -315,6 +349,77 @@ async def list_artists(session: SessionDep) -> list[Artist]:
     """List all canonical artists."""
     result = await session.execute(select(Artist).order_by(func.lower(Artist.name)))
     return list(result.scalars())
+
+
+EVENT_MATCH_RADIUS_KM = 50.0
+
+
+def _distance_km(latitude: float, longitude: float) -> ColumnElement[float]:
+    """Haversine distance in km from the given point to Event's venue."""
+    lat1, lon1 = func.radians(latitude), func.radians(longitude)
+    lat2, lon2 = func.radians(Event.venue_latitude), func.radians(Event.venue_longitude)
+    central_angle = 2 * func.asin(
+        func.sqrt(
+            func.power(func.sin((lat2 - lat1) / 2), 2)
+            + func.cos(lat1) * func.cos(lat2) * func.power(func.sin((lon2 - lon1) / 2), 2)
+        )
+    )
+    return 6371.0 * central_angle
+
+
+@app.post("/users/{user_id}/events/sync", response_model=EventSyncResult)
+async def sync_events_for_user(
+    user_id: uuid.UUID,
+    session: SessionDep,
+    bandsintown: BandsintownClientDep,
+) -> EventSyncResult:
+    """Refresh upcoming events for the user's interest artists (freshness-gated per artist)."""
+    await _require_user(session, user_id)
+    result = await sync_user_events(session, bandsintown, user_id)
+    await session.commit()
+    return result
+
+
+@app.get("/users/{user_id}/events", response_model=list[UserEventRead])
+async def list_user_events(
+    user_id: uuid.UUID,
+    session: SessionDep,
+    radius_km: Annotated[float, Query(gt=0, le=500)] = EVENT_MATCH_RADIUS_KM,
+) -> list[UserEventRead]:
+    """List upcoming events near the user's city by artists they have an interest in."""
+    user = await _require_user(session, user_id)
+    city = await session.get(City, user.city_id) if user.city_id is not None else None
+    if city is None:
+        raise HTTPException(status_code=409, detail="Set a city to match events")
+
+    distance = _distance_km(city.latitude, city.longitude).label("distance_km")
+    result = await session.execute(
+        select(Event, Artist, BandsintownEvent.url, distance)
+        .join(EventArtist, EventArtist.event_id == Event.id)
+        .join(Artist, Artist.id == EventArtist.artist_id)
+        .join(UserArtistInterest, UserArtistInterest.artist_id == Artist.id)
+        .outerjoin(BandsintownEvent, BandsintownEvent.event_id == Event.id)
+        .where(
+            UserArtistInterest.user_id == user_id,
+            Event.starts_at > func.now(),
+            distance <= radius_km,
+        )
+        .order_by(Event.starts_at, Event.id)
+        .distinct()
+    )
+    grouped: dict[uuid.UUID, UserEventRead] = {}
+    for event, artist, url, distance_km in result.all():
+        entry = grouped.get(event.id)
+        if entry is None:
+            entry = UserEventRead(
+                event=EventRead.model_validate(event),
+                url=url,
+                distance_km=round(distance_km, 1),
+                artists=[],
+            )
+            grouped[event.id] = entry
+        entry.artists.append(ArtistRead.model_validate(artist))
+    return list(grouped.values())
 
 
 @app.delete("/users/{user_id}/lastfm", status_code=204)

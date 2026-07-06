@@ -133,6 +133,37 @@ export async function syncLastfmArtists(
   return { error: null, summary };
 }
 
+type SyncEventsResponse = {
+  artists_total: number;
+  artists_synced: number;
+  artists_skipped: number;
+  artists_unknown: number;
+  events_created: number;
+  events_updated: number;
+  events_removed: number;
+};
+
+export async function syncEvents(
+  userId: string,
+): Promise<SyncArtistsActionState> {
+  const res = await fetch(`${apiUrl}/users/${userId}/events/sync`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    return {
+      error: await errorMessage(res, "Failed to sync events."),
+      summary: null,
+    };
+  }
+
+  const body: SyncEventsResponse = await res.json();
+  const checked = `Checked ${body.artists_total} ${body.artists_total === 1 ? "artist" : "artists"} (${body.artists_skipped} fresh, ${body.artists_unknown} not on Bandsintown)`;
+  const summary = `${checked} · ${body.events_created} events added, ${body.events_updated} updated, ${body.events_removed} removed`;
+
+  revalidatePath(`/users/${userId}`);
+  return { error: null, summary };
+}
+
 export async function deleteUser(userId: string): Promise<ActionState> {
   const result = await callApi(
     `/users/${userId}`,

@@ -6,13 +6,12 @@ data we already hold. Scope for now: suggest events only for artists the user is
 linked to; suggested artists are covered at the end because they change nothing in this
 pipeline.
 
-> **Status: TBD pending API verification.** This design assumes Bandsintown as the
-> events source and an artist -> upcoming-events lookup. Bandsintown's public API is
-> officially aimed at artists and their managers and requires an app_id; whether access
-> terms permit this use case remains to be checked. The flow was chosen on structural
-> grounds first (see below), so if Bandsintown falls through, the design carries over to
-> another source (e.g. Ticketmaster Discovery), with the flow-direction tradeoff
-> revisited if that source is city-shaped rather than artist-shaped.
+> **Status: Phases 0-2 done.** Bandsintown access is verified (app_id in `.env` as
+> `BANDSINTOWN_API_KEY`) and the schema, client, and sync + read endpoints are
+> implemented, with a demo Concerts panel on the user page. Two deviations from the
+> sketch below: events store the source's full `country` name rather than a
+> `country_code`, and Bandsintown's venue-local datetimes (no offset) are stored as
+> UTC, which is close enough for date-granular matching. Phases 3-4 remain.
 
 ## Decision: artist-first ingestion, not city-first
 

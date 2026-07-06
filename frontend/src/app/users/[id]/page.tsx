@@ -8,6 +8,7 @@ import {
 } from "./artists-panel";
 import { CityPanel, type City } from "./city-panel";
 import { DeleteUserButton } from "./delete-user-button";
+import { EventsPanel, type UserEvent } from "./events-panel";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 
 type User = {
@@ -58,6 +59,11 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     fetchJson<Artist[]>(`${apiUrl}/artists`, "artists"),
   ]);
 
+  const events =
+    city !== null
+      ? await fetchJson<UserEvent[]>(`${apiUrl}/users/${id}/events`, "events")
+      : [];
+
   return (
     <main className="mx-auto max-w-xl p-8">
       <Link href="/users" className="text-sm text-gray-500 hover:underline">
@@ -79,6 +85,15 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
           lastfmLinked={lastfm !== null}
           userArtists={userArtists}
           allArtists={allArtists}
+        />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">Concerts</h2>
+        <EventsPanel
+          userId={user.id}
+          hasCity={city !== null}
+          hasArtists={userArtists.length > 0}
+          events={events}
         />
       </section>
       <section className="mt-8">

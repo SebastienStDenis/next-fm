@@ -73,6 +73,38 @@ class UserArtistRead(BaseModel):
     interests: list[ArtistInterestRead]
 
 
+class EventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str | None
+    venue_name: str
+    venue_latitude: float
+    venue_longitude: float
+    city_name: str
+    region: str | None
+    country: str | None
+    starts_at: datetime
+
+
+class UserEventRead(BaseModel):
+    event: EventRead
+    url: str | None
+    distance_km: float
+    artists: list[ArtistRead]
+
+
+class EventSyncResult(BaseModel):
+    synced_at: datetime
+    artists_total: int
+    artists_synced: int
+    artists_skipped: int
+    artists_unknown: int
+    events_created: int
+    events_updated: int
+    events_removed: int
+
+
 class ArtistSyncKindResult(BaseModel):
     kind: str
     artists: int
