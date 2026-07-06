@@ -101,7 +101,8 @@ state we cannot cheaply re-read and diff on every sync.
 For a playlist of kind `city_shows`:
 
 1. Run the event-plan match join: the user's interest artists with an event within
-   radius of their city, `starts_at > now()`.
+   radius of the playlist's target city (`city_id`, or `users.city_id` when null),
+   `starts_at > now()`.
 2. For each matched artist, take the top N cached tracks (start with N=5; the
    interest `kind` weighting the event plan anticipates - fewer tracks for discovery
    suggestions - plugs in here later).
@@ -139,6 +140,8 @@ playlists                    -- first-class, one-to-many from users
   id                  uuidv7 PK
   user_id             FK -> users.id (cascade, index)
   kind                str          -- "city_shows" for now
+  city_id             FK -> cities.geonameid | None (set null)
+                                   -- null = follow users.city_id; set = pinned
   name                str          -- desired title; sync pushes it to Spotify
   description         str | None
   spotify_playlist_id str | None (unique)  -- null until created remotely
@@ -146,7 +149,7 @@ playlists                    -- first-class, one-to-many from users
   snapshot_id         str | None   -- Spotify's version token from the last write
   last_synced_at      timestamptz | None
   created_at / updated_at
-  unique (user_id, kind)
+  unique (user_id, kind, city_id)   -- nulls not distinct
 
 playlist_tracks              -- what we last wrote, with provenance
   id                  uuidv7 PK
@@ -161,19 +164,21 @@ playlist_tracks              -- what we last wrote, with provenance
 
 Design notes:
 
-- **`user_id` is one-to-many by construction**, with `kind` as the axis of multiplicity
-  (a future per-genre or per-weekend playlist is a new kind). `unique (user_id, kind)`
-  keeps V1 honest - one city-shows playlist per user - and is dropped the day a kind
-  legitimately repeats.
-- **No location column.** A `city_shows` playlist follows `users.city_id` at compute
-  time rather than pinning a copy: one source of truth, and a user moving cities is
-  just another input change the reconcile absorbs (the old city's tracks drop out, the
-  city-referencing description re-renders on the next sync). Which city the current
-  tracklist was computed for is recoverable through provenance
-  (`playlist_tracks.event_id` -> event coordinates). A future "playlist pinned to a
-  city I'm visiting" feature arrives as per-playlist config - a nullable `city_id`
-  override (null = follow the user) widening the unique constraint - not a fork of
-  this design.
+- **`user_id` is one-to-many by construction**, with `kind` and target city as the
+  axes of multiplicity: a future per-genre or per-weekend playlist is a new kind,
+  another city is another row of the same kind. `unique (user_id, kind, city_id)`
+  (nulls not distinct, a PG15+ option) keeps one playlist per target.
+- **`city_id` pins a playlist to a city; null means "follow the user".** The default
+  playlist has `city_id = null` and computes against `users.city_id` at sync time, so
+  moving house re-targets it automatically - the right behavior for "my local shows",
+  and it keeps a single source of truth for where the user lives. A pinned playlist
+  ("shows in Tokyo" for a trip) carries its own city as an independent fact: the
+  user's home changing never touches it, and it is created and deleted only by
+  explicit user action, capped app-side at 3 city playlists per user to start (a
+  product knob, not schema). Because event ingestion is artist-first and
+  city-agnostic, an extra city costs nothing upstream - the artists' tour dates are
+  already local, and each playlist just runs the match join around different
+  coordinates.
 - **`playlist_tracks` is the provenance IOU from the event plan**: `artist_id` +
   `event_id` answer "why is this song here" for the UI, and the rows are the diff base
   for sync. When a track is justified by several shows - or several artists, a
@@ -293,8 +298,8 @@ the failure mode to avoid.
 
 ## Naming and content policy
 
-Title referencing the user: `"<name>'s upcoming shows"`, description like
-`"Artists you love playing near <city>. Updated <month year>."`. Constraints that
+Title referencing the user and target city: `"<name>'s shows in <city>"`, description
+like `"Artists you love playing near <city>. Updated <month year>."`. Constraints that
 matter: nothing implying Spotify endorsement or co-branding, attribution/linkback when
 we display Spotify metadata in our own UI, and both APIs are non-commercial-terms
 (Last.fm ToS, Spotify development mode) - fine for this project, a real constraint if
@@ -337,9 +342,12 @@ helper. Extend `LastfmClient` with `get_artist_top_tracks`.
 `spotify_artists` (MBID path, then search path), ingest `artist_top_tracks` with the
 freshness gate. Exposed as part of sync rather than a user-facing endpoint.
 
-**Phase 3 - playlist sync.** `POST /users/{id}/playlists/sync` running the full
-reconcile, `GET /users/{id}/playlists` returning playlists with tracks and provenance
-(artist + show per track). Same refresh-endpoint pattern as the other plans.
+**Phase 3 - playlist sync + management.** `POST /users/{id}/playlists/sync` running
+the full reconcile over all of the user's playlists, `GET /users/{id}/playlists`
+returning playlists with tracks and provenance (artist + show per track), plus
+pinned-playlist management: `POST /users/{id}/playlists` (pin a city, subject to the
+cap) and `DELETE /users/{id}/playlists/{playlist_id}` (unfollow on Spotify, then
+delete locally). Same refresh-endpoint pattern as the other plans.
 
 **Phase 4 - background refresh.** The scheduled task from the other plans' final phases
 gains a step: after event refresh, re-sync playlists whose inputs changed (or simply
