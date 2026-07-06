@@ -102,7 +102,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               content: (
                 <EventsPanel
                   userId={user.id}
-                  hasCity={city !== null}
+                  city={city}
                   hasArtists={userArtists.length > 0}
                   events={events}
                 />

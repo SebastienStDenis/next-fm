@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 
 import { createCityPlaylist, deletePlaylist, syncPlaylists } from "./actions";
 import type { City } from "./city-panel";
+import { CitySearchBox } from "./city-search-box";
 
 export type Playlist = {
   id: string;
@@ -210,83 +211,23 @@ function PlaylistCard({
 }
 
 function PinCitySearch({ userId }: { userId: string }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<City[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    const q = query.trim();
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      if (q.length < 2) {
-        setResults([]);
-        return;
-      }
-      try {
-        const res = await fetch(`/api/cities?q=${encodeURIComponent(q)}`, {
-          signal: controller.signal,
-        });
-        if (res.ok) {
-          setResults(await res.json());
-          setError(null);
-        } else {
-          setResults([]);
-          setError("City search failed.");
-        }
-      } catch {
-        // aborted; the next keystroke's fetch takes over
-      }
-    }, 250);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
 
   function select(city: City) {
     startTransition(async () => {
       const result = await createCityPlaylist(userId, city.geonameid);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      setQuery("");
-      setResults([]);
-      setError(null);
+      setError(result.error);
     });
-  }
-
-  function cityLabel(city: City): string {
-    return [city.name, city.admin1, city.country_code]
-      .filter(Boolean)
-      .join(", ");
   }
 
   return (
     <div className="space-y-2">
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+      <CitySearchBox
         placeholder="Search for a city to pin"
-        className="w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
+        disabled={pending}
+        onSelect={select}
       />
-      {results.length > 0 && (
-        <ul className="divide-y divide-gray-300 rounded border border-gray-300 dark:divide-gray-700 dark:border-gray-700">
-          {results.map((city) => (
-            <li key={city.geonameid}>
-              <button
-                type="button"
-                onClick={() => select(city)}
-                disabled={pending}
-                className="w-full px-3 py-2 text-left hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-900"
-              >
-                {cityLabel(city)}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );

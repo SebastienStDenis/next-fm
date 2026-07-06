@@ -435,12 +435,19 @@ async def list_user_events(
     user_id: uuid.UUID,
     session: SessionDep,
     radius_km: Annotated[float, Query(gt=0, le=500)] = EVENT_MATCH_RADIUS_KM,
+    geonameid: int | None = None,
 ) -> list[UserEventRead]:
-    """List upcoming events near the user's city by artists they have an interest in."""
+    """List upcoming events by artists the user has an interest in, near the
+    given city (defaulting to the user's own)."""
     user = await _require_user(session, user_id)
-    city = await session.get(City, user.city_id) if user.city_id is not None else None
-    if city is None:
-        raise HTTPException(status_code=409, detail="Set a city to match events")
+    if geonameid is not None:
+        city = await session.get(City, geonameid)
+        if city is None:
+            raise HTTPException(status_code=404, detail="City not found")
+    else:
+        city = await session.get(City, user.city_id) if user.city_id is not None else None
+        if city is None:
+            raise HTTPException(status_code=409, detail="Set a city to match events")
 
     distance = distance_km(city.latitude, city.longitude).label("distance_km")
     result = await session.execute(

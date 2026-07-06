@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
 
 import { syncEvents } from "./actions";
+import type { City } from "./city-panel";
+import { CitySearchBox, cityLabel } from "./city-search-box";
 
 export type UserEvent = {
   event: {
@@ -41,12 +43,12 @@ function placeLabel(event: UserEvent["event"]): string {
 
 export function EventsPanel({
   userId,
-  hasCity,
+  city,
   hasArtists,
   events,
 }: {
   userId: string;
-  hasCity: boolean;
+  city: City | null;
   hasArtists: boolean;
   events: UserEvent[];
 }) {
@@ -54,6 +56,10 @@ export function EventsPanel({
     syncEvents.bind(null, userId),
     { error: null, summary: null },
   );
+  const [viewCity, setViewCity] = useState<City | null>(null);
+  const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
+  const [viewError, setViewError] = useState<string | null>(null);
+  const [loading, startTransition] = useTransition();
 
   if (!hasArtists) {
     return (
@@ -62,6 +68,23 @@ export function EventsPanel({
       </p>
     );
   }
+
+  function selectCity(selected: City) {
+    startTransition(async () => {
+      const res = await fetch(
+        `/api/users/${userId}/events?geonameid=${selected.geonameid}`,
+      );
+      if (!res.ok) {
+        setViewError("Failed to load concerts for that city.");
+        return;
+      }
+      setViewEvents(await res.json());
+      setViewCity(selected);
+      setViewError(null);
+    });
+  }
+
+  const shownEvents = viewCity ? viewEvents : events;
 
   return (
     <div>
@@ -79,21 +102,44 @@ export function EventsPanel({
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       </div>
 
-      {!hasCity ? (
+      <div className="mt-4 space-y-2">
+        <CitySearchBox
+          placeholder="See concerts in another city"
+          disabled={loading}
+          onSelect={selectCity}
+        />
+        {viewCity && (
+          <p className="text-sm text-gray-500">
+            Showing concerts near {cityLabel(viewCity)}.{" "}
+            <button
+              type="button"
+              onClick={() => setViewCity(null)}
+              className="underline hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              {city ? `Back to ${city.name}` : "Back to your city"}
+            </button>
+          </p>
+        )}
+        {viewError && <p className="text-sm text-red-600">{viewError}</p>}
+      </div>
+
+      {!city && !viewCity ? (
         <p className="mt-4 text-sm text-gray-500">
-          Set a city to see concerts near you.
+          Set a city to see concerts near you, or search one above.
         </p>
-      ) : events.length === 0 ? (
+      ) : shownEvents.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          No upcoming concerts by your artists nearby. Try syncing events.
+          {viewCity
+            ? `No upcoming concerts by your artists near ${viewCity.name}.`
+            : "No upcoming concerts by your artists nearby. Try syncing events."}
         </p>
       ) : (
         <>
           <h3 className="mt-4 text-sm font-medium">
-            Upcoming concerts ({events.length})
+            Upcoming concerts ({shownEvents.length})
           </h3>
           <ul className="mt-2 space-y-3">
-            {events.map(({ event, url, distance_km, artists }) => (
+            {shownEvents.map(({ event, url, distance_km, artists }) => (
               <li
                 key={event.id}
                 className="rounded border border-gray-300 p-3 dark:border-gray-700"

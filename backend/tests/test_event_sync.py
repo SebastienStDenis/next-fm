@@ -324,6 +324,42 @@ async def test_list_events_requires_a_city() -> None:
     assert response.json()["detail"] == "Set a city to match events"
 
 
+async def test_list_events_accepts_an_explicit_city() -> None:
+    seattle = City(
+        geonameid=5809844,
+        name="Seattle",
+        ascii_name="Seattle",
+        admin1="Washington",
+        country_code="US",
+        latitude=47.60621,
+        longitude=-122.33207,
+        population=737015,
+    )
+    event = make_matched_event(datetime(2026, 8, 1, 20, 0, tzinfo=UTC))
+    artist = Artist(id=uuid.uuid7(), name="Autechre")
+    session = make_session()
+    session.get.side_effect = [MagicMock(city_id=None), seattle]
+    session.execute.return_value = result_with_rows(
+        [(event, artist, "https://bandsintown.com/e/1", 12.0)]
+    )
+
+    response = await request("GET", f"{EVENTS_URL}?geonameid={seattle.geonameid}", session)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    session.get.assert_any_await(City, seattle.geonameid)
+
+
+async def test_list_events_unknown_explicit_city() -> None:
+    session = make_session()
+    session.get.side_effect = [MagicMock(city_id=None), None]
+
+    response = await request("GET", f"{EVENTS_URL}?geonameid=999", session)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "City not found"
+
+
 async def test_list_events_unknown_user() -> None:
     session = make_session()
     session.get.return_value = None
