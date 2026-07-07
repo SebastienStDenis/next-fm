@@ -326,7 +326,7 @@ function PinCitySearch({
   if (atCap) {
     return (
       <p className="text-sm text-gray-500">
-        You can pin up to {PINNED_PLAYLIST_CAP} additional cities. Delete an existing pin to add another.
+        You can pin up to {PINNED_PLAYLIST_CAP} cities. Delete an existing pin to add another.
       </p>
     );
   }
