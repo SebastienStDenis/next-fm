@@ -2,11 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
-import {
-  ArtistsPanel,
-  type Artist,
-  type UserArtist,
-} from "./artists-panel";
 import { CityPanel, type City } from "./city-panel";
 import { DeleteUserButton } from "./delete-user-button";
 import { DiscoveryToggle } from "./discovery-toggle";
@@ -15,6 +10,8 @@ import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
 import { Tabs } from "./tabs";
+import { TastePanel, type Artist, type UserArtist } from "./taste-panel";
+import { TasteSyncPanel } from "./taste-sync-panel";
 
 type User = {
   id: string;
@@ -66,12 +63,17 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
   ]);
 
+  // Known-artist events are fetched regardless of the user's global setting;
+  // the events panel hides them behind its own view-side filter.
   const events =
     city !== null
-      ? await fetchJson<UserEvent[]>(`${apiUrl}/users/${id}/events`, "events")
+      ? await fetchJson<UserEvent[]>(
+          `${apiUrl}/users/${id}/events?include_known_artists=true`,
+          "events",
+        )
       : [];
 
-  // The tabs overlap on purpose: an artist can hold a known-kind interest
+  // The lists overlap on purpose: an artist can hold a known-kind interest
   // below the engine's playcount floor and still be an active suggestion.
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
@@ -86,42 +88,15 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
   ]);
 
-  return (
-    <main className="mx-auto max-w-xl p-8">
-      <Link href="/users" className="text-sm text-gray-500 hover:underline">
-        &larr; Users
-      </Link>
-      <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
+  const suggestionsSection = (
+    <>
       <section>
-        <h2 className="mb-3 text-lg font-medium">Last.fm</h2>
-        <LastfmPanel userId={user.id} account={lastfm} />
-      </section>
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-medium">City</h2>
-        <CityPanel userId={user.id} city={city} />
-      </section>
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-medium">Discovery</h2>
-        <DiscoveryToggle
-          userId={user.id}
-          includeKnownArtists={user.include_known_artists}
-        />
+        <h2 className="mb-3 text-lg font-medium">Taste</h2>
+        <TasteSyncPanel userId={user.id} lastfmLinked={lastfm !== null} />
       </section>
       <section className="mt-8">
         <Tabs
           tabs={[
-            {
-              key: "artists",
-              label: `Known artists (${knownArtists.length})`,
-              content: (
-                <ArtistsPanel
-                  userId={user.id}
-                  lastfmLinked={lastfm !== null}
-                  userArtists={knownArtists}
-                  allArtists={allArtists}
-                />
-              ),
-            },
             {
               key: "suggested",
               label: `Suggested artists (${suggestedArtists.length})`,
@@ -141,9 +116,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
                   userId={user.id}
                   city={city}
                   hasArtists={userArtists.length > 0}
-                  needsSuggestions={
-                    !user.include_known_artists && suggestedArtists.length === 0
-                  }
+                  hasSuggestions={suggestedArtists.length > 0}
                   artistRelations={artistRelations}
                   events={events}
                 />
@@ -164,9 +137,50 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
           ]}
         />
       </section>
+    </>
+  );
+
+  const accountSection = (
+    <>
+      <section>
+        <h2 className="mb-3 text-lg font-medium">Last.fm</h2>
+        <LastfmPanel userId={user.id} account={lastfm} />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">City</h2>
+        <CityPanel userId={user.id} city={city} />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">Discovery</h2>
+        <DiscoveryToggle
+          userId={user.id}
+          includeKnownArtists={user.include_known_artists}
+        />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">
+          My taste ({knownArtists.length})
+        </h2>
+        <TastePanel userArtists={knownArtists} allArtists={allArtists} />
+      </section>
       <section className="mt-8">
         <DeleteUserButton userId={user.id} userName={user.name} />
       </section>
+    </>
+  );
+
+  return (
+    <main className="mx-auto max-w-xl p-8">
+      <Link href="/users" className="text-sm text-gray-500 hover:underline">
+        &larr; Users
+      </Link>
+      <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
+      <Tabs
+        tabs={[
+          { key: "suggestions", label: "Suggestions", content: suggestionsSection },
+          { key: "account", label: "Account", content: accountSection },
+        ]}
+      />
     </main>
   );
 }

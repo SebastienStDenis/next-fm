@@ -61,14 +61,14 @@ export function EventsPanel({
   userId,
   city,
   hasArtists,
-  needsSuggestions,
+  hasSuggestions,
   artistRelations,
   events,
 }: {
   userId: string;
   city: City | null;
   hasArtists: boolean;
-  needsSuggestions: boolean;
+  hasSuggestions: boolean;
   artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
 }) {
@@ -76,6 +76,7 @@ export function EventsPanel({
     syncEvents.bind(null, userId),
     { error: null, summary: null },
   );
+  const [showKnown, setShowKnown] = useState(false);
   const [viewCity, setViewCity] = useState<City | null>(null);
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [viewError, setViewError] = useState<string | null>(null);
@@ -84,7 +85,7 @@ export function EventsPanel({
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
-        Sync artists first to find concerts you would like.
+        Sync your taste first to find concerts you would like.
       </p>
     );
   }
@@ -104,7 +105,17 @@ export function EventsPanel({
     });
   }
 
+  // Events come with known artists included regardless of the user's global
+  // setting; the checkbox below only filters this view.
   const shownEvents = viewCity ? viewEvents : events;
+  const visibleEvents = showKnown
+    ? shownEvents
+    : shownEvents.filter((userEvent) =>
+        userEvent.artists.some(
+          (artist) => artistRelations[artist.id] === "suggested",
+        ),
+      );
+  const hiddenCount = shownEvents.length - visibleEvents.length;
 
   return (
     <div>
@@ -143,25 +154,45 @@ export function EventsPanel({
         {viewError && <p className="text-sm text-red-600">{viewError}</p>}
       </div>
 
+      {(city || viewCity) && (
+        <label className="mt-4 flex items-center gap-2 text-xs text-gray-500">
+          <input
+            type="checkbox"
+            checked={showKnown}
+            onChange={(event) => setShowKnown(event.target.checked)}
+          />
+          Also show concerts by artists I already listen to (filters this list
+          only)
+        </label>
+      )}
+
       {!city && !viewCity ? (
         <p className="mt-4 text-sm text-gray-500">
           Set a city to see concerts near you, or search one above.
         </p>
-      ) : shownEvents.length === 0 ? (
+      ) : visibleEvents.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
-          {needsSuggestions
-            ? "Concerts show suggested artists only, and you have none yet. Sync suggestions in the Suggested artists tab, or include artists you know via the Discovery setting."
-            : viewCity
-              ? `No upcoming concerts by your artists near ${viewCity.name}.`
-              : "No upcoming concerts by your artists nearby. Try syncing events."}
+          {hiddenCount > 0
+            ? `No concerts by suggested artists, but ${hiddenCount} by ${
+                hiddenCount === 1 ? "an artist" : "artists"
+              } you already listen to ${
+                hiddenCount === 1 ? "is" : "are"
+              } hidden - tick the filter above to see ${
+                hiddenCount === 1 ? "it" : "them"
+              }.`
+            : !hasSuggestions
+              ? "No suggested artists yet, so no concerts to show. Sync suggestions in the Suggested artists tab."
+              : viewCity
+                ? `No upcoming concerts by your artists near ${viewCity.name}.`
+                : "No upcoming concerts by your artists nearby. Try syncing events."}
         </p>
       ) : (
         <>
           <h3 className="mt-4 text-sm font-medium">
-            Upcoming concerts ({shownEvents.length})
+            Upcoming concerts ({visibleEvents.length})
           </h3>
           <ul className="mt-2 space-y-3">
-            {shownEvents.map(({ event, url, distance_km, artists }) => (
+            {visibleEvents.map(({ event, url, distance_km, artists }) => (
               <li
                 key={event.id}
                 className="rounded border border-gray-300 p-3 dark:border-gray-700"

@@ -82,7 +82,7 @@ export function PlaylistsPanel({
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
-        Sync artists first to build playlists from shows near you.
+        Sync your taste first to build playlists from shows near you.
       </p>
     );
   }

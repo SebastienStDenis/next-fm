@@ -4,7 +4,7 @@ import { useActionState } from "react";
 
 import { syncSuggestions } from "./actions";
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
-import type { Interest, UserArtist } from "./artists-panel";
+import type { Interest, UserArtist } from "./taste-panel";
 
 function suggestionOf(userArtist: UserArtist): Interest | undefined {
   return userArtist.interests.find(
