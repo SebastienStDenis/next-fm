@@ -6,11 +6,10 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
   const geonameid = new URL(request.url).searchParams.get("geonameid");
-  // Known and ignored events are always requested; the events panel filters
-  // known ones view-side and shows ignored ones dimmed with an undo control.
+  // Known events are always requested and filtered view-side; ignored events
+  // are dropped server-side so they stay gone after a refresh.
   const params = new URLSearchParams({
     include_known_artists: "true",
-    include_ignored: "true",
   });
   if (geonameid) {
     params.set("geonameid", geonameid);

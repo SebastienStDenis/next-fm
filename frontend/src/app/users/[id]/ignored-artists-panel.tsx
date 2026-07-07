@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { unignoreArtist } from "./actions";
+import { IgnoreButton } from "./ignore-icons";
 import type { UserArtist } from "./taste-panel";
 
 export function IgnoredArtistsPanel({
@@ -52,15 +53,12 @@ export function IgnoredArtistsPanel({
                 key={artist.id}
                 className="flex flex-wrap items-center gap-2 text-sm"
               >
-                <span>{artist.name}</span>
-                <button
-                  type="button"
+                <span className="text-gray-500 line-through">{artist.name}</span>
+                <IgnoreButton
+                  ignored
                   onClick={() => unignore(artist.id)}
                   disabled={pendingId === artist.id}
-                  className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
-                >
-                  Undo
-                </button>
+                />
               </li>
             ))}
           </ul>

@@ -5,6 +5,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import { ignoreEvent, unignoreEvent } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
+import { IgnoreButton } from "./ignore-icons";
 
 export type UserEvent = {
   event: {
@@ -223,7 +224,9 @@ export function EventsPanel({
                     }`}
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-medium">
+                      <span
+                        className={`font-medium ${ignored ? "line-through" : ""}`}
+                      >
                         {event.title ??
                           artists.map((artist) => artist.name).join(", ")}
                       </span>
@@ -254,14 +257,11 @@ export function EventsPanel({
                           Tickets ↗
                         </a>
                       )}
-                      <button
-                        type="button"
+                      <IgnoreButton
+                        ignored={ignored}
                         onClick={() => toggleIgnore(userEvent)}
                         disabled={pendingIgnore === event.id}
-                        className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
-                      >
-                        {ignored ? "Undo" : "Not interested"}
-                      </button>
+                      />
                     </div>
                   </li>
                 );

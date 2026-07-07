@@ -18,7 +18,7 @@ async function callApi(
   path: string,
   init: RequestInit,
   fallback: string,
-  revalidate: string,
+  revalidate: string | string[],
 ): Promise<ActionState> {
   let res: Response;
   try {
@@ -30,7 +30,9 @@ async function callApi(
     return { error: await errorMessage(res, fallback) };
   }
 
-  revalidatePath(revalidate);
+  for (const path of Array.isArray(revalidate) ? revalidate : [revalidate]) {
+    revalidatePath(path);
+  }
   return { error: null };
 }
 
@@ -165,7 +167,7 @@ export async function ignoreArtist(
     `/users/${userId}/artists/${artistId}/exclusion`,
     { method: "PUT" },
     "Failed to ignore artist.",
-    `/users/${userId}`,
+    [`/users/${userId}`, `/users/${userId}/account`],
   );
 }
 
@@ -177,7 +179,7 @@ export async function unignoreArtist(
     `/users/${userId}/artists/${artistId}/exclusion`,
     { method: "DELETE" },
     "Failed to un-ignore artist.",
-    `/users/${userId}`,
+    [`/users/${userId}`, `/users/${userId}/account`],
   );
 }
 

@@ -33,13 +33,13 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       loadNeverSynced(id),
     ]);
 
-  // Known-artist and ignored events are both fetched regardless of settings;
-  // the events panel hides known ones behind a view-side filter and shows
-  // ignored ones dimmed with an undo affordance.
+  // Known-artist events are fetched regardless of settings and hidden behind a
+  // view-side filter; ignored events are dropped server-side so they stay gone
+  // after a refresh.
   const events =
     city !== null
       ? await fetchJson<UserEvent[]>(
-          `${apiUrl}/users/${id}/events?include_known_artists=true&include_ignored=true`,
+          `${apiUrl}/users/${id}/events?include_known_artists=true`,
           "events",
         )
       : [];

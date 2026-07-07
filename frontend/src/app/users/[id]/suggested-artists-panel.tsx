@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { ignoreArtist } from "./actions";
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
+import { IgnoreButton } from "./ignore-icons";
 import type { Interest, UserArtist } from "./taste-panel";
 
 function suggestionOf(userArtist: UserArtist): Interest | undefined {
@@ -79,14 +80,11 @@ export function SuggestedArtistsPanel({
                     {reasonOf(userArtist)}
                   </span>
                 )}
-                <button
-                  type="button"
+                <IgnoreButton
+                  ignored={false}
                   onClick={() => ignore(userArtist.artist.id)}
                   disabled={pendingId === userArtist.artist.id}
-                  className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
-                >
-                  Not interested
-                </button>
+                />
               </li>
             ))}
           </ul>

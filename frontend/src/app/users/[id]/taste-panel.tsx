@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { ignoreArtist } from "./actions";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
+import { IgnoreButton } from "./ignore-icons";
 
 export type Artist = {
   id: string;
@@ -154,14 +155,11 @@ export function TastePanel({
                       {interestLabel(interest)}
                     </span>
                   ))}
-                <button
-                  type="button"
+                <IgnoreButton
+                  ignored={false}
                   onClick={() => ignore(artist)}
                   disabled={pendingId === artist.id}
-                  className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
-                >
-                  Ignore
-                </button>
+                />
               </li>
             ))}
           </ul>
