@@ -198,7 +198,7 @@ export function SyncCard({
       {/* The Sync button stays put; the running steps play out to its right,
           centered against the button while a run plays and pinned to the top
           once idle so expanding the step list only grows downward. */}
-      <div className="flex min-h-9 flex-col justify-center">
+      <div className="flex flex-col">
         <div
           className={`flex gap-3 ${
             running || settling ? "items-center" : "items-start"
