@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  useActionState,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 
-import { createCityPlaylist, deletePlaylist } from "./actions";
 import type { City } from "./city-panel";
-import { CitySearchBox } from "./city-search-box";
 
 export type Playlist = {
   id: string;
@@ -36,8 +29,6 @@ type PlaylistTrack = {
   } | null;
   url: string | null;
 };
-
-export const PINNED_PLAYLIST_CAP = 2;
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
 // UTC displays the original local time.
@@ -72,19 +63,12 @@ export function PlaylistsPanel({
   hasCity,
   hasArtists,
   playlists,
-  pendingPins,
-  pinnedCount,
 }: {
   userId: string;
   hasCity: boolean;
   hasArtists: boolean;
   playlists: Playlist[];
-  pendingPins: Playlist[];
-  pinnedCount: number;
 }) {
-  const homePlaylists = playlists.filter((playlist) => playlist.city === null);
-  const pinnedPlaylists = playlists.filter((playlist) => playlist.city !== null);
-
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
@@ -100,78 +84,26 @@ export function PlaylistsPanel({
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <section>
-        <h3 className="text-base font-semibold">Home city</h3>
-        {!hasCity ? (
-          <p className="mt-1 text-sm text-gray-500">
-            Set your city in the Account section to get your local playlist.
-          </p>
-        ) : homePlaylists.length > 0 ? (
-          <ul className="mt-2 space-y-3">
-            {homePlaylists.map((playlist) => (
-              <PlaylistCard
-                key={playlist.id}
-                userId={userId}
-                playlist={playlist}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-1 text-sm text-gray-500">
-            No playlist yet. Sync to create your local playlist on Spotify.
-          </p>
-        )}
-      </section>
+  if (playlists.length === 0) {
+    return (
+      <p className="text-sm text-gray-500">
+        {hasCity
+          ? "No playlists yet. Sync to create your playlists on Spotify."
+          : "Set your city in the Account section to get your local playlist."}
+      </p>
+    );
+  }
 
-      <section>
-        <h3 className="text-base font-semibold">Pinned cities</h3>
-        {pinnedPlaylists.length > 0 && (
-          <ul className="mt-2 space-y-3">
-            {pinnedPlaylists.map((playlist) => (
-              <PlaylistCard
-                key={playlist.id}
-                userId={userId}
-                playlist={playlist}
-              />
-            ))}
-          </ul>
-        )}
-        {pendingPins.length > 0 && (
-          <ul className="mt-3 space-y-1">
-            {pendingPins.map((playlist) => (
-              <PendingPinRow
-                key={playlist.id}
-                userId={userId}
-                playlist={playlist}
-              />
-            ))}
-          </ul>
-        )}
-        <div className="mt-3">
-          <PinCitySearch
-            userId={userId}
-            atCap={pinnedCount >= PINNED_PLAYLIST_CAP}
-          />
-        </div>
-      </section>
-    </div>
+  return (
+    <ul className="space-y-3">
+      {playlists.map((playlist) => (
+        <PlaylistCard key={playlist.id} playlist={playlist} />
+      ))}
+    </ul>
   );
 }
 
-function PlaylistCard({
-  userId,
-  playlist,
-}: {
-  userId: string;
-  playlist: Playlist;
-}) {
-  const [state, deleteAction, deleting] = useActionState(
-    deletePlaylist.bind(null, userId, playlist.id),
-    { error: null },
-  );
-
+function PlaylistCard({ playlist }: { playlist: Playlist }) {
   return (
     <li className="rounded border border-gray-300 p-3 dark:border-gray-700">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -243,131 +175,6 @@ function PlaylistCard({
           </ol>
         </details>
       )}
-      <form
-        action={deleteAction}
-        onSubmit={(event) => {
-          if (
-            !window.confirm(
-              `Delete "${playlist.name}"? It will also be removed from Spotify.`,
-            )
-          ) {
-            event.preventDefault();
-          }
-        }}
-        className="mt-2 text-right"
-      >
-        <button
-          type="submit"
-          disabled={deleting}
-          className="text-xs text-red-600 hover:underline disabled:opacity-50"
-        >
-          {deleting ? "Deleting..." : "Delete playlist"}
-        </button>
-      </form>
-      {state.error && <p className="mt-1 text-sm text-red-600">{state.error}</p>}
     </li>
-  );
-}
-
-// A pinned city whose Spotify playlist doesn't exist yet: shown so a fresh
-// pin is visible before the first sync creates it, removable from here.
-function PendingPinRow({
-  userId,
-  playlist,
-}: {
-  userId: string;
-  playlist: Playlist;
-}) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function remove() {
-    startTransition(async () => {
-      const result = await deletePlaylist(userId, playlist.id);
-      setError(result.error);
-    });
-  }
-
-  return (
-    <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
-      <span>
-        {playlist.city?.name}
-        <span className="text-gray-500"> · awaiting first sync</span>
-      </span>
-      <span className="flex items-baseline gap-2">
-        {error && <span className="text-xs text-red-600">{error}</span>}
-        <button
-          type="button"
-          onClick={remove}
-          disabled={pending}
-          className="text-xs text-red-600 hover:underline disabled:opacity-50"
-        >
-          {pending ? "Removing..." : "Remove"}
-        </button>
-      </span>
-    </li>
-  );
-}
-
-function PinCitySearch({
-  userId,
-  atCap,
-}: {
-  userId: string;
-  atCap: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function select(city: City) {
-    startTransition(async () => {
-      const result = await createCityPlaylist(userId, city.geonameid);
-      setError(result.error);
-      if (!result.error) {
-        setOpen(false);
-      }
-    });
-  }
-
-  if (atCap) {
-    return (
-      <p className="text-sm text-gray-500">
-        You can pin up to {PINNED_PLAYLIST_CAP} cities. Delete an existing pin to add another.
-      </p>
-    );
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-sm text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
-      >
-        + Add a playlist for another city
-      </button>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <CitySearchBox
-        placeholder="Search for a city to pin"
-        disabled={pending}
-        onSelect={select}
-      />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(false);
-          setError(null);
-        }}
-        className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
-      >
-        Cancel
-      </button>
-    </div>
   );
 }
