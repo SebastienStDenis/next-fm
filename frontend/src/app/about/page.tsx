@@ -22,12 +22,8 @@ export default function AboutPage() {
           <p className="mt-1 text-sm text-gray-500">
             We look at who sounds similar to the artists you listen to most and
             keep the strongest matches - each one shows its reason, like
-            &ldquo;because you listen to Slowdive&rdquo;. Artists you clearly
-            already know are left out, but a name you have only brushed past is
-            still fair game, and listening to the playlist itself will not turn
-            your suggestions into &ldquo;known&rdquo; artists overnight. A
-            suggestion with an upcoming show nearby keeps its spot until the
-            show has passed.
+            &ldquo;because you listen to Slowdive&rdquo;. Artists you already
+            know are left out; a name you have only brushed past is fair game.
           </p>
         </section>
         <section>
