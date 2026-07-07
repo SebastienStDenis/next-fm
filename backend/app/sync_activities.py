@@ -10,17 +10,17 @@ preserves the MusicBrainz 1 req/s guarantee across activities.
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
+from app.accounts import linked_lastfm_account
 from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
 from app.bandsintown import BandsintownClient
 from app.db import session_factory
 from app.event_sync import sync_user_events
 from app.lastfm import LastfmClient
-from app.models import LastfmAccount, LastfmConnection, User
+from app.models import LastfmAccount, User
 from app.musicbrainz import MusicBrainzClient
 from app.playlist_sync import sync_user_playlists
 from app.schemas import (
@@ -41,12 +41,7 @@ async def _require_user(session: AsyncSession, user_id: str) -> User:
 
 
 async def _require_lastfm_account(session: AsyncSession, user_id: uuid.UUID) -> LastfmAccount:
-    result = await session.execute(
-        select(LastfmAccount)
-        .join(LastfmConnection, LastfmConnection.lastfm_account_id == LastfmAccount.id)
-        .where(LastfmConnection.user_id == user_id)
-    )
-    account = result.scalar_one_or_none()
+    account = await linked_lastfm_account(session, user_id)
     if account is None:
         raise ApplicationError("No Last.fm account linked", non_retryable=True)
     return account

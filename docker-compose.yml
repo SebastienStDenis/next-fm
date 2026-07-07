@@ -25,6 +25,9 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
       TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-user-sync}
+      TEMPORAL_API_KEY: ${TEMPORAL_API_KEY:-}
       LASTFM_API_KEY: ${LASTFM_API_KEY:?set in .env}
       BANDSINTOWN_API_KEY: ${BANDSINTOWN_API_KEY:?set in .env}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set in .env}
@@ -53,12 +56,16 @@ services:
 
   temporal:
     image: temporalio/auto-setup:1.29.7
+    # The dev server can fatal on boot (ringpop tries to rejoin the previous
+    # container's stale IP) and would otherwise stay down until started by hand.
+    restart: unless-stopped
     environment:
       DB: postgres12
       DB_PORT: "5432"
       POSTGRES_SEEDS: db
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PWD: ${POSTGRES_PASSWORD:-postgres}
+      DEFAULT_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       DEFAULT_NAMESPACE_RETENTION: 168h
     ports:
       - "${TEMPORAL_PORT:-7233}:7233"
@@ -66,7 +73,7 @@ services:
       # Healthy only once auto-setup has registered the namespace, which on a
       # fresh database happens minutes after gRPC starts answering. The server
       # binds to the container IP, not loopback, so dial via the service name.
-      test: ["CMD-SHELL", "temporal operator namespace describe -n default --address temporal:7233 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "temporal operator namespace describe -n ${TEMPORAL_NAMESPACE:-default} --address temporal:7233 >/dev/null 2>&1"]
       interval: 5s
       timeout: 10s
       retries: 60
@@ -92,6 +99,9 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
       TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-user-sync}
+      TEMPORAL_API_KEY: ${TEMPORAL_API_KEY:-}
       LASTFM_API_KEY: ${LASTFM_API_KEY:?set in .env}
       BANDSINTOWN_API_KEY: ${BANDSINTOWN_API_KEY:?set in .env}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set in .env}

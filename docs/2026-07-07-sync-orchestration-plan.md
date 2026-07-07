@@ -138,7 +138,7 @@ class SyncUserWorkflow:
             try:
                 summary = await workflow.execute_activity(
                     ACTIVITY_FOR_STEP[step.key], user_id,
-                    start_to_close_timeout=TIMEOUT_FOR_STEP[step.key],
+                    schedule_to_close_timeout=TIMEOUT_FOR_STEP[step.key],
                     retry_policy=RETRY_POLICY,
                 )
             except ActivityError:
@@ -167,8 +167,11 @@ class SyncUserWorkflow:
   pointless: missing API credentials, user not found, no linked Last.fm account
   (activities raise `ApplicationError(..., non_retryable=True)` for these, mirroring
   the 404/503 paths the individual endpoints have today, `main.py:75-139`, `:306`).
-- **Timeouts** (`start_to_close`, generous because cold runs are real): artists
-  2 min, suggestions 15 min, events 15 min, playlists 30 min. No heartbeating in v1;
+- **Timeouts** (`schedule_to_close`, generous because cold runs are real): artists
+  2 min, suggestions 15 min, events 15 min, playlists 30 min. Schedule-to-close
+  covers queue wait plus every retry, so a run fails within its step budget
+  instead of sitting RUNNING forever when no worker is polling the queue.
+  No heartbeating in v1;
   it requires threading a callback into the sync modules and buys intra-step
   progress plus faster stuck-worker detection - noted as a follow-up, not needed for
   a 4-step checklist UI.

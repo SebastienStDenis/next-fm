@@ -17,7 +17,7 @@ from typing import Any
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
-from temporalio.exceptions import ActivityError
+from temporalio.exceptions import ActivityError, FailureError
 
 with workflow.unsafe.imports_passed_through():
     from app.schemas import (
@@ -163,13 +163,17 @@ class SyncUserWorkflow:
                     spec.activity,
                     user_id,
                     result_type=spec.result_type,
-                    start_to_close_timeout=spec.timeout,
+                    # schedule_to_close bounds queue wait plus every retry, so
+                    # a run can't sit RUNNING forever when no worker is polling.
+                    schedule_to_close_timeout=spec.timeout,
                     retry_policy=RETRY_POLICY,
                 )
-            except ActivityError:
+            except ActivityError as exc:
                 # Later steps consume this one's writes, so stop here; the
                 # remaining steps stay pending and the run fails.
                 step.status = "failed"
+                if isinstance(exc.cause, FailureError):
+                    step.summary = exc.cause.message
                 raise
             step.status = "completed"
             step.summary = spec.summarize(result)

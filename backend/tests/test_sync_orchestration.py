@@ -21,6 +21,7 @@ from app.schemas import (
     EventSyncResult,
     PlaylistSyncResult,
     SuggestionSyncResult,
+    SyncRunResult,
     SyncStepProgress,
 )
 from app.sync_activities import SyncActivities
@@ -113,6 +114,9 @@ def make_handle(
         return_value=SimpleNamespace(status=status, start_time=started_at, close_time=finished_at)
     )
     handle.query = AsyncMock(return_value=steps if steps is not None else pending_steps())
+    handle.result = AsyncMock(
+        return_value=SyncRunResult(steps=steps if steps is not None else pending_steps())
+    )
     return handle
 
 
@@ -157,6 +161,20 @@ async def test_start_sync_starts_workflow() -> None:
     kwargs = temporal.start_workflow.await_args.kwargs
     assert kwargs["id"] == WORKFLOW_ID
     assert kwargs["id_conflict_policy"] == WorkflowIDConflictPolicy.USE_EXISTING
+
+
+async def test_start_sync_maps_temporal_errors_to_502() -> None:
+    session = make_session()
+    session.get.return_value = make_user()
+    session.execute.return_value = result_returning(make_account())
+    temporal = make_temporal()
+    temporal.start_workflow = AsyncMock(
+        side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b"")
+    )
+
+    response = await request("POST", SYNC_URL, session, temporal=temporal)
+
+    assert response.status_code == 502
 
 
 # --- GET /users/{id}/sync ---
@@ -225,11 +243,13 @@ async def test_sync_status_maps_terminal_statuses() -> None:
         assert response.json()["finished_at"] is not None
 
 
-async def test_sync_status_degrades_when_query_fails() -> None:
+async def test_sync_status_completed_reads_steps_from_result() -> None:
     session = make_session()
     session.get.return_value = make_user()
-    handle = make_handle(WorkflowExecutionStatus.COMPLETED)
-    handle.query = AsyncMock(side_effect=RPCError("gone", RPCStatusCode.NOT_FOUND, b""))
+    steps = pending_steps()
+    for step in steps:
+        step.status = "completed"
+    handle = make_handle(WorkflowExecutionStatus.COMPLETED, steps, finished_at=SYNCED_AT)
     temporal = make_temporal(handle)
 
     response = await request("GET", SYNC_URL, session, temporal=temporal)
@@ -237,6 +257,22 @@ async def test_sync_status_degrades_when_query_fails() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "completed"
+    assert all(step["status"] == "completed" for step in body["steps"])
+    handle.query.assert_not_awaited()
+
+
+async def test_sync_status_degrades_when_query_fails() -> None:
+    session = make_session()
+    session.get.return_value = make_user()
+    handle = make_handle(WorkflowExecutionStatus.RUNNING)
+    handle.query = AsyncMock(side_effect=RPCError("gone", RPCStatusCode.NOT_FOUND, b""))
+    temporal = make_temporal(handle)
+
+    response = await request("GET", SYNC_URL, session, temporal=temporal)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "running"
     assert all(step["status"] == "pending" for step in body["steps"])
 
 
@@ -392,4 +428,4 @@ async def test_workflow_stops_at_first_failed_step() -> None:
 
     assert [step.status for step in steps] == ["completed", "failed", "pending", "pending"]
     assert steps[0].summary is not None
-    assert steps[1].summary is None
+    assert steps[1].summary == "Last.fm exploded"

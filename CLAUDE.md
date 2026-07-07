@@ -32,7 +32,7 @@ uv run pytest tests/test_health.py::test_health   # single test
 uv run uvicorn app.main:app --reload              # dev server (needs Postgres + backend/.env)
 ```
 
-Tests are unit tests: the database dependency is overridden (`app.dependency_overrides[get_session]`), so nothing needs to be running. pytest-asyncio is in auto mode - async test functions need no decorator.
+Tests are unit tests: the database dependency is overridden (`app.dependency_overrides[get_session]`), so nothing needs to be running. pytest-asyncio is in auto mode - async test functions need no decorator. Exception: the workflow tests in `tests/test_sync_orchestration.py` run against Temporal's time-skipping test server, which the SDK downloads on first use (a one-time network fetch).
 
 ### Migrations (run from `backend/`)
 
@@ -75,6 +75,7 @@ Small layered FastAPI app; keep the separation when adding features:
 - `temporal.py` - Temporal client connection helper shared by API and worker; local server by default, Temporal Cloud when `TEMPORAL_API_KEY` is set.
 - `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service.
 - `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the match join, haversine distance.
+- `accounts.py` - shared linked-Last.fm-account lookup used by both the API and the sync activities.
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
 - `seed.py` - idempotent seed script (`python -m app.seed`).

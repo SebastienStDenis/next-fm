@@ -20,6 +20,7 @@ from temporalio.client import (
 from temporalio.common import WorkflowIDConflictPolicy
 from temporalio.service import RPCError, RPCStatusCode
 
+from app.accounts import linked_lastfm_account
 from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
 from app.bandsintown import BandsintownApiError, BandsintownClient
 from app.config import get_settings
@@ -69,6 +70,7 @@ from app.schemas import (
     PlaylistSyncResult,
     PlaylistTrackRead,
     SuggestionSyncResult,
+    SyncRunResult,
     SyncStartResult,
     SyncStatusResult,
     UserArtistRead,
@@ -333,15 +335,6 @@ async def clear_user_city(user_id: uuid.UUID, session: SessionDep) -> None:
     await session.commit()
 
 
-async def _linked_lastfm_account(session: AsyncSession, user_id: uuid.UUID) -> LastfmAccount | None:
-    result = await session.execute(
-        select(LastfmAccount)
-        .join(LastfmConnection, LastfmConnection.lastfm_account_id == LastfmAccount.id)
-        .where(LastfmConnection.user_id == user_id)
-    )
-    return result.scalar_one_or_none()
-
-
 def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: datetime) -> None:
     account.username = info.username
     account.real_name = info.real_name
@@ -358,7 +351,7 @@ def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: da
 async def get_linked_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> LastfmAccount:
     """Return the user's linked Last.fm account; 404 if none is linked."""
     await _require_user(session, user_id)
-    account = await _linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
     return account
@@ -406,7 +399,7 @@ async def refresh_lastfm_account(
 ) -> LastfmAccount:
     """Re-fetch the linked Last.fm account's details and update them."""
     await _require_user(session, user_id)
-    account = await _linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
@@ -424,7 +417,7 @@ async def sync_lastfm_artists_for_user(
 ) -> ArtistSyncResult:
     """Fetch all of the linked Last.fm account's taste signals and upsert artist interests."""
     await _require_user(session, user_id)
-    account = await _linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
@@ -469,7 +462,7 @@ async def sync_suggestions_for_user(
     """Recompute the user's suggested artists from their taste (similar-artist
     edges, scoring, thresholds) and reconcile their suggestion interests."""
     user = await _require_user(session, user_id)
-    account = await _linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
@@ -713,17 +706,20 @@ async def start_user_sync(
     as a durable workflow; attaches to the running one if a sync is already
     in flight."""
     await _require_user(session, user_id)
-    account = await _linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user_id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    handle = await temporal.start_workflow(
-        SyncUserWorkflow.run,
-        str(user_id),
-        id=user_sync_workflow_id(user_id),
-        task_queue=get_settings().temporal_task_queue,
-        id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
-    )
+    try:
+        handle = await temporal.start_workflow(
+            SyncUserWorkflow.run,
+            str(user_id),
+            id=user_sync_workflow_id(user_id),
+            task_queue=get_settings().temporal_task_queue,
+            id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
+        )
+    except RPCError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from None
     return SyncStartResult(workflow_id=handle.id)
 
 
@@ -745,21 +741,31 @@ async def get_user_sync_status(
     """Report the user's current (or most recent retained) sync run with
     per-step progress; status "none" if no run exists."""
     await _require_user(session, user_id)
-    handle = temporal.get_workflow_handle(user_sync_workflow_id(user_id))
+    handle = temporal.get_workflow_handle(user_sync_workflow_id(user_id), result_type=SyncRunResult)
     try:
-        description = await handle.describe()
+        description = await handle.describe(rpc_timeout=timedelta(seconds=5))
     except RPCError as exc:
         if exc.status == RPCStatusCode.NOT_FOUND:
             return SyncStatusResult(status="none", steps=pending_steps())
         raise HTTPException(status_code=502, detail=str(exc)) from None
 
     status = _SYNC_STATUS_BY_EXECUTION.get(description.status, "failed")
-    try:
-        steps = await handle.query(SyncUserWorkflow.progress, rpc_timeout=timedelta(seconds=5))
-    except RPCError, WorkflowQueryFailedError:
-        # Progress is best-effort: the run's history may have aged out or no
-        # worker may be available to answer; the overall status still stands.
-        steps = pending_steps()
+    if status == "completed":
+        # A closed run answers queries only by replaying its history on a
+        # worker; the run result carries the same steps and is read straight
+        # from the server.
+        try:
+            steps = (await handle.result(rpc_timeout=timedelta(seconds=5))).steps
+        except RPCError:
+            steps = pending_steps()
+    else:
+        try:
+            steps = await handle.query(SyncUserWorkflow.progress, rpc_timeout=timedelta(seconds=5))
+        except RPCError, WorkflowQueryFailedError:
+            # Progress is best-effort: the run's history may have aged out or
+            # no worker may be available to answer; the overall status still
+            # stands.
+            steps = pending_steps()
     return SyncStatusResult(
         status=status,
         started_at=description.start_time,

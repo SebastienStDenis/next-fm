@@ -74,7 +74,9 @@ export function SyncCard({
       if (cancelled || next === null) {
         return;
       }
-      setStatus(next);
+      // A Sync click may have set optimistic state before this resolved;
+      // never clobber it with the pre-click snapshot.
+      setStatus((prev) => prev ?? next);
       if (next.status === "running") {
         setPolling(true);
       }

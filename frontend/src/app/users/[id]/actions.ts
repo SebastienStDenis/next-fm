@@ -20,7 +20,12 @@ async function callApi(
   fallback: string,
   revalidate: string,
 ): Promise<ActionState> {
-  const res = await fetch(`${apiUrl}${path}`, init);
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}${path}`, init);
+  } catch {
+    return { error: fallback };
+  }
   if (!res.ok) {
     return { error: await errorMessage(res, fallback) };
   }
@@ -95,9 +100,12 @@ export async function clearCity(userId: string): Promise<ActionState> {
 }
 
 export async function startSync(userId: string): Promise<ActionState> {
-  const res = await fetch(`${apiUrl}/users/${userId}/sync`, {
-    method: "POST",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}/users/${userId}/sync`, { method: "POST" });
+  } catch {
+    return { error: "Failed to start sync." };
+  }
   if (!res.ok) {
     return { error: await errorMessage(res, "Failed to start sync.") };
   }
