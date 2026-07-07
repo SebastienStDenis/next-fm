@@ -29,7 +29,7 @@ function Section({
 }) {
   return (
     <section className={className}>
-      <h2 className="mb-3 text-lg font-medium">
+      <h2 className="mb-3 flex items-center text-lg font-medium">
         {alert && <AttentionDot />}
         {heading}
       </h2>

@@ -293,7 +293,7 @@ export function SyncCard({
         </div>
       </div>
       {missingNote && (
-        <p className="mt-2 text-sm text-gray-500">{missingNote}</p>
+        <p className="mt-2 text-xs text-gray-500 italic">{missingNote}</p>
       )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>

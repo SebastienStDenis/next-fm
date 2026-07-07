@@ -67,7 +67,7 @@ function LinkForm({ userId }: { userId: string }) {
 
   return (
     <form action={formAction} className="space-y-2">
-      <p className="text-sm text-gray-500">
+      <p className="text-xs text-gray-500 italic">
         Link Last.fm account to import listening history.
       </p>
       <div className="flex gap-2">
