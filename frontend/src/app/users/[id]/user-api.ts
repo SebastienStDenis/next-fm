@@ -27,6 +27,21 @@ export async function fetchJson<T>(url: string, what: string): Promise<T> {
   return res.json();
 }
 
+// True when no sync run exists for the user yet. Best-effort: any transport
+// or Temporal error resolves to false so the page never breaks over a dot.
+export async function loadNeverSynced(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${apiUrl}/users/${id}/sync`, { cache: "no-store" });
+    if (!res.ok) {
+      return false;
+    }
+    const data: { status: string } = await res.json();
+    return data.status === "none";
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchOptional<T>(
   url: string,
   what: string,

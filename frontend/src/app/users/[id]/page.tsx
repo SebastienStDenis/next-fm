@@ -10,21 +10,29 @@ import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
 import { Tabs } from "./tabs";
 import { type UserArtist } from "./taste-panel";
-import { apiUrl, fetchJson, fetchOptional, loadUser } from "./user-api";
+import {
+  apiUrl,
+  fetchJson,
+  fetchOptional,
+  loadNeverSynced,
+  loadUser,
+} from "./user-api";
 
 export default async function UserPage(props: PageProps<"/users/[id]">) {
   const { id } = await props.params;
   const user = await loadUser(id);
 
-  const [lastfm, city, userArtists, playlists] = await Promise.all([
-    fetchOptional<LastfmAccount>(
-      `${apiUrl}/users/${id}/lastfm`,
-      "Last.fm account",
-    ),
-    fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
-    fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
-    fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
-  ]);
+  const [lastfm, city, userArtists, playlists, neverSynced] =
+    await Promise.all([
+      fetchOptional<LastfmAccount>(
+        `${apiUrl}/users/${id}/lastfm`,
+        "Last.fm account",
+      ),
+      fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
+      fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
+      fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists"),
+      loadNeverSynced(id),
+    ]);
 
   // Nothing here works without a linked account, so send new users straight
   // to the account page to set one up.
@@ -80,7 +88,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         className="mt-1 inline-block text-sm text-gray-500 hover:underline"
       >
         Account
-        {city === null && <AttentionDot />}
+        {(city === null || neverSynced) && <AttentionDot />}
       </Link>
       <section className="mt-6">
         <Tabs

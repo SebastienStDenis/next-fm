@@ -8,7 +8,13 @@ import { LastfmPanel, type LastfmAccount } from "../lastfm-panel";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type Artist, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
-import { apiUrl, fetchJson, fetchOptional, loadUser } from "../user-api";
+import {
+  apiUrl,
+  fetchJson,
+  fetchOptional,
+  loadNeverSynced,
+  loadUser,
+} from "../user-api";
 
 function Section({
   heading,
@@ -40,15 +46,17 @@ export default async function AccountPage(
   const { id } = await props.params;
   const user = await loadUser(id);
 
-  const [lastfm, city, userArtists, allArtists] = await Promise.all([
-    fetchOptional<LastfmAccount>(
-      `${apiUrl}/users/${id}/lastfm`,
-      "Last.fm account",
-    ),
-    fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
-    fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
-    fetchJson<Artist[]>(`${apiUrl}/artists`, "artists"),
-  ]);
+  const [lastfm, city, userArtists, allArtists, neverSynced] =
+    await Promise.all([
+      fetchOptional<LastfmAccount>(
+        `${apiUrl}/users/${id}/lastfm`,
+        "Last.fm account",
+      ),
+      fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
+      fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
+      fetchJson<Artist[]>(`${apiUrl}/artists`, "artists"),
+      loadNeverSynced(id),
+    ]);
 
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
@@ -63,7 +71,7 @@ export default async function AccountPage(
         &larr; Back
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
-      <Section heading="Sync">
+      <Section heading="Sync" alert={neverSynced}>
         <SyncCard
           userId={user.id}
           lastfmLinked={lastfm !== null}
