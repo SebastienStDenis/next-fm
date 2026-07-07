@@ -204,17 +204,20 @@ function CurrentStep({
 }) {
   // Polling only snapshots the workflow, so a fast step can finish between
   // polls without ever being seen running. Instead of mirroring the latest
-  // snapshot, a cursor plays the step list back at a readable pace: every
-  // step shows as running for a beat, then holds its final state, before the
-  // display advances. Playback may lag reality by a step or two.
+  // snapshot, a cursor plays the step list back: a step still running shows
+  // live, and every finished state holds for a beat before the display
+  // advances. Playback may lag reality by a step or two.
   const [cursor, setCursor] = useState<{
     index: number;
     phase: "running" | "final";
   }>(() => {
     const active = steps.findIndex((step) => step.status !== "completed");
+    const index = active === -1 ? steps.length - 1 : active;
+    const status = steps[index]?.status;
     return {
-      index: active === -1 ? steps.length - 1 : active,
-      phase: "running",
+      index,
+      phase:
+        status === "completed" || status === "failed" ? "final" : "running",
     };
   });
 
@@ -235,16 +238,19 @@ function CurrentStep({
       if (!done) {
         return;
       }
-      const timer = setTimeout(
-        () => setCursor({ index, phase: "final" }),
-        STEP_HOLD_MS,
-      );
+      const timer = setTimeout(() => setCursor({ index, phase: "final" }), 0);
       return () => clearTimeout(timer);
     }
     const next = steps[index + 1];
     if (next && next.status !== "pending") {
+      const nextDone =
+        next.status === "completed" || next.status === "failed";
       const timer = setTimeout(
-        () => setCursor({ index: index + 1, phase: "running" }),
+        () =>
+          setCursor({
+            index: index + 1,
+            phase: nextDone ? "final" : "running",
+          }),
         STEP_HOLD_MS,
       );
       return () => clearTimeout(timer);
