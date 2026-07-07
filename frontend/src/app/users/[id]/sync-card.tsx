@@ -217,7 +217,7 @@ export function SyncCard({
           </button>
           <div className="min-w-0 flex-1">
             {(running || settling) && status ? (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in pt-1">
                 <CurrentStep
                   key={runSeq}
                   steps={status.steps}
