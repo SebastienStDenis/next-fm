@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 
-import { syncEvents } from "./actions";
+import { setEventIgnored, syncEvents } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 
@@ -21,6 +21,7 @@ export type UserEvent = {
   url: string | null;
   distance_km: number;
   artists: { id: string; name: string }[];
+  ignored: boolean;
 };
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
@@ -80,6 +81,8 @@ export function EventsPanel({
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [viewError, setViewError] = useState<string | null>(null);
   const [loading, startTransition] = useTransition();
+  const [ignoreError, setIgnoreError] = useState<string | null>(null);
+  const [ignoring, startIgnoring] = useTransition();
 
   if (!hasArtists) {
     return (
@@ -89,18 +92,46 @@ export function EventsPanel({
     );
   }
 
+  async function fetchCityEvents(selected: City): Promise<UserEvent[] | null> {
+    const res = await fetch(
+      `/api/users/${userId}/events?geonameid=${selected.geonameid}`,
+    );
+    return res.ok ? res.json() : null;
+  }
+
   function selectCity(selected: City) {
     startTransition(async () => {
-      const res = await fetch(
-        `/api/users/${userId}/events?geonameid=${selected.geonameid}`,
-      );
-      if (!res.ok) {
+      const fetched = await fetchCityEvents(selected);
+      if (fetched === null) {
         setViewError("Failed to load concerts for that city.");
         return;
       }
-      setViewEvents(await res.json());
+      setViewEvents(fetched);
       setViewCity(selected);
       setViewError(null);
+    });
+  }
+
+  function toggleIgnored(userEvent: UserEvent) {
+    startIgnoring(async () => {
+      const result = await setEventIgnored(
+        userId,
+        userEvent.event.id,
+        !userEvent.ignored,
+      );
+      if (result.error) {
+        setIgnoreError(result.error);
+        return;
+      }
+      setIgnoreError(null);
+      // The action revalidates the page; the other-city view is local state
+      // and needs its own refetch.
+      if (viewCity) {
+        const fetched = await fetchCityEvents(viewCity);
+        if (fetched !== null) {
+          setViewEvents(fetched);
+        }
+      }
     });
   }
 
@@ -158,49 +189,63 @@ export function EventsPanel({
       ) : (
         <>
           <h3 className="mt-4 text-sm font-medium">
-            Upcoming concerts ({shownEvents.length})
+            Upcoming concerts ({shownEvents.filter((e) => !e.ignored).length})
           </h3>
+          {ignoreError && (
+            <p className="mt-2 text-sm text-red-600">{ignoreError}</p>
+          )}
           <ul className="mt-2 space-y-3">
-            {shownEvents.map(({ event, url, distance_km, artists }) => (
-              <li
-                key={event.id}
-                className="rounded border border-gray-300 p-3 dark:border-gray-700"
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-medium">
-                    {event.title ??
-                      artists.map((artist) => artist.name).join(", ")}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {dateFormat.format(new Date(event.starts_at))}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-gray-500">
-                  {event.venue_name} · {placeLabel(event)} · {distance_km} km
-                  away
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {artists.map((artist) => (
-                    <span
-                      key={artist.id}
-                      className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
-                    >
-                      {artistChipLabel(artist, artistRelations)}
+            {shownEvents.map((userEvent) => {
+              const { event, url, distance_km, artists, ignored } = userEvent;
+              return (
+                <li
+                  key={event.id}
+                  className={`rounded border border-gray-300 p-3 dark:border-gray-700${ignored ? " opacity-60" : ""}`}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium">
+                      {event.title ??
+                        artists.map((artist) => artist.name).join(", ")}
                     </span>
-                  ))}
-                  {url && (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+                    <span className="text-xs text-gray-500">
+                      {dateFormat.format(new Date(event.starts_at))}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {event.venue_name} · {placeLabel(event)} · {distance_km} km
+                    away
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {artists.map((artist) => (
+                      <span
+                        key={artist.id}
+                        className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
+                      >
+                        {artistChipLabel(artist, artistRelations)}
+                      </span>
+                    ))}
+                    {url && (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+                      >
+                        Tickets ↗
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      disabled={ignoring}
+                      onClick={() => toggleIgnored(userEvent)}
+                      className="text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
                     >
-                      Tickets ↗
-                    </a>
-                  )}
-                </div>
-              </li>
-            ))}
+                      {ignored ? "Stop ignoring" : "Ignore show"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

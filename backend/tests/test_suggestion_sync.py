@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.dialects import postgresql
 
 from app.artist_sync import LOVED_TRACKS_KIND, TOP_ARTIST_KIND, name_key
 from app.lastfm import (
@@ -16,6 +17,7 @@ from app.lastfm import (
 from app.matching import SIMILAR_ARTIST_KIND
 from app.models import (
     Artist,
+    City,
     LastfmAccount,
     LastfmArtist,
     LastfmSimilarArtist,
@@ -26,6 +28,7 @@ from app.suggestion_sync import (
     KNOWN_PLAYCOUNT_FLOOR,
     SUGGESTION_BUDGET,
     Candidate,
+    _graced_artist_ids,
     _refresh_seed_edges,
     known_artist_ids,
     score_candidates,
@@ -307,6 +310,37 @@ async def test_refresh_leaves_timestamp_untouched_on_failure() -> None:
     assert (synced, failed) == (1, 1)
     assert failing.similar_synced_at is None
     assert healthy.similar_synced_at == NOW
+
+
+async def test_grace_counts_only_servable_shows() -> None:
+    montreal = City(
+        geonameid=6077243,
+        name="Montréal",
+        ascii_name="Montreal",
+        admin1="Quebec",
+        country_code="CA",
+        latitude=45.50884,
+        longitude=-73.58781,
+        population=1600000,
+    )
+    incumbent_id = uuid.uuid7()
+    user = MagicMock(id=USER_ID, city_id=montreal.geonameid)
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([]),  # playlist target cities
+        result_with_scalars([montreal]),
+        result_with_scalars([incumbent_id]),
+    ]
+
+    graced = await _graced_artist_ids(session, user, {incumbent_id})
+
+    assert graced == {incumbent_id}
+    query = session.execute.await_args_list[2].args[0]
+    sql = str(query.compile(dialect=postgresql.dialect()))
+    # The match join's servable predicate verbatim: an ignored show never
+    # graces - ignoring it was the decision grace protects.
+    assert "user_event_exclusions" in sql
+    assert "NOT (EXISTS" in sql
 
 
 def make_account() -> LastfmAccount:

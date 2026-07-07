@@ -68,7 +68,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
 
   const events =
     city !== null
-      ? await fetchJson<UserEvent[]>(`${apiUrl}/users/${id}/events`, "events")
+      ? await fetchJson<UserEvent[]>(
+          `${apiUrl}/users/${id}/events?include_ignored=true`,
+          "events",
+        )
       : [];
 
   // The tabs overlap on purpose: an artist can hold a known-kind interest
@@ -80,6 +83,9 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     userArtist.interests.some(
       (interest) => interest.kind === SIMILAR_ARTIST_KIND,
     ),
+  );
+  const ignoredArtists = userArtists.filter(
+    (userArtist) => userArtist.excluded,
   );
   const artistRelations = Object.fromEntries([
     ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
@@ -130,12 +136,13 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
                   userId={user.id}
                   lastfmLinked={lastfm !== null}
                   suggestedArtists={suggestedArtists}
+                  ignoredArtists={ignoredArtists}
                 />
               ),
             },
             {
               key: "concerts",
-              label: `Concerts (${events.length})`,
+              label: `Concerts (${events.filter((event) => !event.ignored).length})`,
               content: (
                 <EventsPanel
                   userId={user.id}

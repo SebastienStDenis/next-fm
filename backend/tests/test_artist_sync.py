@@ -343,25 +343,28 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
     autechre = Artist(id=uuid.uuid7(), name="Autechre")
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
     session = make_session()
-    session.execute.return_value = result_with_rows(
-        [
-            (interest(autechre, "lastfm_loved_tracks", {"track_count": 3}), autechre),
-            (
-                interest(
+    session.execute.side_effect = [
+        result_with_scalars([]),  # exclusions
+        result_with_rows(
+            [
+                (interest(autechre, "lastfm_loved_tracks", {"track_count": 3}), autechre),
+                (
+                    interest(
+                        autechre,
+                        "lastfm_top_artist",
+                        {"rank": 1, "playcount": 321, "period": "12month"},
+                    ),
                     autechre,
-                    "lastfm_top_artist",
-                    {"rank": 1, "playcount": 321, "period": "12month"},
                 ),
-                autechre,
-            ),
-            (
-                interest(
-                    boc, "lastfm_top_artist", {"rank": 2, "playcount": 210, "period": "12month"}
+                (
+                    interest(
+                        boc, "lastfm_top_artist", {"rank": 2, "playcount": 210, "period": "12month"}
+                    ),
+                    boc,
                 ),
-                boc,
-            ),
-        ]
-    )
+            ]
+        ),
+    ]
 
     response = await request("GET", f"/users/{USER_ID}/artists", session)
 

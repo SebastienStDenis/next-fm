@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 
-import { syncLastfmArtists } from "./actions";
+import { setArtistExcluded, syncLastfmArtists } from "./actions";
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 
 export type Artist = {
@@ -30,6 +30,7 @@ export type Interest = {
 export type UserArtist = {
   artist: Artist;
   interests: Interest[];
+  excluded: boolean;
 };
 
 const numberFormat = new Intl.NumberFormat("en-US");
@@ -109,7 +110,24 @@ export function ArtistsPanel({
     { error: null, summary: null },
   );
   const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [ignoreError, setIgnoreError] = useState<string | null>(null);
+  const [ignoring, startIgnoring] = useTransition();
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
+
+  function toggleExcluded({ artist, excluded }: UserArtist) {
+    if (
+      !excluded &&
+      !window.confirm(
+        `Ignore ${artist.name}? Their shows stop matching, and they stop being used to find similar artists.`,
+      )
+    ) {
+      return;
+    }
+    startIgnoring(async () => {
+      const result = await setArtistExcluded(userId, artist.id, !excluded);
+      setIgnoreError(result.error);
+    });
+  }
 
   return (
     <div>
@@ -155,23 +173,42 @@ export function ArtistsPanel({
               </select>
             </label>
           </div>
+          {ignoreError && (
+            <p className="mt-2 text-sm text-red-600">{ignoreError}</p>
+          )}
           <ul className="mt-2 space-y-1">
-            {sortedArtists.map(({ artist, interests }) => (
-              <li
-                key={artist.id}
-                className="flex flex-wrap items-center gap-2 text-sm"
-              >
-                <span>{artist.name}</span>
-                {interests.map((interest) => (
-                  <span
-                    key={`${interest.kind}-${interest.source}`}
-                    className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
+            {sortedArtists.map((userArtist) => {
+              const { artist, interests, excluded } = userArtist;
+              return (
+                <li
+                  key={artist.id}
+                  className={`flex flex-wrap items-center gap-2 text-sm${excluded ? " opacity-60" : ""}`}
+                >
+                  <span>{artist.name}</span>
+                  {interests.map((interest) => (
+                    <span
+                      key={`${interest.kind}-${interest.source}`}
+                      className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
+                    >
+                      {interestLabel(interest)}
+                    </span>
+                  ))}
+                  {excluded && (
+                    <span className="rounded-full border border-red-600 px-2 py-0.5 text-xs text-red-600">
+                      ignored
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    disabled={ignoring}
+                    onClick={() => toggleExcluded(userArtist)}
+                    className="text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
                   >
-                    {interestLabel(interest)}
-                  </span>
-                ))}
-              </li>
-            ))}
+                    {excluded ? "Stop ignoring" : "Ignore"}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

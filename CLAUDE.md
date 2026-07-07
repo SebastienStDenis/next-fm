@@ -70,7 +70,7 @@ Small layered FastAPI app; keep the separation when adding features:
 - `suggestion_sync.py` - recomputes each user's suggested artists from Last.fm similar-artist edges: seed affinity, scoring, selection with hysteresis, known-artist floors, show-tied grace (see `docs/2026-07-06-artist-suggestions-plan.md`).
 - `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/2026-07-06-event-ingestion-plan.md`).
 - `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/2026-07-06-playlist-plan.md`).
-- `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the match join, haversine distance.
+- `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the servable-show predicate (upcoming, near, not ignored; see `docs/2026-07-07-ignoring-plan.md`), the match join, haversine distance.
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
 - `seed.py` - idempotent seed script (`python -m app.seed`).

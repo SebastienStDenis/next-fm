@@ -131,9 +131,9 @@ DELETE /users/{user_id}/artists/{artist_id}/exclusion    204, idempotent
 
 The `PUT` handler also deletes the pair's `similar_artist` interest row in the same
 transaction. `GET /users/{user_id}/artists` gains an `excluded: bool` per artist so
-the UI can render and toggle the state; excluded artists stay in the listing (their
-interest rows still exist and the user needs to see what they've ignored to undo
-it).
+the UI can render and toggle the state; excluded artists stay in the listing - even
+one whose exclusion deleted its only (suggestion) interest row - so the user can see
+what they've ignored and undo it.
 
 ## Ignoring events: the new mechanism
 

@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.artist_sync import LOVED_TRACKS_KIND, TOP_ARTIST_KIND
-from app.models import City, Event, EventArtist, UserArtistExclusion, UserArtistInterest
+from app.models import (
+    City,
+    Event,
+    EventArtist,
+    UserArtistExclusion,
+    UserArtistInterest,
+    UserEventExclusion,
+)
 
 EVENT_MATCH_RADIUS_KM = 50.0
 
@@ -47,12 +54,32 @@ def distance_km(latitude: float, longitude: float) -> ColumnElement[float]:
 
 def upcoming_event_near(cities: Sequence[City]) -> ColumnElement[bool]:
     """Event is upcoming and within EVENT_MATCH_RADIUS_KM of any of the given
-    cities - the servable predicate shared by the match join and the
-    suggestion engine's show-tied grace."""
+    cities."""
     nearby = or_(
         *(distance_km(city.latitude, city.longitude) <= EVENT_MATCH_RADIUS_KM for city in cities)
     )
     return (Event.starts_at > func.now()) & nearby
+
+
+def event_ignored(user_id: uuid.UUID) -> ColumnElement[bool]:
+    """The user has ignored this event."""
+    return (
+        select(UserEventExclusion.id)
+        .where(
+            UserEventExclusion.user_id == user_id,
+            UserEventExclusion.event_id == Event.id,
+        )
+        .exists()
+    )
+
+
+def servable_event(user_id: uuid.UUID, cities: Sequence[City]) -> ColumnElement[bool]:
+    """The full servable-show predicate: upcoming, near one of the cities, and
+    not ignored by the user. Shared by the match join and the suggestion
+    engine's show-tied grace so the two never disagree about whether a show is
+    servable - any new servability filter belongs here, not at one call site
+    (see docs/2026-07-07-ignoring-plan.md)."""
+    return upcoming_event_near(cities) & ~event_ignored(user_id)
 
 
 def artist_qualifies(
@@ -92,14 +119,15 @@ async def match_artist_shows(
     city: City,
     include_known_artists: bool,
 ) -> list[ArtistMatch]:
-    """The match join reduced to one soonest upcoming show per servable
-    artist near the city, ordered soonest-first."""
+    """The match join reduced to one soonest servable show per servable
+    artist near the city, ordered soonest-first. Ignoring an artist's soonest
+    show promotes their next servable one."""
     result = await session.execute(
         select(EventArtist.artist_id, Event.id, Event.starts_at)
         .join(Event, Event.id == EventArtist.event_id)
         .where(
             artist_qualifies(user_id, EventArtist.artist_id, include_known_artists),
-            upcoming_event_near([city]),
+            servable_event(user_id, [city]),
         )
         .order_by(Event.starts_at, Event.id)
     )

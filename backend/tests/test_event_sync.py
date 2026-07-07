@@ -296,9 +296,9 @@ async def test_list_events_groups_artists_per_event() -> None:
     session.get.side_effect = [user, montreal]
     session.execute.return_value = result_with_rows(
         [
-            (event1, autechre, "https://bandsintown.com/e/1", 2.9412),
-            (event1, boc, "https://bandsintown.com/e/1", 2.9412),
-            (event2, autechre, "https://bandsintown.com/e/2", 2.9412),
+            (event1, autechre, "https://bandsintown.com/e/1", 2.9412, False),
+            (event1, boc, "https://bandsintown.com/e/1", 2.9412, False),
+            (event2, autechre, "https://bandsintown.com/e/2", 2.9412, False),
         ]
     )
 
@@ -340,7 +340,7 @@ async def test_list_events_accepts_an_explicit_city() -> None:
     session = make_session()
     session.get.side_effect = [MagicMock(city_id=None), seattle]
     session.execute.return_value = result_with_rows(
-        [(event, artist, "https://bandsintown.com/e/1", 12.0)]
+        [(event, artist, "https://bandsintown.com/e/1", 12.0, False)]
     )
 
     response = await request("GET", f"{EVENTS_URL}?geonameid={seattle.geonameid}", session)

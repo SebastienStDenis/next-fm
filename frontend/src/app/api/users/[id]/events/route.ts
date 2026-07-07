@@ -6,9 +6,13 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
   const geonameid = new URL(request.url).searchParams.get("geonameid");
-  const query = geonameid ? `?geonameid=${encodeURIComponent(geonameid)}` : "";
+  // Ignored events come along, flagged, so the panel can offer undo.
+  const params = new URLSearchParams({ include_ignored: "true" });
+  if (geonameid) {
+    params.set("geonameid", geonameid);
+  }
   try {
-    const res = await fetch(`${apiUrl}/users/${id}/events${query}`, {
+    const res = await fetch(`${apiUrl}/users/${id}/events?${params}`, {
       cache: "no-store",
     });
     if (!res.ok) {

@@ -256,6 +256,36 @@ export async function syncPlaylists(
   return { error: null, summary };
 }
 
+export async function setArtistExcluded(
+  userId: string,
+  artistId: string,
+  excluded: boolean,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/artists/${artistId}/exclusion`,
+    { method: excluded ? "PUT" : "DELETE" },
+    excluded
+      ? "Failed to ignore the artist."
+      : "Failed to stop ignoring the artist.",
+    `/users/${userId}`,
+  );
+}
+
+export async function setEventIgnored(
+  userId: string,
+  eventId: string,
+  ignored: boolean,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/events/${eventId}/exclusion`,
+    { method: ignored ? "PUT" : "DELETE" },
+    ignored
+      ? "Failed to ignore the show."
+      : "Failed to stop ignoring the show.",
+    `/users/${userId}`,
+  );
+}
+
 export async function createCityPlaylist(
   userId: string,
   geonameid: number,
