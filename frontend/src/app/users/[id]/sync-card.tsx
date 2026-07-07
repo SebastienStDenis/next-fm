@@ -20,6 +20,9 @@ export type SyncStatus = {
 };
 
 const POLL_INTERVAL_MS = 1500;
+// How long a finished step keeps showing its final state before the display
+// moves on.
+const STEP_HOLD_MS = 900;
 
 const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -57,6 +60,7 @@ export function SyncCard({
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [polling, setPolling] = useState(false);
+  const [settling, setSettling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
 
@@ -99,6 +103,9 @@ export function SyncCard({
       setStatus(next);
       if (next.status !== "running") {
         setPolling(false);
+        // Let the last step's final state show before collapsing to the
+        // last-synced line.
+        setSettling(true);
         router.refresh();
       }
     }
@@ -109,6 +116,14 @@ export function SyncCard({
       clearInterval(timer);
     };
   }, [polling, userId, router]);
+
+  useEffect(() => {
+    if (!settling) {
+      return;
+    }
+    const timer = setTimeout(() => setSettling(false), STEP_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [settling]);
 
   if (!lastfmLinked) {
     return (
@@ -160,8 +175,8 @@ export function SyncCard({
         {running ? "Syncing..." : "Sync"}
       </button>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {running && status && <StepList steps={status.steps} />}
-      {!running && status && status.status !== "none" && (
+      {(running || settling) && status && <CurrentStep steps={status.steps} />}
+      {!running && !settling && status && status.status !== "none" && (
         <details>
           <summary
             className={`cursor-pointer text-sm ${
@@ -176,6 +191,62 @@ export function SyncCard({
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+function CurrentStep({ steps }: { steps: SyncStep[] }) {
+  const activeKey =
+    (
+      steps.find((step) => step.status === "running") ??
+      steps.find((step) => step.status === "pending") ??
+      steps[steps.length - 1]
+    )?.key ?? null;
+  const [shownKey, setShownKey] = useState(activeKey);
+
+  // When the shown step just finished, hold its final state briefly before
+  // advancing to the active one.
+  useEffect(() => {
+    if (activeKey === shownKey) {
+      return;
+    }
+    const shown = steps.find((step) => step.key === shownKey);
+    const finished =
+      shown?.status === "completed" || shown?.status === "failed";
+    const timer = setTimeout(
+      () => setShownKey(activeKey),
+      finished ? STEP_HOLD_MS : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [activeKey, shownKey, steps]);
+
+  const shown = steps.find((step) => step.key === shownKey);
+  if (!shown) {
+    return null;
+  }
+  const position = steps.indexOf(shown) + 1;
+
+  return (
+    <div className="flex gap-2 text-sm">
+      <span className={`mt-0.5 ${stepMarkClasses[shown.status]}`}>
+        <StepMark status={shown.status} />
+      </span>
+      <div>
+        <span
+          className={shown.status === "pending" ? "text-gray-500" : undefined}
+        >
+          {shown.label}
+        </span>
+        {shown.status === "failed" && (
+          <span className="ml-2 text-xs text-red-600">failed</span>
+        )}
+        <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
+          step {position} of {steps.length}
+        </span>
+        {shown.summary && (
+          <p className="text-xs text-gray-500">{shown.summary}</p>
+        )}
+      </div>
     </div>
   );
 }
