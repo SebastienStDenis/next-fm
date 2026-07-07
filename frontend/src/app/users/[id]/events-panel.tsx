@@ -147,6 +147,11 @@ export function EventsPanel({
     }),
   );
   const hiddenCount = shownEvents.length - visibleEvents.length;
+  // Ignored shows still render (dimmed, with an undo control) but do not count
+  // toward the headline, keeping it in step with the Concerts tab badge.
+  const activeCount = visibleEvents.filter(
+    (userEvent) => !isIgnored(userEvent),
+  ).length;
 
   return (
     <div>
@@ -179,7 +184,7 @@ export function EventsPanel({
       ) : (
         <>
           <h3 className="mt-4 text-sm font-medium">
-            Upcoming concerts ({visibleEvents.length})
+            Upcoming concerts ({activeCount})
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
             <FilterPill

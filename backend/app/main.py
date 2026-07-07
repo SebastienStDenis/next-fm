@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BeforeValidator
-from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy import delete, false, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from temporalio.client import (
@@ -459,7 +459,6 @@ async def list_user_artists(user_id: uuid.UUID, session: SessionDep) -> list[Use
         select(Artist)
         .join(UserArtistExclusion, UserArtistExclusion.artist_id == Artist.id)
         .where(UserArtistExclusion.user_id == user_id)
-        .order_by(func.lower(Artist.name))
     )
     for artist in result.scalars():
         entry = grouped.get(artist.id)
@@ -580,7 +579,13 @@ async def list_user_events(
     if include_known_artists is None:
         include_known_artists = user.include_known_artists
     distance = distance_km(city.latitude, city.longitude).label("distance_km")
-    ignored = (~event_not_ignored(user_id)).label("ignored")
+    # When ignored shows are excluded, every returned row is servable, so the
+    # flag is a constant - no need to run the EXISTS a second time per row.
+    ignored = (
+        (~event_not_ignored(user_id)).label("ignored")
+        if include_ignored
+        else false().label("ignored")
+    )
     query = (
         select(Event, Artist, BandsintownEvent.url, distance, ignored)
         .join(EventArtist, EventArtist.event_id == Event.id)
