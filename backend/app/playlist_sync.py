@@ -26,7 +26,7 @@ from app.schemas import PlaylistSyncItem, PlaylistSyncResult
 from app.spotify import SpotifyApiError, SpotifyArtistData, SpotifyClient, track_uri
 
 CITY_SHOWS_KIND = "city_shows"
-CITY_PLAYLIST_CAP = 3
+PINNED_PLAYLIST_CAP = 2  # pinned cities per user; the home-city playlist is always kept
 
 MATCH_EXACT = "exact"
 MATCH_FUZZY = "fuzzy"

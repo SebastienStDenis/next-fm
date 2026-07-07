@@ -144,6 +144,7 @@ class PlaylistTrackRead(BaseModel):
     title: str | None
     artist: ArtistRead | None
     event: EventRead | None
+    url: str | None
 
 
 class PlaylistRead(BaseModel):

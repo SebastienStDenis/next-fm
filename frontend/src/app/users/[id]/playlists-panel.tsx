@@ -33,7 +33,10 @@ type PlaylistTrack = {
     venue_name: string;
     starts_at: string;
   } | null;
+  url: string | null;
 };
+
+export const PINNED_PLAYLIST_CAP = 2;
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
 // UTC displays the original local time.
@@ -69,35 +72,38 @@ export function PlaylistsPanel({
   hasArtists,
   playlists,
   pendingPins,
+  pinnedCount,
 }: {
   userId: string;
   hasCity: boolean;
   hasArtists: boolean;
   playlists: Playlist[];
   pendingPins: Playlist[];
+  pinnedCount: number;
 }) {
+  const homePlaylists = playlists.filter((playlist) => playlist.city === null);
+  const pinnedPlaylists = playlists.filter((playlist) => playlist.city !== null);
+
+  if (!hasArtists) {
+    return (
+      <p className="text-sm text-gray-500">
+        Nothing synced yet. Run a sync from the Account section to build
+        playlists from shows near you.
+      </p>
+    );
+  }
+
   return (
-    <div>
-      {!hasArtists ? (
-        <p className="text-sm text-gray-500">
-          Nothing synced yet. Run a sync from the Account section to build
-          playlists from shows near you.
-        </p>
-      ) : playlists.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          {hasCity
-            ? "No playlists yet. Sync to create your first one on Spotify."
-            : "No playlists yet. Set your city in the Account section to get your local playlist."}
-        </p>
-      ) : (
-        <>
-          {!hasCity && (
-            <p className="mb-2 text-sm text-gray-500">
-              Set your city in the Account section to get your local playlist.
-            </p>
-          )}
-          <ul className="space-y-3">
-            {playlists.map((playlist) => (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-base font-semibold">Home city</h3>
+        {!hasCity ? (
+          <p className="mt-1 text-sm text-gray-500">
+            Set your city in the Account section to get your local playlist.
+          </p>
+        ) : homePlaylists.length > 0 ? (
+          <ul className="mt-2 space-y-3">
+            {homePlaylists.map((playlist) => (
               <PlaylistCard
                 key={playlist.id}
                 userId={userId}
@@ -105,15 +111,26 @@ export function PlaylistsPanel({
               />
             ))}
           </ul>
-        </>
-      )}
+        ) : (
+          <p className="mt-1 text-sm text-gray-500">
+            No playlist yet. Sync to create your local playlist on Spotify.
+          </p>
+        )}
+      </section>
 
-      <div className="mt-6">
-        <h3 className="text-sm font-medium">Pin another city</h3>
-        <p className="mt-1 mb-2 text-sm text-gray-500">
-          Create another playlist to track shows in a city of your choice.
-        </p>
-        <PinCitySearch userId={userId} />
+      <section>
+        <h3 className="text-base font-semibold">Pinned cities</h3>
+        {pinnedPlaylists.length > 0 && (
+          <ul className="mt-2 space-y-3">
+            {pinnedPlaylists.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                userId={userId}
+                playlist={playlist}
+              />
+            ))}
+          </ul>
+        )}
         {pendingPins.length > 0 && (
           <ul className="mt-3 space-y-1">
             {pendingPins.map((playlist) => (
@@ -125,7 +142,13 @@ export function PlaylistsPanel({
             ))}
           </ul>
         )}
-      </div>
+        <div className="mt-3">
+          <PinCitySearch
+            userId={userId}
+            atCap={pinnedCount >= PINNED_PLAYLIST_CAP}
+          />
+        </div>
+      </section>
     </div>
   );
 }
@@ -176,19 +199,38 @@ function PlaylistCard({
             {playlist.tracks.map((track) => (
               <li
                 key={track.spotify_track_id}
-                className="flex flex-wrap items-baseline gap-x-2 text-sm"
+                className="flex gap-x-2 text-sm"
               >
                 <span className="text-gray-500">{track.position + 1}.</span>
-                <span>{track.title ?? "Unknown title"}</span>
-                {track.artist && (
-                  <span className="text-gray-500">by {track.artist.name}</span>
-                )}
-                {track.event && (
-                  <span className="text-xs text-gray-500">
-                    · playing {track.event.venue_name} on{" "}
-                    {showDateFormat.format(new Date(track.event.starts_at))}
-                  </span>
-                )}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span>{track.title ?? "Unknown title"}</span>
+                    {track.artist && (
+                      <span className="text-gray-500">by {track.artist.name}</span>
+                    )}
+                  </div>
+                  {track.event && (
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      playing{" "}
+                      {track.url ? (
+                        <a
+                          href={track.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline hover:text-gray-700 dark:hover:text-gray-300"
+                        >
+                          {track.event.venue_name} on{" "}
+                          {showDateFormat.format(new Date(track.event.starts_at))} ↗
+                        </a>
+                      ) : (
+                        <>
+                          {track.event.venue_name} on{" "}
+                          {showDateFormat.format(new Date(track.event.starts_at))}
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
               </li>
             ))}
           </ol>
@@ -260,7 +302,14 @@ function PendingPinRow({
   );
 }
 
-function PinCitySearch({ userId }: { userId: string }) {
+function PinCitySearch({
+  userId,
+  atCap,
+}: {
+  userId: string;
+  atCap: boolean;
+}) {
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -268,7 +317,30 @@ function PinCitySearch({ userId }: { userId: string }) {
     startTransition(async () => {
       const result = await createCityPlaylist(userId, city.geonameid);
       setError(result.error);
+      if (!result.error) {
+        setOpen(false);
+      }
     });
+  }
+
+  if (atCap) {
+    return (
+      <p className="text-sm text-gray-500">
+        You can pin up to {PINNED_PLAYLIST_CAP} cities. Delete an existing pin to add another.
+      </p>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+      >
+        + Add a playlist for another city
+      </button>
+    );
   }
 
   return (
@@ -279,6 +351,16 @@ function PinCitySearch({ userId }: { userId: string }) {
         onSelect={select}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(false);
+          setError(null);
+        }}
+        className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+      >
+        Cancel
+      </button>
     </div>
   );
 }

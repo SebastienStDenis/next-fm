@@ -42,23 +42,19 @@ export function SuggestedArtistsPanel({
         </p>
       ) : (
         <>
-          <h3 className="text-sm font-medium">
-            Suggested artists ({suggestedArtists.length})
-          </h3>
-          <ul className="mt-2 space-y-1">
+          <ul className="space-y-3">
             {sortedArtists.map((userArtist) => (
-              <li
-                key={userArtist.artist.id}
-                className="flex flex-wrap items-center gap-2 text-sm"
-              >
-                <span>{userArtist.artist.name}</span>
-                <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
-                  score {scoreOf(userArtist).toFixed(2)}
-                </span>
-                {reasonOf(userArtist) && (
-                  <span className="text-xs text-gray-500">
-                    {reasonOf(userArtist)}
+              <li key={userArtist.artist.id} className="text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>{userArtist.artist.name}</span>
+                  <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
+                    score {scoreOf(userArtist).toFixed(2)}
                   </span>
+                </div>
+                {reasonOf(userArtist) && (
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {reasonOf(userArtist)}
+                  </p>
                 )}
               </li>
             ))}

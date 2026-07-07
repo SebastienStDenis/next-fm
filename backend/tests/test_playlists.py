@@ -106,7 +106,12 @@ async def test_list_playlists_includes_city_and_track_provenance() -> None:
     session.get.return_value = make_user()
     session.execute.side_effect = [
         result_with_rows([(pinned, city), (default, None)]),
-        result_with_rows([(track, artist, event, "Gantz Graf"), (orphaned, None, None, None)]),
+        result_with_rows(
+            [
+                (track, artist, event, "Gantz Graf", "https://tix.example/autechre"),
+                (orphaned, None, None, None, None),
+            ]
+        ),
     ]
 
     response = await request("GET", PLAYLISTS_URL, session)
@@ -134,6 +139,7 @@ async def test_list_playlists_includes_city_and_track_provenance() -> None:
                 "country": "Canada",
                 "starts_at": "2026-08-01T20:00:00Z",
             },
+            "url": "https://tix.example/autechre",
         }
     ]
     assert body[1]["city"] is None
@@ -144,6 +150,7 @@ async def test_list_playlists_includes_city_and_track_provenance() -> None:
             "title": None,
             "artist": None,
             "event": None,
+            "url": None,
         }
     ]
 
@@ -229,7 +236,7 @@ async def test_create_pinned_playlist_duplicate_city() -> None:
 
 
 async def test_create_pinned_playlist_at_cap() -> None:
-    pinned = [make_playlist(id=uuid.uuid7(), city_id=geonameid) for geonameid in (1000, 2000, 3000)]
+    pinned = [make_playlist(id=uuid.uuid7(), city_id=geonameid) for geonameid in (1000, 2000)]
     session = make_session()
     session.get.side_effect = [make_user(), make_city()]
     session.execute.side_effect = [result_with_scalars(pinned)]
@@ -237,7 +244,7 @@ async def test_create_pinned_playlist_at_cap() -> None:
     response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 6077243})
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "At most 3 city playlists per user"
+    assert response.json()["detail"] == "At most 2 pinned playlists per user"
     session.add.assert_not_called()
 
 
