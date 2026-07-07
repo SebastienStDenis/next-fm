@@ -71,19 +71,19 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       ? await fetchJson<UserEvent[]>(`${apiUrl}/users/${id}/events`, "events")
       : [];
 
-  const isKnown = (userArtist: UserArtist) =>
-    userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind));
-  const knownArtists = userArtists.filter(isKnown);
-  const suggestedArtists = userArtists.filter(
-    (userArtist) =>
-      !isKnown(userArtist) &&
-      userArtist.interests.some(
-        (interest) => interest.kind === SIMILAR_ARTIST_KIND,
-      ),
+  // The tabs overlap on purpose: an artist can hold a known-kind interest
+  // below the engine's playcount floor and still be an active suggestion.
+  const knownArtists = userArtists.filter((userArtist) =>
+    userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
+  );
+  const suggestedArtists = userArtists.filter((userArtist) =>
+    userArtist.interests.some(
+      (interest) => interest.kind === SIMILAR_ARTIST_KIND,
+    ),
   );
   const artistRelations = Object.fromEntries([
-    ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
     ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
+    ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
   ]);
 
   return (
