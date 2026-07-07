@@ -449,6 +449,7 @@ async def run_sync_playlist(
         City(geonameid=6077243, name="Montréal"),
         matches,
         SYNC_NOW,
+        include_known_artists=False,
     )
 
 

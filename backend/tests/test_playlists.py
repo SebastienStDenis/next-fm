@@ -374,8 +374,9 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
     assert [(t.spotify_track_id, t.artist_id, t.event_id) for t in tracks] == [
         ("t1", artist_id, event_id)
     ]
-    # One commit persists the remote id right after creation, one closes the sync.
-    assert session.commit.await_count == 2
+    # One commit banks the resolution/top-track caches, one persists the
+    # remote id right after creation, one closes the sync.
+    assert session.commit.await_count == 3
 
 
 async def test_sync_requires_spotify_configuration(monkeypatch: pytest.MonkeyPatch) -> None:

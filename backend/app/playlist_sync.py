@@ -71,6 +71,9 @@ async def sync_user_playlists(
     event sync's job.
     """
     now = datetime.now(UTC)
+    # One policy snapshot for the whole run: a toggle committed mid-sync must
+    # not make the tracklist and the description disagree.
+    include_known_artists = user.include_known_artists
     playlists = await _ensure_default_playlist(session, user)
 
     items: list[PlaylistSyncItem] = []
@@ -83,15 +86,23 @@ async def sync_user_playlists(
                 PlaylistSyncItem(playlist_id=playlist.id, name=playlist.name, status="no_city")
             )
             continue
-        matches = await match_artist_shows(session, user.id, city, user.include_known_artists)
+        matches = await match_artist_shows(session, user.id, city, include_known_artists)
         to_sync.append((playlist, city, matches))
         matched_ids |= {match.artist_id for match in matches}
 
     resolved = await _resolve_spotify_artists(session, spotify, musicbrainz, matched_ids)
     refreshed = await _refresh_top_tracks(session, spotify, lastfm, resolved)
+    # Bank the resolution and top-track work: it is global cache data, valid
+    # on its own, and a cold run can represent many minutes of throttled API
+    # calls that a later failure must not roll back.
+    await session.commit()
 
     for playlist, city, matches in to_sync:
-        items.append(await _sync_playlist(session, spotify, playlist, user, city, matches, now))
+        items.append(
+            await _sync_playlist(
+                session, spotify, playlist, user, city, matches, now, include_known_artists
+            )
+        )
 
     contributing = sum(1 for row in resolved if row.match_confidence != MATCH_FUZZY)
     return PlaylistSyncResult(
@@ -366,12 +377,13 @@ async def _sync_playlist(
     city: City,
     matches: list[ArtistMatch],
     now: datetime,
+    include_known_artists: bool,
 ) -> PlaylistSyncItem:
     top_tracks = await _top_tracks_by_artist(session, {match.artist_id for match in matches})
     desired = desired_tracks(matches, top_tracks)
 
     name = playlist_title(user.name, city.name)
-    description = playlist_description(city.name, now, user.include_known_artists)
+    description = playlist_description(city.name, now, include_known_artists)
     created = False
     spotify_playlist_id = playlist.spotify_playlist_id
     if spotify_playlist_id is None:
