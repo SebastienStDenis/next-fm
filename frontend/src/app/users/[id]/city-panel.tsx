@@ -142,7 +142,7 @@ function CitySearch({
   return (
     <div className="space-y-2">
       {!hasCity && (
-        <p className="text-xs text-gray-500 italic">
+        <p className="-mt-2 text-xs text-gray-500 italic">
           Set home city to find concerts nearby.
         </p>
       )}

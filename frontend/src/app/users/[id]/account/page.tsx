@@ -86,7 +86,7 @@ export default async function AccountPage(
       <Section heading="Home City" alert={city === null} className="mt-8">
         <CityPanel userId={user.id} city={city} />
       </Section>
-      <Section heading="Discovery" className="mt-8">
+      <Section heading="Options" className="mt-8">
         <DiscoveryToggle
           userId={user.id}
           includeKnownArtists={user.include_known_artists}
