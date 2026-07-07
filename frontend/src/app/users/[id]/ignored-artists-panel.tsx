@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { unignoreArtist } from "./actions";
+import { ignoreArtist, unignoreArtist } from "./actions";
 import { IgnoreButton } from "./ignore-icons";
 import type { UserArtist } from "./taste-panel";
 
@@ -15,18 +15,35 @@ export function IgnoredArtistsPanel({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // Un-ignored artists stay listed here until the next load, toggled back to
+  // active; this tracks the toggle in the meantime.
+  const [ignoreOverlay, setIgnoreOverlay] = useState<Record<string, boolean>>(
+    {},
+  );
   const [, startTransition] = useTransition();
 
   const sortedArtists = [...ignoredArtists].sort((a, b) =>
     a.artist.name.localeCompare(b.artist.name),
   );
 
-  function unignore(artistId: string) {
+  function isIgnored(artistId: string): boolean {
+    return ignoreOverlay[artistId] ?? true;
+  }
+
+  function toggleIgnore(artistId: string) {
+    const next = !isIgnored(artistId);
     setPendingId(artistId);
     startTransition(async () => {
-      const result = await unignoreArtist(userId, artistId);
+      const result = next
+        ? await ignoreArtist(userId, artistId)
+        : await unignoreArtist(userId, artistId);
       setPendingId(null);
-      setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setIgnoreOverlay((prev) => ({ ...prev, [artistId]: next }));
+      setError(null);
     });
   }
 
@@ -53,10 +70,16 @@ export function IgnoredArtistsPanel({
                 key={artist.id}
                 className="flex flex-wrap items-center gap-2 text-sm"
               >
-                <span className="text-gray-500 line-through">{artist.name}</span>
+                <span
+                  className={
+                    isIgnored(artist.id) ? "text-gray-500 line-through" : ""
+                  }
+                >
+                  {artist.name}
+                </span>
                 <IgnoreButton
-                  ignored
-                  onClick={() => unignore(artist.id)}
+                  ignored={isIgnored(artist.id)}
+                  onClick={() => toggleIgnore(artist.id)}
                   disabled={pendingId === artist.id}
                 />
               </li>

@@ -18,7 +18,7 @@ async function callApi(
   path: string,
   init: RequestInit,
   fallback: string,
-  revalidate: string | string[],
+  revalidate?: string | string[],
 ): Promise<ActionState> {
   let res: Response;
   try {
@@ -30,7 +30,8 @@ async function callApi(
     return { error: await errorMessage(res, fallback) };
   }
 
-  for (const path of Array.isArray(revalidate) ? revalidate : [revalidate]) {
+  const paths = revalidate === undefined ? [] : [revalidate].flat();
+  for (const path of paths) {
     revalidatePath(path);
   }
   return { error: null };
@@ -163,11 +164,12 @@ export async function ignoreArtist(
   userId: string,
   artistId: string,
 ): Promise<ActionState> {
+  // No revalidation: the panel keeps the row (crossed out) until the next load,
+  // which refetches fresh since these pages are dynamic (no-store).
   return callApi(
     `/users/${userId}/artists/${artistId}/exclusion`,
     { method: "PUT" },
     "Failed to ignore artist.",
-    [`/users/${userId}`, `/users/${userId}/account`],
   );
 }
 
@@ -179,7 +181,6 @@ export async function unignoreArtist(
     `/users/${userId}/artists/${artistId}/exclusion`,
     { method: "DELETE" },
     "Failed to un-ignore artist.",
-    [`/users/${userId}`, `/users/${userId}/account`],
   );
 }
 
@@ -191,7 +192,6 @@ export async function ignoreEvent(
     `/users/${userId}/events/${eventId}/exclusion`,
     { method: "PUT" },
     "Failed to ignore concert.",
-    `/users/${userId}`,
   );
 }
 
@@ -203,7 +203,6 @@ export async function unignoreEvent(
     `/users/${userId}/events/${eventId}/exclusion`,
     { method: "DELETE" },
     "Failed to un-ignore concert.",
-    `/users/${userId}`,
   );
 }
 

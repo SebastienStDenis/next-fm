@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { ignoreArtist } from "./actions";
+import { ignoreArtist, unignoreArtist } from "./actions";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 import { IgnoreButton } from "./ignore-icons";
 
@@ -99,15 +99,32 @@ export function TastePanel({
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // Ignored artists stay listed (crossed out) until the next load; this tracks
+  // the toggle in the meantime.
+  const [ignoreOverlay, setIgnoreOverlay] = useState<Record<string, boolean>>(
+    {},
+  );
   const [, startTransition] = useTransition();
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
 
-  function ignore(artist: Artist) {
-    setPendingId(artist.id);
+  function isIgnored(artistId: string): boolean {
+    return ignoreOverlay[artistId] ?? false;
+  }
+
+  function toggleIgnore(artistId: string) {
+    const next = !isIgnored(artistId);
+    setPendingId(artistId);
     startTransition(async () => {
-      const result = await ignoreArtist(userId, artist.id);
+      const result = next
+        ? await ignoreArtist(userId, artistId)
+        : await unignoreArtist(userId, artistId);
       setPendingId(null);
-      setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setIgnoreOverlay((prev) => ({ ...prev, [artistId]: next }));
+      setError(null);
     });
   }
 
@@ -144,7 +161,13 @@ export function TastePanel({
                 key={artist.id}
                 className="flex flex-wrap items-center gap-2 text-sm"
               >
-                <span>{artist.name}</span>
+                <span
+                  className={
+                    isIgnored(artist.id) ? "text-gray-500 line-through" : ""
+                  }
+                >
+                  {artist.name}
+                </span>
                 {interests
                   .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
                   .map((interest) => (
@@ -156,8 +179,8 @@ export function TastePanel({
                     </span>
                   ))}
                 <IgnoreButton
-                  ignored={false}
-                  onClick={() => ignore(artist)}
+                  ignored={isIgnored(artist.id)}
+                  onClick={() => toggleIgnore(artist.id)}
                   disabled={pendingId === artist.id}
                 />
               </li>

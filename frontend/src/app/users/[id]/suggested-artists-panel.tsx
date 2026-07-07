@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { ignoreArtist } from "./actions";
+import { ignoreArtist, unignoreArtist } from "./actions";
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import { IgnoreButton } from "./ignore-icons";
 import type { Interest, UserArtist } from "./taste-panel";
@@ -36,6 +36,11 @@ export function SuggestedArtistsPanel({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // Ignored suggestions stay listed (crossed out) until the next load; this
+  // tracks the toggle in the meantime.
+  const [ignoreOverlay, setIgnoreOverlay] = useState<Record<string, boolean>>(
+    {},
+  );
   const [, startTransition] = useTransition();
 
   const sortedArtists = [...suggestedArtists].sort(
@@ -43,12 +48,24 @@ export function SuggestedArtistsPanel({
       scoreOf(b) - scoreOf(a) || a.artist.name.localeCompare(b.artist.name),
   );
 
-  function ignore(artistId: string) {
+  function isIgnored(artistId: string): boolean {
+    return ignoreOverlay[artistId] ?? false;
+  }
+
+  function toggleIgnore(artistId: string) {
+    const next = !isIgnored(artistId);
     setPendingId(artistId);
     startTransition(async () => {
-      const result = await ignoreArtist(userId, artistId);
+      const result = next
+        ? await ignoreArtist(userId, artistId)
+        : await unignoreArtist(userId, artistId);
       setPendingId(null);
-      setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setIgnoreOverlay((prev) => ({ ...prev, [artistId]: next }));
+      setError(null);
     });
   }
 
@@ -71,7 +88,15 @@ export function SuggestedArtistsPanel({
                 key={userArtist.artist.id}
                 className="flex flex-wrap items-center gap-2 text-sm"
               >
-                <span>{userArtist.artist.name}</span>
+                <span
+                  className={
+                    isIgnored(userArtist.artist.id)
+                      ? "text-gray-500 line-through"
+                      : ""
+                  }
+                >
+                  {userArtist.artist.name}
+                </span>
                 <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
                   score {scoreOf(userArtist).toFixed(2)}
                 </span>
@@ -81,8 +106,8 @@ export function SuggestedArtistsPanel({
                   </span>
                 )}
                 <IgnoreButton
-                  ignored={false}
-                  onClick={() => ignore(userArtist.artist.id)}
+                  ignored={isIgnored(userArtist.artist.id)}
+                  onClick={() => toggleIgnore(userArtist.artist.id)}
                   disabled={pendingId === userArtist.artist.id}
                 />
               </li>
