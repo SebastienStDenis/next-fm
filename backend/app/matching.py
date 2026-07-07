@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.artist_sync import LOVED_TRACKS_KIND, TOP_ARTIST_KIND
-from app.models import City, Event, EventArtist, UserArtistExclusion, UserArtistInterest
+from app.models import (
+    City,
+    Event,
+    EventArtist,
+    UserArtistExclusion,
+    UserArtistInterest,
+    UserEventExclusion,
+)
 
 EVENT_MATCH_RADIUS_KM = 50.0
 
@@ -47,12 +54,31 @@ def distance_km(latitude: float, longitude: float) -> ColumnElement[float]:
 
 def upcoming_event_near(cities: Sequence[City]) -> ColumnElement[bool]:
     """Event is upcoming and within EVENT_MATCH_RADIUS_KM of any of the given
-    cities - the servable predicate shared by the match join and the
-    suggestion engine's show-tied grace."""
+    cities."""
     nearby = or_(
         *(distance_km(city.latitude, city.longitude) <= EVENT_MATCH_RADIUS_KM for city in cities)
     )
     return (Event.starts_at > func.now()) & nearby
+
+
+def event_not_ignored(user_id: uuid.UUID) -> ColumnElement[bool]:
+    """The event carries no ignore for this user."""
+    return ~(
+        select(UserEventExclusion.id)
+        .where(
+            UserEventExclusion.user_id == user_id,
+            UserEventExclusion.event_id == Event.id,
+        )
+        .exists()
+    )
+
+
+def servable_event(user_id: uuid.UUID, cities: Sequence[City]) -> ColumnElement[bool]:
+    """The servable-event predicate shared by the match join and the
+    suggestion engine's show-tied grace: upcoming, near the user, not ignored.
+    Both call sites must agree, or grace could retain a suggestion whose show
+    the match join will never serve (or vice versa)."""
+    return upcoming_event_near(cities) & event_not_ignored(user_id)
 
 
 def artist_qualifies(
@@ -99,7 +125,7 @@ async def match_artist_shows(
         .join(Event, Event.id == EventArtist.event_id)
         .where(
             artist_qualifies(user_id, EventArtist.artist_id, include_known_artists),
-            upcoming_event_near([city]),
+            servable_event(user_id, [city]),
         )
         .order_by(Event.starts_at, Event.id)
     )

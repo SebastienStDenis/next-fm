@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BeforeValidator
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from temporalio.client import (
@@ -33,7 +33,13 @@ from app.lastfm import (
     LastfmUserInfo,
     LastfmUserNotFoundError,
 )
-from app.matching import EVENT_MATCH_RADIUS_KM, artist_qualifies, distance_km
+from app.matching import (
+    EVENT_MATCH_RADIUS_KM,
+    SIMILAR_ARTIST_KIND,
+    artist_qualifies,
+    distance_km,
+    event_not_ignored,
+)
 from app.models import (
     Artist,
     ArtistTopTrack,
@@ -46,7 +52,9 @@ from app.models import (
     Playlist,
     PlaylistTrack,
     User,
+    UserArtistExclusion,
     UserArtistInterest,
+    UserEventExclusion,
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.playlist_sync import (
@@ -428,7 +436,10 @@ async def sync_lastfm_artists_for_user(
 
 @app.get("/users/{user_id}/artists", response_model=list[UserArtistRead])
 async def list_user_artists(user_id: uuid.UUID, session: SessionDep) -> list[UserArtistRead]:
-    """List the user's artists of interest, grouped by artist with all reasons."""
+    """List the user's artists of interest, grouped by artist with all
+    reasons. Excluded artists stay in the listing - even one whose only
+    interest row was the suggestion the exclusion deleted - so the user can
+    see and undo what they've ignored."""
     await _require_user(session, user_id)
     result = await session.execute(
         select(UserArtistInterest, Artist)
@@ -443,7 +454,66 @@ async def list_user_artists(user_id: uuid.UUID, session: SessionDep) -> list[Use
             entry = UserArtistRead(artist=ArtistRead.model_validate(artist), interests=[])
             grouped[artist.id] = entry
         entry.interests.append(ArtistInterestRead.model_validate(interest))
-    return list(grouped.values())
+
+    result = await session.execute(
+        select(Artist)
+        .join(UserArtistExclusion, UserArtistExclusion.artist_id == Artist.id)
+        .where(UserArtistExclusion.user_id == user_id)
+        .order_by(func.lower(Artist.name))
+    )
+    for artist in result.scalars():
+        entry = grouped.get(artist.id)
+        if entry is None:
+            entry = UserArtistRead(artist=ArtistRead.model_validate(artist), interests=[])
+            grouped[artist.id] = entry
+        entry.excluded = True
+
+    return sorted(grouped.values(), key=lambda entry: entry.artist.name.lower())
+
+
+@app.put("/users/{user_id}/artists/{artist_id}/exclusion", status_code=204)
+async def exclude_artist(user_id: uuid.UUID, artist_id: uuid.UUID, session: SessionDep) -> None:
+    """Ignore an artist: never suggest, never seed, never match them. Also
+    deletes the pair's suggestion interest row - the suggestion engine owns
+    that kind and would prune it next sync anyway. Idempotent."""
+    await _require_user(session, user_id)
+    if await session.get(Artist, artist_id) is None:
+        raise HTTPException(status_code=404, detail="Artist not found")
+
+    await session.execute(
+        delete(UserArtistInterest).where(
+            UserArtistInterest.user_id == user_id,
+            UserArtistInterest.artist_id == artist_id,
+            UserArtistInterest.kind == SIMILAR_ARTIST_KIND,
+        )
+    )
+    exists = await session.execute(
+        select(UserArtistExclusion.id).where(
+            UserArtistExclusion.user_id == user_id,
+            UserArtistExclusion.artist_id == artist_id,
+        )
+    )
+    if exists.scalar_one_or_none() is None:
+        session.add(UserArtistExclusion(user_id=user_id, artist_id=artist_id))
+    try:
+        await session.commit()
+    except IntegrityError:
+        # A concurrent exclude for the same pair won the unique constraint.
+        await session.rollback()
+
+
+@app.delete("/users/{user_id}/artists/{artist_id}/exclusion", status_code=204)
+async def unexclude_artist(user_id: uuid.UUID, artist_id: uuid.UUID, session: SessionDep) -> None:
+    """Un-ignore an artist. The artist becomes an ordinary candidate again and
+    must re-earn its suggestion from scratch on the next sync. Idempotent."""
+    await _require_user(session, user_id)
+    await session.execute(
+        delete(UserArtistExclusion).where(
+            UserArtistExclusion.user_id == user_id,
+            UserArtistExclusion.artist_id == artist_id,
+        )
+    )
+    await session.commit()
 
 
 @app.get("/artists", response_model=list[ArtistRead])
@@ -491,10 +561,12 @@ async def list_user_events(
     radius_km: Annotated[float, Query(gt=0, le=500)] = EVENT_MATCH_RADIUS_KM,
     geonameid: int | None = None,
     include_known_artists: bool | None = None,
+    include_ignored: bool = False,
 ) -> list[UserEventRead]:
     """List upcoming events by the user's servable artists near the given
     city (defaulting to the user's own). include_known_artists overrides the
-    user's setting, letting the UI show everything."""
+    user's setting and include_ignored keeps ignored shows in the list (with
+    an ignored flag), both letting the UI show everything and offer undo."""
     user = await _require_user(session, user_id)
     if geonameid is not None:
         city = await session.get(City, geonameid)
@@ -508,8 +580,9 @@ async def list_user_events(
     if include_known_artists is None:
         include_known_artists = user.include_known_artists
     distance = distance_km(city.latitude, city.longitude).label("distance_km")
-    result = await session.execute(
-        select(Event, Artist, BandsintownEvent.url, distance)
+    ignored = (~event_not_ignored(user_id)).label("ignored")
+    query = (
+        select(Event, Artist, BandsintownEvent.url, distance, ignored)
         .join(EventArtist, EventArtist.event_id == Event.id)
         .join(Artist, Artist.id == EventArtist.artist_id)
         .outerjoin(BandsintownEvent, BandsintownEvent.event_id == Event.id)
@@ -520,8 +593,11 @@ async def list_user_events(
         )
         .order_by(Event.starts_at, Event.id)
     )
+    if not include_ignored:
+        query = query.where(event_not_ignored(user_id))
+    result = await session.execute(query)
     grouped: dict[uuid.UUID, UserEventRead] = {}
-    for event, artist, url, km in result.all():
+    for event, artist, url, km, is_ignored in result.all():
         entry = grouped.get(event.id)
         if entry is None:
             entry = UserEventRead(
@@ -529,10 +605,48 @@ async def list_user_events(
                 url=url,
                 distance_km=round(km, 1),
                 artists=[],
+                ignored=is_ignored,
             )
             grouped[event.id] = entry
         entry.artists.append(ArtistRead.model_validate(artist))
     return list(grouped.values())
+
+
+@app.put("/users/{user_id}/events/{event_id}/exclusion", status_code=204)
+async def exclude_event(user_id: uuid.UUID, event_id: uuid.UUID, session: SessionDep) -> None:
+    """Ignore a show: never serve it to this user. The artist is untouched -
+    the match join simply promotes their next non-ignored nearby show.
+    Idempotent."""
+    await _require_user(session, user_id)
+    if await session.get(Event, event_id) is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    exists = await session.execute(
+        select(UserEventExclusion.id).where(
+            UserEventExclusion.user_id == user_id,
+            UserEventExclusion.event_id == event_id,
+        )
+    )
+    if exists.scalar_one_or_none() is None:
+        session.add(UserEventExclusion(user_id=user_id, event_id=event_id))
+    try:
+        await session.commit()
+    except IntegrityError:
+        # A concurrent ignore for the same pair won the unique constraint.
+        await session.rollback()
+
+
+@app.delete("/users/{user_id}/events/{event_id}/exclusion", status_code=204)
+async def unexclude_event(user_id: uuid.UUID, event_id: uuid.UUID, session: SessionDep) -> None:
+    """Un-ignore a show; it becomes servable again. Idempotent."""
+    await _require_user(session, user_id)
+    await session.execute(
+        delete(UserEventExclusion).where(
+            UserEventExclusion.user_id == user_id,
+            UserEventExclusion.event_id == event_id,
+        )
+    )
+    await session.commit()
 
 
 async def _require_playlist(

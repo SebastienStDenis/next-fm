@@ -268,6 +268,24 @@ class UserArtistExclusion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class UserEventExclusion(Base):
+    """User policy: never serve this show to this user. Durable, owned by no
+    sync, never pruned. Cascade-deleted with the event, which cancels the
+    ignore exactly when the show is gone."""
+
+    __tablename__ = "user_event_exclusions"
+    __table_args__ = (UniqueConstraint("user_id", "event_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class SpotifyArtist(Base):
     __tablename__ = "spotify_artists"
 

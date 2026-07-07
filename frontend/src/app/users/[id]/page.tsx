@@ -33,12 +33,13 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       loadNeverSynced(id),
     ]);
 
-  // Known-artist events are fetched regardless of the user's global setting;
-  // the events panel hides them behind its own view-side filter.
+  // Known-artist and ignored events are both fetched regardless of settings;
+  // the events panel hides known ones behind a view-side filter and shows
+  // ignored ones dimmed with an undo affordance.
   const events =
     city !== null
       ? await fetchJson<UserEvent[]>(
-          `${apiUrl}/users/${id}/events?include_known_artists=true`,
+          `${apiUrl}/users/${id}/events?include_known_artists=true&include_ignored=true`,
           "events",
         )
       : [];
@@ -68,11 +69,14 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
   const pendingPins = playlists.filter(
     (playlist) => playlist.city !== null && playlist.spotify_url === null,
   );
-  // The tab count matches the panel's default view: suggested artists only.
-  const suggestedEventCount = events.filter((userEvent) =>
-    userEvent.artists.some(
-      (artist) => artistRelations[artist.id] === "suggested",
-    ),
+  // The tab count matches the panel's default view: suggested artists only,
+  // and not shows the user has declined.
+  const suggestedEventCount = events.filter(
+    (userEvent) =>
+      !userEvent.ignored &&
+      userEvent.artists.some(
+        (artist) => artistRelations[artist.id] === "suggested",
+      ),
   ).length;
 
   return (
@@ -95,7 +99,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               key: "suggested",
               label: `Suggested artists (${suggestedArtists.length})`,
               content: (
-                <SuggestedArtistsPanel suggestedArtists={suggestedArtists} />
+                <SuggestedArtistsPanel
+                  userId={user.id}
+                  suggestedArtists={suggestedArtists}
+                />
               ),
             },
             {

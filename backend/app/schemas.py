@@ -78,6 +78,7 @@ class ArtistInterestRead(BaseModel):
 class UserArtistRead(BaseModel):
     artist: ArtistRead
     interests: list[ArtistInterestRead]
+    excluded: bool = False
 
 
 class EventRead(BaseModel):
@@ -99,6 +100,7 @@ class UserEventRead(BaseModel):
     url: str | None
     distance_km: float
     artists: list[ArtistRead]
+    ignored: bool = False
 
 
 class EventSyncResult(BaseModel):

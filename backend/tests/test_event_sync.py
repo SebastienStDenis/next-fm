@@ -296,9 +296,9 @@ async def test_list_events_groups_artists_per_event() -> None:
     session.get.side_effect = [user, montreal]
     session.execute.return_value = result_with_rows(
         [
-            (event1, autechre, "https://bandsintown.com/e/1", 2.9412),
-            (event1, boc, "https://bandsintown.com/e/1", 2.9412),
-            (event2, autechre, "https://bandsintown.com/e/2", 2.9412),
+            (event1, autechre, "https://bandsintown.com/e/1", 2.9412, False),
+            (event1, boc, "https://bandsintown.com/e/1", 2.9412, False),
+            (event2, autechre, "https://bandsintown.com/e/2", 2.9412, False),
         ]
     )
 
@@ -312,6 +312,37 @@ async def test_list_events_groups_artists_per_event() -> None:
     assert body[0]["distance_km"] == 2.9
     assert [artist["name"] for artist in body[0]["artists"]] == ["Autechre", "Boards of Canada"]
     assert [artist["name"] for artist in body[1]["artists"]] == ["Autechre"]
+
+
+async def test_list_events_include_ignored_returns_ignored_flag() -> None:
+    seattle = City(
+        geonameid=5809844,
+        name="Seattle",
+        ascii_name="Seattle",
+        admin1="Washington",
+        country_code="US",
+        latitude=47.60621,
+        longitude=-122.33207,
+        population=737015,
+    )
+    event = make_matched_event(datetime(2026, 8, 1, 20, 0, tzinfo=UTC))
+    artist = Artist(id=uuid.uuid7(), name="Autechre")
+    session = make_session()
+    session.get.side_effect = [MagicMock(city_id=None), seattle]
+    session.execute.return_value = result_with_rows(
+        [(event, artist, "https://bandsintown.com/e/1", 12.0, True)]
+    )
+
+    response = await request(
+        "GET",
+        f"{EVENTS_URL}?geonameid={seattle.geonameid}&include_ignored=true",
+        session,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["ignored"] is True
 
 
 async def test_list_events_requires_a_city() -> None:
@@ -340,7 +371,7 @@ async def test_list_events_accepts_an_explicit_city() -> None:
     session = make_session()
     session.get.side_effect = [MagicMock(city_id=None), seattle]
     session.execute.return_value = result_with_rows(
-        [(event, artist, "https://bandsintown.com/e/1", 12.0)]
+        [(event, artist, "https://bandsintown.com/e/1", 12.0, False)]
     )
 
     response = await request("GET", f"{EVENTS_URL}?geonameid={seattle.geonameid}", session)

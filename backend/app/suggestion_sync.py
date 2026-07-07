@@ -22,7 +22,7 @@ from app.lastfm import (
     LastfmClient,
     LastfmSimilarArtistData,
 )
-from app.matching import SIMILAR_ARTIST_KIND, upcoming_event_near
+from app.matching import SIMILAR_ARTIST_KIND, servable_event
 from app.models import (
     City,
     Event,
@@ -388,7 +388,7 @@ async def _graced_artist_ids(
     result = await session.execute(
         select(EventArtist.artist_id)
         .join(Event, Event.id == EventArtist.event_id)
-        .where(EventArtist.artist_id.in_(incumbent_ids), upcoming_event_near(cities))
+        .where(EventArtist.artist_id.in_(incumbent_ids), servable_event(user.id, cities))
         .distinct()
     )
     return set(result.scalars())

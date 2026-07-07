@@ -157,6 +157,54 @@ export async function deletePlaylist(
   );
 }
 
+export async function ignoreArtist(
+  userId: string,
+  artistId: string,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/artists/${artistId}/exclusion`,
+    { method: "PUT" },
+    "Failed to ignore artist.",
+    `/users/${userId}`,
+  );
+}
+
+export async function unignoreArtist(
+  userId: string,
+  artistId: string,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/artists/${artistId}/exclusion`,
+    { method: "DELETE" },
+    "Failed to un-ignore artist.",
+    `/users/${userId}`,
+  );
+}
+
+export async function ignoreEvent(
+  userId: string,
+  eventId: string,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/events/${eventId}/exclusion`,
+    { method: "PUT" },
+    "Failed to ignore concert.",
+    `/users/${userId}`,
+  );
+}
+
+export async function unignoreEvent(
+  userId: string,
+  eventId: string,
+): Promise<ActionState> {
+  return callApi(
+    `/users/${userId}/events/${eventId}/exclusion`,
+    { method: "DELETE" },
+    "Failed to un-ignore concert.",
+    `/users/${userId}`,
+  );
+}
+
 export async function deleteUser(userId: string): Promise<ActionState> {
   const result = await callApi(
     `/users/${userId}`,

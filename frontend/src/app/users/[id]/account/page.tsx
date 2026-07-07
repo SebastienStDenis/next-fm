@@ -4,6 +4,7 @@ import { AttentionDot } from "../attention-dot";
 import { CityPanel, type City } from "../city-panel";
 import { DeleteUserButton } from "../delete-user-button";
 import { DiscoveryToggle } from "../discovery-toggle";
+import { IgnoredArtistsPanel } from "../ignored-artists-panel";
 import { LastfmPanel, type LastfmAccount } from "../lastfm-panel";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
@@ -56,9 +57,14 @@ export default async function AccountPage(
     loadNeverSynced(id),
   ]);
 
-  const knownArtists = userArtists.filter((userArtist) =>
-    userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
+  const knownArtists = userArtists.filter(
+    (userArtist) =>
+      !userArtist.excluded &&
+      userArtist.interests.some((interest) =>
+        KNOWN_ARTIST_KINDS.has(interest.kind),
+      ),
   );
+  const ignoredArtists = userArtists.filter((userArtist) => userArtist.excluded);
 
   return (
     <main className="mx-auto max-w-xl p-8">
@@ -93,7 +99,10 @@ export default async function AccountPage(
         />
       </Section>
       <Section heading="My artists" className="mt-8">
-        <TastePanel userArtists={knownArtists} />
+        <TastePanel userId={user.id} userArtists={knownArtists} />
+      </Section>
+      <Section heading="Ignored artists" className="mt-8">
+        <IgnoredArtistsPanel userId={user.id} ignoredArtists={ignoredArtists} />
       </Section>
       <section className="mt-8">
         <DeleteUserButton userId={user.id} userName={user.name} />

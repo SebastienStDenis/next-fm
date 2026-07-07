@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 
+import { ignoreEvent, unignoreEvent } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 
@@ -20,6 +21,7 @@ export type UserEvent = {
   url: string | null;
   distance_km: number;
   artists: { id: string; name: string }[];
+  ignored: boolean;
 };
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
@@ -77,6 +79,36 @@ export function EventsPanel({
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [viewError, setViewError] = useState<string | null>(null);
   const [loading, startTransition] = useTransition();
+  // Overrides the server-side ignored flag between an ignore/undo click and
+  // the page refresh, so the toggle feels instant in both the local and
+  // searched-city views.
+  const [ignoreOverlay, setIgnoreOverlay] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [pendingIgnore, setPendingIgnore] = useState<string | null>(null);
+  const [, startIgnore] = useTransition();
+
+  function isIgnored(userEvent: UserEvent): boolean {
+    return ignoreOverlay[userEvent.event.id] ?? userEvent.ignored;
+  }
+
+  function toggleIgnore(userEvent: UserEvent) {
+    const eventId = userEvent.event.id;
+    const nextIgnored = !isIgnored(userEvent);
+    setPendingIgnore(eventId);
+    startIgnore(async () => {
+      const result = nextIgnored
+        ? await ignoreEvent(userId, eventId)
+        : await unignoreEvent(userId, eventId);
+      setPendingIgnore(null);
+      if (result.error) {
+        setViewError(result.error);
+        return;
+      }
+      setIgnoreOverlay((prev) => ({ ...prev, [eventId]: nextIgnored }));
+      setViewError(null);
+    });
+  }
 
   if (!hasArtists) {
     return (
@@ -175,46 +207,60 @@ export function EventsPanel({
             )
           ) : (
             <ul className="mt-3 space-y-3">
-              {visibleEvents.map(({ event, url, distance_km, artists }) => (
-                <li
-                  key={event.id}
-                  className="rounded border border-gray-300 p-3 dark:border-gray-700"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-medium">
-                      {event.title ??
-                        artists.map((artist) => artist.name).join(", ")}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {dateFormat.format(new Date(event.starts_at))}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {event.venue_name} · {placeLabel(event)} · {distance_km} km
-                    away
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {artists.map((artist) => (
-                      <span
-                        key={artist.id}
-                        className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
-                      >
-                        {artistChipLabel(artist, artistRelations)}
+              {visibleEvents.map((userEvent) => {
+                const { event, url, distance_km, artists } = userEvent;
+                const ignored = isIgnored(userEvent);
+                return (
+                  <li
+                    key={event.id}
+                    className={`rounded border border-gray-300 p-3 dark:border-gray-700 ${
+                      ignored ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium">
+                        {event.title ??
+                          artists.map((artist) => artist.name).join(", ")}
                       </span>
-                    ))}
-                    {url && (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+                      <span className="text-xs text-gray-500">
+                        {dateFormat.format(new Date(event.starts_at))}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {event.venue_name} · {placeLabel(event)} · {distance_km} km
+                      away
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {artists.map((artist) => (
+                        <span
+                          key={artist.id}
+                          className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
+                        >
+                          {artistChipLabel(artist, artistRelations)}
+                        </span>
+                      ))}
+                      {url && (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+                        >
+                          Tickets ↗
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggleIgnore(userEvent)}
+                        disabled={pendingIgnore === event.id}
+                        className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
                       >
-                        Tickets ↗
-                      </a>
-                    )}
-                  </div>
-                </li>
-              ))}
+                        {ignored ? "Undo" : "Not interested"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
           {hiddenCount > 0 && (

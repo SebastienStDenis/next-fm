@@ -1,5 +1,8 @@
 "use client";
 
+import { useState, useTransition } from "react";
+
+import { ignoreArtist } from "./actions";
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import type { Interest, UserArtist } from "./taste-panel";
 
@@ -24,14 +27,29 @@ function reasonOf(userArtist: UserArtist): string | null {
 }
 
 export function SuggestedArtistsPanel({
+  userId,
   suggestedArtists,
 }: {
+  userId: string;
   suggestedArtists: UserArtist[];
 }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
   const sortedArtists = [...suggestedArtists].sort(
     (a, b) =>
       scoreOf(b) - scoreOf(a) || a.artist.name.localeCompare(b.artist.name),
   );
+
+  function ignore(artistId: string) {
+    setPendingId(artistId);
+    startTransition(async () => {
+      const result = await ignoreArtist(userId, artistId);
+      setPendingId(null);
+      setError(result.error);
+    });
+  }
 
   return (
     <div>
@@ -45,6 +63,7 @@ export function SuggestedArtistsPanel({
           <h3 className="text-sm font-medium">
             Suggested artists ({suggestedArtists.length})
           </h3>
+          {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
           <ul className="mt-2 space-y-1">
             {sortedArtists.map((userArtist) => (
               <li
@@ -60,6 +79,14 @@ export function SuggestedArtistsPanel({
                     {reasonOf(userArtist)}
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => ignore(userArtist.artist.id)}
+                  disabled={pendingId === userArtist.artist.id}
+                  className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
+                >
+                  Not interested
+                </button>
               </li>
             ))}
           </ul>
