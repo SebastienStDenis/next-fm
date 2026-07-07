@@ -196,65 +196,71 @@ export function SyncCard({
   return (
     <div>
       {/* The Sync button stays put; the running steps play out to its right,
-          both vertically centered so nothing below shifts. Expanding the step
-          list is the one user-initiated exception. */}
-      <div className="flex min-h-9 items-center gap-3">
-        <button
-          type="button"
-          onClick={onSync}
-          disabled={starting || busy || !canSync}
-          className="relative inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+          centered against the button while a run plays and pinned to the top
+          once idle so expanding the step list only grows downward. */}
+      <div className="flex min-h-9 flex-col justify-center">
+        <div
+          className={`flex gap-3 ${
+            running || settling ? "items-center" : "items-start"
+          }`}
         >
-          {/* Kept in the layout (just hidden) while busy so the button holds
-              the same width as when it reads "Sync". */}
-          <span className={busy ? "invisible" : undefined}>Sync</span>
-          {busy && (
-            <span className="absolute inset-0 flex items-center justify-center">
-              <Spinner />
-            </span>
-          )}
-        </button>
-        <div className="min-w-0 flex-1">
-          {(running || settling) && status ? (
-            <div className="animate-fade-in">
-              <CurrentStep
-                key={runSeq}
-                steps={status.steps}
-                finished={!running}
-                onSettled={() => {
-                  setSettling(false);
-                  setLeaving(true);
-                }}
-              />
-            </div>
-          ) : (
-            <div className="relative">
-              {leaving && status && (
-                <div className="absolute inset-x-0 top-0 animate-slide-out-up">
-                  <LastStepLine steps={status.steps} />
-                </div>
-              )}
-              {status && status.status !== "none" && (
-                <details className="animate-slide-in-up">
-                  <summary
-                    className={`cursor-pointer text-sm ${
-                      status.status === "failed"
-                        ? "text-red-600"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {status.status === "failed"
-                      ? "Last sync failed"
-                      : "Last synced"}
-                    {finishedAt && ` ${finishedAt}`}.
-                  </summary>
-                  <div className="mt-2">
-                    <StepList steps={status.steps} />
+          <button
+            type="button"
+            onClick={onSync}
+            disabled={starting || busy || !canSync}
+            className="relative inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {/* Kept in the layout (just hidden) while busy so the button holds
+                the same width as when it reads "Sync". */}
+            <span className={busy ? "invisible" : undefined}>Sync</span>
+            {busy && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <Spinner />
+              </span>
+            )}
+          </button>
+          <div className="min-w-0 flex-1">
+            {(running || settling) && status ? (
+              <div className="animate-fade-in">
+                <CurrentStep
+                  key={runSeq}
+                  steps={status.steps}
+                  finished={!running}
+                  onSettled={() => {
+                    setSettling(false);
+                    setLeaving(true);
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="relative pt-1">
+                {leaving && status && (
+                  <div className="absolute inset-x-0 top-0 animate-slide-out-up">
+                    <LastStepLine steps={status.steps} />
                   </div>
-                </details>
-              )}
-            </div>
-          )}
+                )}
+                {status && status.status !== "none" && (
+                  <details className="animate-slide-in-up">
+                    <summary
+                      className={`cursor-pointer text-sm ${
+                        status.status === "failed"
+                          ? "text-red-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {status.status === "failed"
+                        ? "Last sync failed"
+                        : "Last synced"}
+                      {finishedAt && ` ${finishedAt}`}.
+                    </summary>
+                    <div className="mt-2">
+                      <StepList steps={status.steps} />
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {missingNote && (
