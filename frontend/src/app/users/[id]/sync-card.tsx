@@ -61,6 +61,7 @@ export function SyncCard({
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
+  const [runSeq, setRunSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
 
@@ -135,6 +136,10 @@ export function SyncCard({
     // real state, and a failed start reverts it.
     const previous = status;
     setError(null);
+    // A click during the settle window starts a fresh run; drop the old
+    // playback (keyed by runSeq) instead of letting it resume mid-list.
+    setSettling(false);
+    setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
       started_at: null,
@@ -172,6 +177,7 @@ export function SyncCard({
         {error && <p className="text-sm text-red-600">{error}</p>}
         {(running || settling) && status && (
           <CurrentStep
+            key={runSeq}
             steps={status.steps}
             finished={!running}
             onSettled={() => setSettling(false)}
@@ -239,7 +245,7 @@ function CurrentStep({
     () =>
       step
         ? {
-            key: `${index}-${cursor.phase}`,
+            key: String(index),
             label: step.label,
             status: cursor.phase === "final" ? step.status : "running",
             summary: cursor.phase === "final" ? step.summary : null,
@@ -264,10 +270,12 @@ function CurrentStep({
       if (!done) {
         return;
       }
-      const timer = setTimeout(() => {
-        setLeaving(snapshot);
-        setCursor({ index, phase: "final", since: Date.now() });
-      }, holdLeft);
+      // A phase flip stays on the same line - no slide, the icon and
+      // subtitle fade in place.
+      const timer = setTimeout(
+        () => setCursor({ index, phase: "final", since: Date.now() }),
+        holdLeft,
+      );
       return () => clearTimeout(timer);
     }
     const next = steps[index + 1];
@@ -333,13 +341,19 @@ function StepLine({
 }) {
   return (
     <div className="flex gap-2 text-sm">
-      <span className={`mt-0.5 ${stepMarkClasses[snapshot.status]}`}>
+      {/* Keyed by status so a phase flip remounts and fades the icon. */}
+      <span
+        key={snapshot.status}
+        className={`mt-0.5 animate-fade-in ${stepMarkClasses[snapshot.status]}`}
+      >
         <StepMark status={snapshot.status} />
       </span>
       <div className="min-w-0">
         <span>{snapshot.label}</span>
         {snapshot.status === "failed" && (
-          <span className="ml-2 text-xs text-red-600">failed</span>
+          <span className="ml-2 animate-fade-in text-xs text-red-600">
+            failed
+          </span>
         )}
         <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
           step {snapshot.position} of {total}
@@ -347,7 +361,9 @@ function StepLine({
         {/* One truncated line so the fixed-height status area never
             overflows; the post-run step list shows the full text. */}
         {snapshot.summary && (
-          <p className="truncate text-xs text-gray-500">{snapshot.summary}</p>
+          <p className="animate-fade-in truncate text-xs text-gray-500">
+            {snapshot.summary}
+          </p>
         )}
       </div>
     </div>
