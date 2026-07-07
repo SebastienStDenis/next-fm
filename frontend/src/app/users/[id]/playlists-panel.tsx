@@ -77,33 +77,38 @@ export function PlaylistsPanel({
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
-        Sync your taste first to build playlists from shows near you.
+        Nothing synced yet. Run a sync above to build playlists from shows
+        near you.
       </p>
     );
   }
 
   return (
     <div>
-      {!hasCity && (
-        <p className="mb-2 text-sm text-gray-500">
-          Set a city to get your local playlist; pinned cities work without
-          one.
-        </p>
-      )}
       {playlists.length === 0 ? (
         <p className="text-sm text-gray-500">
-          No playlists yet. Sync to create your first one on Spotify.
+          {hasCity
+            ? "No playlists yet. Sync to create your first one on Spotify."
+            : "No playlists yet - your local playlist needs a city. Set yours in the Account section, or pin a city below."}
         </p>
       ) : (
-        <ul className="space-y-3">
-          {playlists.map((playlist) => (
-            <PlaylistCard
-              key={playlist.id}
-              userId={userId}
-              playlist={playlist}
-            />
-          ))}
-        </ul>
+        <>
+          {!hasCity && (
+            <p className="mb-2 text-sm text-gray-500">
+              Set your city in the Account section to get your local playlist;
+              pinned cities work without one.
+            </p>
+          )}
+          <ul className="space-y-3">
+            {playlists.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                userId={userId}
+                playlist={playlist}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
       <div className="mt-6">

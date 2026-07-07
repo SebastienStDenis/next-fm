@@ -87,6 +87,12 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
     ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
     ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
   ]);
+  // The tab count matches the panel's default view: suggested artists only.
+  const suggestedEventCount = events.filter((userEvent) =>
+    userEvent.artists.some(
+      (artist) => artistRelations[artist.id] === "suggested",
+    ),
+  ).length;
 
   const suggestionsSection = (
     <>
@@ -109,7 +115,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
             },
             {
               key: "concerts",
-              label: `Concerts (${events.length})`,
+              label: `Concerts (${suggestedEventCount})`,
               content: (
                 <EventsPanel
                   userId={user.id}

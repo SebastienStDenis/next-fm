@@ -80,7 +80,7 @@ export function EventsPanel({
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
-        Sync your taste first to find concerts you would like.
+        Nothing synced yet. Run a sync above to find concerts you would like.
       </p>
     );
   }
@@ -149,7 +149,8 @@ export function EventsPanel({
 
       {!city && !viewCity ? (
         <p className="mt-4 text-sm text-gray-500">
-          Set a city to see concerts near you, or search one above.
+          Set your city in the Account section to see concerts near you, or
+          search one above.
         </p>
       ) : visibleEvents.length === 0 ? (
         <p className="mt-4 text-sm text-gray-500">
