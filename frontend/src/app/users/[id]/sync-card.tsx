@@ -282,7 +282,7 @@ export function SyncCard({
                   </details>
                 )}
                 {finalOutcome === "none" && !statusLoading && (
-                  <p className="text-xs text-gray-500 italic">
+                  <p className="text-sm text-gray-500">
                     Import listening history, suggest concerts and create
                     playlists.
                   </p>
