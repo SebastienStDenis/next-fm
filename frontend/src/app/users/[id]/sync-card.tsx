@@ -92,13 +92,26 @@ export function SyncCard({
   const running = status?.status === "running";
 
   function onSync() {
+    // Show the run as started right away; the first poll replaces this with
+    // real state, and a failed start reverts it.
+    const previous = status;
+    setError(null);
+    setStatus({
+      status: "running",
+      started_at: null,
+      steps: (previous?.steps ?? []).map((step) => ({
+        ...step,
+        status: "pending" as const,
+        summary: null,
+      })),
+    });
     startTransition(async () => {
       const result = await startSync(userId);
       if (result.error) {
+        setStatus(previous);
         setError(result.error);
         return;
       }
-      setError(null);
       setPolling(true);
     });
   }
