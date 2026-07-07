@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AboutPanel } from "./about-panel";
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import {
   ArtistsPanel,
@@ -161,11 +160,6 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
                   playlists={playlists}
                 />
               ),
-            },
-            {
-              key: "about",
-              label: "About",
-              content: <AboutPanel />,
             },
           ]}
         />

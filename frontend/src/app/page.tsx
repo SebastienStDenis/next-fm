@@ -23,6 +23,9 @@ export default function Home() {
           Artists
         </Link>
       </div>
+      <Link href="/about" className="text-sm text-gray-500 hover:underline">
+        How it works
+      </Link>
     </main>
   );
 }
