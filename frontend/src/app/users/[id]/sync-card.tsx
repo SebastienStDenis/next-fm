@@ -157,7 +157,7 @@ export function SyncCard({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded border border-gray-300 p-4 dark:border-gray-700">
       <button
         type="button"
         onClick={onSync}
@@ -166,29 +166,33 @@ export function SyncCard({
       >
         {running ? "Syncing..." : "Sync"}
       </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {(running || settling) && status && (
-        <CurrentStep
-          steps={status.steps}
-          finished={!running}
-          onSettled={() => setSettling(false)}
-        />
-      )}
-      {!running && !settling && status && status.status !== "none" && (
-        <details>
-          <summary
-            className={`cursor-pointer text-sm ${
-              status.status === "failed" ? "text-red-600" : "text-gray-500"
-            }`}
-          >
-            {status.status === "failed" ? "Last sync failed" : "Last synced"}
-            {finishedAt && ` ${finishedAt}`}.
-          </summary>
-          <div className="mt-2">
-            <StepList steps={status.steps} />
-          </div>
-        </details>
-      )}
+      {/* Fixed-height status area so state changes never shift the layout
+          below; expanding the step list is the one user-initiated exception. */}
+      <div className="min-h-10">
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {(running || settling) && status && (
+          <CurrentStep
+            steps={status.steps}
+            finished={!running}
+            onSettled={() => setSettling(false)}
+          />
+        )}
+        {!running && !settling && status && status.status !== "none" && (
+          <details className="animate-fade-in">
+            <summary
+              className={`cursor-pointer text-sm ${
+                status.status === "failed" ? "text-red-600" : "text-gray-500"
+              }`}
+            >
+              {status.status === "failed" ? "Last sync failed" : "Last synced"}
+              {finishedAt && ` ${finishedAt}`}.
+            </summary>
+            <div className="mt-2">
+              <StepList steps={status.steps} />
+            </div>
+          </details>
+        )}
+      </div>
     </div>
   );
 }
@@ -276,7 +280,11 @@ function CurrentStep({
   const shownStatus = cursor.phase === "final" ? step.status : "running";
 
   return (
-    <div className="flex gap-2 text-sm">
+    // Keyed by displayed state so each transition remounts and fades in.
+    <div
+      key={`${index}-${cursor.phase}`}
+      className="flex animate-fade-in gap-2 text-sm"
+    >
       <span className={`mt-0.5 ${stepMarkClasses[shownStatus]}`}>
         <StepMark status={shownStatus} />
       </span>
