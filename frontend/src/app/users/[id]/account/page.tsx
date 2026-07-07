@@ -20,26 +20,33 @@ function Section({
   heading,
   alert,
   alertText,
+  description,
   className,
   children,
 }: {
   heading: string;
   alert?: boolean;
   alertText?: string;
+  description?: string;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className={className}>
-      <h2 className="mb-3 flex items-center text-lg font-medium">
-        {alert && <AttentionDot />}
-        {heading}
-        {alert && alertText && (
-          <span className="ml-2 text-xs font-normal text-gray-500 italic">
-            {alertText}
-          </span>
+      <div className="mb-3">
+        <h2 className="flex items-center text-lg font-medium">
+          {alert && <AttentionDot />}
+          {heading}
+          {alert && alertText && (
+            <span className="ml-2 text-xs font-normal text-gray-500 italic">
+              {alertText}
+            </span>
+          )}
+        </h2>
+        {description && (
+          <p className="mt-1 text-xs text-gray-500 italic">{description}</p>
         )}
-      </h2>
+      </div>
       <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
         {children}
       </div>
@@ -91,6 +98,7 @@ export default async function AccountPage(
         heading="Last.fm"
         alert={lastfm === null}
         alertText="Link Last.fm account to enable sync."
+        description="Listening history is imported from your Last.fm account."
         className="mt-8"
       >
         <LastfmPanel userId={user.id} account={lastfm} />
@@ -99,6 +107,7 @@ export default async function AccountPage(
         heading="Home City"
         alert={city === null}
         alertText="Set home city to enable sync."
+        description="A playlist is created for concerts in your home city."
         className="mt-8"
       >
         <CityPanel userId={user.id} city={city} />
@@ -109,7 +118,11 @@ export default async function AccountPage(
           includeKnownArtists={user.include_known_artists}
         />
       </Section>
-      <Section heading="My Artists" className="mt-8">
+      <Section
+        heading="My Artists"
+        description="Your artists are used to suggest new artists and concerts."
+        className="mt-8"
+      >
         <TastePanel userArtists={knownArtists} />
       </Section>
       <section className="mt-8">
