@@ -162,7 +162,7 @@ export function SyncCard({
   }
 
   return (
-    <div>
+    <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
       {/* Fixed-height area holding either the sync control or the running
           steps, so swapping them never shifts the layout below; expanding
           the step list is the one user-initiated exception. */}

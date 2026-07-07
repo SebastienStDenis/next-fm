@@ -40,6 +40,10 @@ export default async function AccountPage(
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
       <section>
+        <h2 className="mb-3 text-lg font-medium">Sync</h2>
+        <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
+      </section>
+      <section className="mt-8">
         <h2 className="mb-3 text-lg font-medium">
           Last.fm
           {lastfm === null && <AttentionDot />}
@@ -52,10 +56,6 @@ export default async function AccountPage(
           {city === null && <AttentionDot />}
         </h2>
         <CityPanel userId={user.id} city={city} />
-      </section>
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-medium">Sync</h2>
-        <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
       </section>
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-medium">Discovery</h2>
