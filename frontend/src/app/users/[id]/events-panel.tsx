@@ -140,7 +140,7 @@ export function EventsPanel({
 
       {!city && !viewCity ? (
         <p className="mt-4 text-sm text-gray-500">
-          Set your city in the Account section to see concerts near you, or
+          Set your city in the Account section to see local concerts, or
           search one above.
         </p>
       ) : (

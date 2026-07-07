@@ -95,8 +95,7 @@ export function PlaylistsPanel({
         <>
           {!hasCity && (
             <p className="mb-2 text-sm text-gray-500">
-              Set your city in the Account section to get your local playlist;
-              pinned cities work without one.
+              Set your city in the Account section to get your local playlist.
             </p>
           )}
           <ul className="space-y-3">
@@ -114,8 +113,7 @@ export function PlaylistsPanel({
       <div className="mt-6">
         <h3 className="text-sm font-medium">Pin another city</h3>
         <p className="mt-1 mb-2 text-sm text-gray-500">
-          A pinned playlist tracks shows in a city of your choice, independent
-          of where you live.
+          Create another playlist to track shows in a city of your choice.
         </p>
         <PinCitySearch userId={userId} />
       </div>
