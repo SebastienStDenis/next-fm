@@ -61,6 +61,9 @@ export function SyncCard({
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
+  // Briefly true after the run settles: the final step slides out while the
+  // button slides back in.
+  const [leaving, setLeaving] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
@@ -118,6 +121,14 @@ export function SyncCard({
     };
   }, [polling, userId, router]);
 
+  useEffect(() => {
+    if (!leaving) {
+      return;
+    }
+    const timer = setTimeout(() => setLeaving(false), 250);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+
   if (!lastfmLinked) {
     return (
       <p className="text-sm text-gray-500">
@@ -139,6 +150,7 @@ export function SyncCard({
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
+    setLeaving(false);
     setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
@@ -174,41 +186,51 @@ export function SyncCard({
               key={runSeq}
               steps={status.steps}
               finished={!running}
-              onSettled={() => setSettling(false)}
+              onSettled={() => {
+                setSettling(false);
+                setLeaving(true);
+              }}
             />
           </div>
         ) : (
-          <div className="animate-fade-in">
-            <div className="flex items-start gap-3">
-              <button
-                type="button"
-                onClick={onSync}
-                disabled={starting}
-                className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-              >
-                Sync
-              </button>
-              {status && status.status !== "none" && (
-                <details className="min-w-0 flex-1 pt-1">
-                  <summary
-                    className={`cursor-pointer text-sm ${
-                      status.status === "failed"
-                        ? "text-red-600"
-                        : "text-gray-500"
-                    }`}
-                  >
-                    {status.status === "failed"
-                      ? "Last sync failed"
-                      : "Last synced"}
-                    {finishedAt && ` ${finishedAt}`}.
-                  </summary>
-                  <div className="mt-2">
-                    <StepList steps={status.steps} />
-                  </div>
-                </details>
-              )}
+          <div className="relative">
+            {leaving && status && (
+              <div className="absolute inset-x-0 top-0 animate-slide-out-up">
+                <LastStepLine steps={status.steps} />
+              </div>
+            )}
+            <div className="animate-slide-in-up">
+              <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={onSync}
+                  disabled={starting}
+                  className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+                >
+                  Sync
+                </button>
+                {status && status.status !== "none" && (
+                  <details className="min-w-0 flex-1 pt-1">
+                    <summary
+                      className={`cursor-pointer text-sm ${
+                        status.status === "failed"
+                          ? "text-red-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {status.status === "failed"
+                        ? "Last sync failed"
+                        : "Last synced"}
+                      {finishedAt && ` ${finishedAt}`}.
+                    </summary>
+                    <div className="mt-2">
+                      <StepList steps={status.steps} />
+                    </div>
+                  </details>
+                )}
+              </div>
+              {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
             </div>
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </div>
         )}
       </div>
@@ -334,6 +356,34 @@ function CurrentStep({
         <StepLine snapshot={snapshot} total={steps.length} />
       </div>
     </div>
+  );
+}
+
+// The final step the playback showed - the furthest-progressed non-pending
+// step (the last completed step, or the failed one). Rendered on its way out
+// as the button slides back in.
+function LastStepLine({ steps }: { steps: SyncStep[] }) {
+  let last = -1;
+  for (let i = 0; i < steps.length; i += 1) {
+    if (steps[i].status !== "pending") {
+      last = i;
+    }
+  }
+  if (last === -1) {
+    return null;
+  }
+  const step = steps[last];
+  return (
+    <StepLine
+      snapshot={{
+        key: String(last),
+        label: step.label,
+        status: step.status,
+        summary: step.summary,
+        position: last + 1,
+      }}
+      total={steps.length}
+    />
   );
 }
 
