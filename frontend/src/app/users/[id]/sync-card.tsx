@@ -164,9 +164,10 @@ export function SyncCard({
   return (
     <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
       {/* Fixed-height area holding either the sync control or the running
-          steps, so swapping them never shifts the layout below; expanding
-          the step list is the one user-initiated exception. */}
-      <div className="min-h-9">
+          steps, vertically centered, so swapping them never shifts the
+          layout below; expanding the step list is the one user-initiated
+          exception. */}
+      <div className="flex min-h-9 flex-col justify-center">
         {(running || settling) && status ? (
           <div className="animate-fade-in">
             <CurrentStep
@@ -371,12 +372,13 @@ function StepLine({
           step {snapshot.position} of {total}
         </span>
         {/* One truncated line so the fixed-height status area never
-            overflows; the post-run step list shows the full text. */}
-        {snapshot.summary && (
-          <p className="animate-fade-in truncate text-xs text-gray-500">
-            {snapshot.summary}
-          </p>
-        )}
+            overflows; the post-run step list shows the full text. A running
+            step has no summary yet, so a placeholder keeps the two-line
+            height (and vertical centering) consistent. */}
+        <p className="animate-fade-in truncate text-xs text-gray-500">
+          {snapshot.summary ??
+            (snapshot.status === "running" ? "Running..." : " ")}
+        </p>
       </div>
     </div>
   );
