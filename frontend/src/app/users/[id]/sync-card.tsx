@@ -63,9 +63,6 @@ export function SyncCard({
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
-  // Briefly true after the run settles: the final step slides out while the
-  // button slides back in.
-  const [leaving, setLeaving] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
@@ -123,14 +120,6 @@ export function SyncCard({
     };
   }, [polling, userId, router]);
 
-  useEffect(() => {
-    if (!leaving) {
-      return;
-    }
-    const timer = setTimeout(() => setLeaving(false), 250);
-    return () => clearTimeout(timer);
-  }, [leaving]);
-
   const running = status?.status === "running";
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
@@ -160,7 +149,6 @@ export function SyncCard({
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
-    setLeaving(false);
     setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
@@ -185,69 +173,84 @@ export function SyncCard({
 
   return (
     <div>
-      {/* Fixed-height area holding either the sync control or the running
-          steps, vertically centered, so swapping them never shifts the
-          layout below; expanding the step list is the one user-initiated
-          exception. */}
-      <div className="flex min-h-9 flex-col justify-center">
-        {(running || settling) && status ? (
-          <div className="animate-fade-in">
-            <CurrentStep
-              key={runSeq}
-              steps={status.steps}
-              finished={!running}
-              onSettled={() => {
-                setSettling(false);
-                setLeaving(true);
-              }}
-            />
-          </div>
-        ) : (
-          <div className="relative">
-            {leaving && status && (
-              <div className="absolute inset-x-0 top-0 animate-slide-out-up">
-                <LastStepLine steps={status.steps} />
-              </div>
-            )}
-            <div className="animate-slide-in-up">
-              <div className="flex items-start gap-3">
-                <button
-                  type="button"
-                  onClick={onSync}
-                  disabled={starting || !canSync}
-                  className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Sync
-                </button>
-                {status && status.status !== "none" && (
-                  <details className="min-w-0 flex-1 pt-1">
-                    <summary
-                      className={`cursor-pointer text-sm ${
-                        status.status === "failed"
-                          ? "text-red-600"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {status.status === "failed"
-                        ? "Last sync failed"
-                        : "Last synced"}
-                      {finishedAt && ` ${finishedAt}`}.
-                    </summary>
-                    <div className="mt-2">
-                      <StepList steps={status.steps} />
-                    </div>
-                  </details>
-                )}
-              </div>
-              {missingNote && (
-                <p className="mt-2 text-sm text-gray-500">{missingNote}</p>
-              )}
-              {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {/* The Sync button stays put; the running steps play out to its right,
+          both vertically centered so nothing below shifts. Expanding the step
+          list is the one user-initiated exception. */}
+      <div className="flex min-h-9 items-center gap-3">
+        <button
+          type="button"
+          onClick={onSync}
+          disabled={starting || running || !canSync}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {running && <Spinner />}
+          Sync
+        </button>
+        <div className="min-w-0 flex-1">
+          {(running || settling) && status ? (
+            <div className="animate-fade-in">
+              <CurrentStep
+                key={runSeq}
+                steps={status.steps}
+                finished={!running}
+                onSettled={() => setSettling(false)}
+              />
             </div>
-          </div>
-        )}
+          ) : (
+            status &&
+            status.status !== "none" && (
+              <details>
+                <summary
+                  className={`cursor-pointer text-sm ${
+                    status.status === "failed"
+                      ? "text-red-600"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {status.status === "failed"
+                    ? "Last sync failed"
+                    : "Last synced"}
+                  {finishedAt && ` ${finishedAt}`}.
+                </summary>
+                <div className="mt-2">
+                  <StepList steps={status.steps} />
+                </div>
+              </details>
+            )
+          )}
+        </div>
       </div>
+      {missingNote && (
+        <p className="mt-2 text-sm text-gray-500">{missingNote}</p>
+      )}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5 animate-spin"
+      fill="none"
+      aria-hidden
+    >
+      <circle
+        cx="8"
+        cy="8"
+        r="6"
+        stroke="currentColor"
+        strokeWidth={2}
+        className="opacity-25"
+      />
+      <path
+        d="M8 2a6 6 0 0 1 6 6"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -369,34 +372,6 @@ function CurrentStep({
         <StepLine snapshot={snapshot} total={steps.length} />
       </div>
     </div>
-  );
-}
-
-// The final step the playback showed - the furthest-progressed non-pending
-// step (the last completed step, or the failed one). Rendered on its way out
-// as the button slides back in.
-function LastStepLine({ steps }: { steps: SyncStep[] }) {
-  let last = -1;
-  for (let i = 0; i < steps.length; i += 1) {
-    if (steps[i].status !== "pending") {
-      last = i;
-    }
-  }
-  if (last === -1) {
-    return null;
-  }
-  const step = steps[last];
-  return (
-    <StepLine
-      snapshot={{
-        key: String(last),
-        label: step.label,
-        status: step.status,
-        summary: step.summary,
-        position: last + 1,
-      }}
-      total={steps.length}
-    />
   );
 }
 
