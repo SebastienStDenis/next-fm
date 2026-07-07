@@ -34,7 +34,7 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
 const stepMarkClasses: Record<SyncStep["status"], string> = {
   pending: "text-gray-400 dark:text-gray-600",
   running: "animate-pulse",
-  completed: "text-gray-500",
+  completed: "text-green-600 dark:text-green-500",
   failed: "text-red-600",
 };
 
@@ -162,41 +162,51 @@ export function SyncCard({
   }
 
   return (
-    <div className="space-y-3 rounded border border-gray-300 p-4 dark:border-gray-700">
-      <button
-        type="button"
-        onClick={onSync}
-        disabled={starting || running}
-        className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-      >
-        {running ? "Syncing..." : "Sync"}
-      </button>
-      {/* Fixed-height status area so state changes never shift the layout
-          below; expanding the step list is the one user-initiated exception. */}
-      <div className="min-h-10">
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {(running || settling) && status && (
-          <CurrentStep
-            key={runSeq}
-            steps={status.steps}
-            finished={!running}
-            onSettled={() => setSettling(false)}
-          />
-        )}
-        {!running && !settling && status && status.status !== "none" && (
-          <details className="animate-fade-in">
-            <summary
-              className={`cursor-pointer text-sm ${
-                status.status === "failed" ? "text-red-600" : "text-gray-500"
-              }`}
+    <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
+      {/* Fixed-height area holding either the button or the running steps,
+          so swapping them never shifts the layout below; expanding the step
+          list is the one user-initiated exception. */}
+      <div className="min-h-15">
+        {(running || settling) && status ? (
+          <div className="animate-fade-in">
+            <CurrentStep
+              key={runSeq}
+              steps={status.steps}
+              finished={!running}
+              onSettled={() => setSettling(false)}
+            />
+          </div>
+        ) : (
+          <div className="animate-fade-in space-y-3">
+            <button
+              type="button"
+              onClick={onSync}
+              disabled={starting}
+              className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
             >
-              {status.status === "failed" ? "Last sync failed" : "Last synced"}
-              {finishedAt && ` ${finishedAt}`}.
-            </summary>
-            <div className="mt-2">
-              <StepList steps={status.steps} />
-            </div>
-          </details>
+              Sync
+            </button>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            {status && status.status !== "none" && (
+              <details>
+                <summary
+                  className={`cursor-pointer text-sm ${
+                    status.status === "failed"
+                      ? "text-red-600"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {status.status === "failed"
+                    ? "Last sync failed"
+                    : "Last synced"}
+                  {finishedAt && ` ${finishedAt}`}.
+                </summary>
+                <div className="mt-2">
+                  <StepList steps={status.steps} />
+                </div>
+              </details>
+            )}
+          </div>
         )}
       </div>
     </div>
