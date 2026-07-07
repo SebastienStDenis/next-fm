@@ -29,6 +29,15 @@ async function fetchJson<T>(url: string, what: string): Promise<T> {
   return res.json();
 }
 
+function AttentionDot() {
+  return (
+    <span
+      title="Action needed"
+      className="ml-1.5 inline-block h-2 w-2 rounded-full bg-red-600 align-middle"
+    />
+  );
+}
+
 async function fetchOptional<T>(url: string, what: string): Promise<T | null> {
   const res = await fetch(url, { cache: "no-store" });
   if (res.status === 404) {
@@ -144,11 +153,17 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
   const accountSection = (
     <>
       <section>
-        <h2 className="mb-3 text-lg font-medium">Last.fm</h2>
+        <h2 className="mb-3 text-lg font-medium">
+          Last.fm
+          {lastfm === null && <AttentionDot />}
+        </h2>
         <LastfmPanel userId={user.id} account={lastfm} />
       </section>
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-medium">City</h2>
+        <h2 className="mb-3 text-lg font-medium">
+          City
+          {city === null && <AttentionDot />}
+        </h2>
         <CityPanel userId={user.id} city={city} />
       </section>
       <section className="mt-8">
@@ -177,9 +192,19 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
       <Tabs
+        defaultKey={lastfm === null ? "account" : "suggestions"}
         tabs={[
           { key: "suggestions", label: "Suggestions", content: suggestionsSection },
-          { key: "account", label: "Account", content: accountSection },
+          {
+            key: "account",
+            label: (
+              <>
+                Account
+                {(lastfm === null || city === null) && <AttentionDot />}
+              </>
+            ),
+            content: accountSection,
+          },
         ]}
       />
     </main>
