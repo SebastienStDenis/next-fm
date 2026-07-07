@@ -94,7 +94,7 @@ export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
     <div>
       {userArtists.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Nothing synced yet. Sync your taste from the Suggestions section.
+          Nothing synced yet.
         </p>
       ) : (
         <>
@@ -116,7 +116,7 @@ export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
               </select>
             </label>
           </div>
-          <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto">
+          <ul className="mt-2 -mr-4 -mb-4 max-h-80 space-y-1 overflow-y-auto pr-4 pb-4">
             {sortedArtists.map(({ artist, interests }) => (
               <li
                 key={artist.id}
