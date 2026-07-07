@@ -96,7 +96,7 @@ export function PlaylistsPanel({
   return (
     <div className="space-y-6">
       <section>
-        <h3 className="text-sm font-medium">Home city</h3>
+        <h3 className="text-base font-semibold">Home city</h3>
         {!hasCity ? (
           <p className="mt-1 text-sm text-gray-500">
             Set your city in the Account section to get your local playlist.
@@ -119,7 +119,7 @@ export function PlaylistsPanel({
       </section>
 
       <section>
-        <h3 className="text-sm font-medium">Pinned cities</h3>
+        <h3 className="text-base font-semibold">Pinned cities</h3>
         {pinnedPlaylists.length > 0 && (
           <ul className="mt-2 space-y-3">
             {pinnedPlaylists.map((playlist) => (

@@ -145,7 +145,7 @@ export function EventsPanel({
         </div>
       ) : (
         <>
-          <h3 className="text-sm font-medium">
+          <h3 className="text-base font-semibold">
             Upcoming concerts in {(viewCity ?? city)?.name} (
             {visibleEvents.length})
           </h3>
