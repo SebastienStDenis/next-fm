@@ -61,8 +61,14 @@ export function SyncCard({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
+  // True until the first status fetch resolves: we don't yet know whether a
+  // run is already in progress, so the button shows a spinner meanwhile.
+  const [statusLoading, setStatusLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
+  // Briefly true after the run settles: the final step slides up and out while
+  // the last-synced line slides in.
+  const [leaving, setLeaving] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
@@ -71,15 +77,18 @@ export function SyncCard({
   useEffect(() => {
     let cancelled = false;
     fetchStatus(userId).then((next) => {
-      if (cancelled || next === null) {
+      if (cancelled) {
         return;
       }
-      // A Sync click may have set optimistic state before this resolved;
-      // never clobber it with the pre-click snapshot.
-      setStatus((prev) => prev ?? next);
-      if (next.status === "running") {
-        setPolling(true);
+      if (next !== null) {
+        // A Sync click may have set optimistic state before this resolved;
+        // never clobber it with the pre-click snapshot.
+        setStatus((prev) => prev ?? next);
+        if (next.status === "running") {
+          setPolling(true);
+        }
       }
+      setStatusLoading(false);
     });
     return () => {
       cancelled = true;
@@ -120,7 +129,18 @@ export function SyncCard({
     };
   }, [polling, userId, router]);
 
+  useEffect(() => {
+    if (!leaving) {
+      return;
+    }
+    const timer = setTimeout(() => setLeaving(false), 250);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+
   const running = status?.status === "running";
+  // The button shows a spinner both while a run is in progress and while we're
+  // still checking whether one exists.
+  const busy = running || statusLoading;
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
@@ -149,6 +169,7 @@ export function SyncCard({
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
+    setLeaving(false);
     setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
@@ -180,11 +201,17 @@ export function SyncCard({
         <button
           type="button"
           onClick={onSync}
-          disabled={starting || running || !canSync}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={starting || busy || !canSync}
+          className="relative inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {running && <Spinner />}
-          Sync
+          {/* Kept in the layout (just hidden) while busy so the button holds
+              the same width as when it reads "Sync". */}
+          <span className={busy ? "invisible" : undefined}>Sync</span>
+          {busy && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Spinner />
+            </span>
+          )}
         </button>
         <div className="min-w-0 flex-1">
           {(running || settling) && status ? (
@@ -193,30 +220,39 @@ export function SyncCard({
                 key={runSeq}
                 steps={status.steps}
                 finished={!running}
-                onSettled={() => setSettling(false)}
+                onSettled={() => {
+                  setSettling(false);
+                  setLeaving(true);
+                }}
               />
             </div>
           ) : (
-            status &&
-            status.status !== "none" && (
-              <details>
-                <summary
-                  className={`cursor-pointer text-sm ${
-                    status.status === "failed"
-                      ? "text-red-600"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {status.status === "failed"
-                    ? "Last sync failed"
-                    : "Last synced"}
-                  {finishedAt && ` ${finishedAt}`}.
-                </summary>
-                <div className="mt-2">
-                  <StepList steps={status.steps} />
+            <div className="relative">
+              {leaving && status && (
+                <div className="absolute inset-x-0 top-0 animate-slide-out-up">
+                  <LastStepLine steps={status.steps} />
                 </div>
-              </details>
-            )
+              )}
+              {status && status.status !== "none" && (
+                <details className="animate-slide-in-up">
+                  <summary
+                    className={`cursor-pointer text-sm ${
+                      status.status === "failed"
+                        ? "text-red-600"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {status.status === "failed"
+                      ? "Last sync failed"
+                      : "Last synced"}
+                    {finishedAt && ` ${finishedAt}`}.
+                  </summary>
+                  <div className="mt-2">
+                    <StepList steps={status.steps} />
+                  </div>
+                </details>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -372,6 +408,34 @@ function CurrentStep({
         <StepLine snapshot={snapshot} total={steps.length} />
       </div>
     </div>
+  );
+}
+
+// The final step the playback showed - the furthest-progressed non-pending
+// step (the last completed step, or the failed one). Rendered on its way out
+// as the last-synced line slides in.
+function LastStepLine({ steps }: { steps: SyncStep[] }) {
+  let last = -1;
+  for (let i = 0; i < steps.length; i += 1) {
+    if (steps[i].status !== "pending") {
+      last = i;
+    }
+  }
+  if (last === -1) {
+    return null;
+  }
+  const step = steps[last];
+  return (
+    <StepLine
+      snapshot={{
+        key: String(last),
+        label: step.label,
+        status: step.status,
+        summary: step.summary,
+        position: last + 1,
+      }}
+      total={steps.length}
+    />
   );
 }
 
