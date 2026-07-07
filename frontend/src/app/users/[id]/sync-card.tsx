@@ -195,16 +195,17 @@ export function SyncCard({
 
   return (
     <div>
-      {/* The Sync button stays pinned to the top in every state, so it never
-          shifts as the running steps play out or the step list expands to its
-          right - both only grow downward. */}
+      {/* The button is sized to the two-line running display, so the card keeps
+          the same height whether it shows the last-synced line or the active
+          steps, and the button reads as centered on both. It stays pinned to
+          the top, so expanding the step list only grows downward. */}
       <div className="flex flex-col">
         <div className="flex gap-3 items-start">
           <button
             type="button"
             onClick={onSync}
             disabled={starting || busy || !canSync}
-            className="relative inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative inline-flex min-h-9 shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
           >
             {/* Kept in the layout (just hidden) while busy so the button holds
                 the same width as when it reads "Sync". */}
@@ -217,7 +218,7 @@ export function SyncCard({
           </button>
           <div className="min-w-0 flex-1">
             {(running || settling) && status ? (
-              <div className="animate-fade-in pt-1">
+              <div className="animate-fade-in">
                 <CurrentStep
                   key={runSeq}
                   steps={status.steps}
@@ -229,7 +230,7 @@ export function SyncCard({
                 />
               </div>
             ) : (
-              <div className="relative pt-1">
+              <div className="relative pt-2">
                 {leaving && status && (
                   <div className="absolute inset-x-0 top-0 animate-slide-out-up">
                     <LastStepLine steps={status.steps} />
