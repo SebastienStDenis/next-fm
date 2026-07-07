@@ -111,9 +111,6 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
   const suggestionsSection = (
     <>
       <section>
-        <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
-      </section>
-      <section className="mt-8">
         <Tabs
           tabs={[
             {
@@ -170,6 +167,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
           {city === null && <AttentionDot />}
         </h2>
         <CityPanel userId={user.id} city={city} />
+      </section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-medium">Sync</h2>
+        <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
       </section>
       <section className="mt-8">
         <h2 className="mb-3 text-lg font-medium">Discovery</h2>

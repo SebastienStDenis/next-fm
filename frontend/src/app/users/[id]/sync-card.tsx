@@ -121,7 +121,7 @@ export function SyncCard({
   if (!lastfmLinked) {
     return (
       <p className="text-sm text-gray-500">
-        Link a Last.fm account in the Account section to sync.
+        Link a Last.fm account above to sync.
       </p>
     );
   }

@@ -37,8 +37,8 @@ export function SuggestedArtistsPanel({
     <div>
       {suggestedArtists.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Nothing synced yet. Run a sync above to discover artists similar to
-          the ones you listen to.
+          Nothing synced yet. Run a sync from the Account section to discover
+          artists similar to the ones you listen to.
         </p>
       ) : (
         <>

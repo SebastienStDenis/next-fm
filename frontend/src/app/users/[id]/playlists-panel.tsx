@@ -77,8 +77,8 @@ export function PlaylistsPanel({
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
-        Nothing synced yet. Run a sync above to build playlists from shows
-        near you.
+        Nothing synced yet. Run a sync from the Account section to build
+        playlists from shows near you.
       </p>
     );
   }

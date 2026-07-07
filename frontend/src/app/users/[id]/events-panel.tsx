@@ -81,7 +81,8 @@ export function EventsPanel({
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
-        Nothing synced yet. Run a sync above to find concerts you would like.
+        Nothing synced yet. Run a sync from the Account section to find
+        concerts you would like.
       </p>
     );
   }
