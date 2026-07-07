@@ -81,33 +81,29 @@ export function PlaylistsPanel({
   pendingPins: Playlist[];
   pinnedCount: number;
 }) {
-  // The home-city playlist (no pinned city) always leads the list.
-  const orderedPlaylists = [...playlists].sort(
-    (a, b) => Number(b.city === null) - Number(a.city === null),
-  );
+  const homePlaylists = playlists.filter((playlist) => playlist.city === null);
+  const pinnedPlaylists = playlists.filter((playlist) => playlist.city !== null);
+
+  if (!hasArtists) {
+    return (
+      <p className="text-sm text-gray-500">
+        Nothing synced yet. Run a sync from the Account section to build
+        playlists from shows near you.
+      </p>
+    );
+  }
 
   return (
-    <div>
-      {!hasArtists ? (
-        <p className="text-sm text-gray-500">
-          Nothing synced yet. Run a sync from the Account section to build
-          playlists from shows near you.
-        </p>
-      ) : playlists.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          {hasCity
-            ? "No playlists yet. Sync to create your first one on Spotify."
-            : "No playlists yet. Set your city in the Account section to get your local playlist."}
-        </p>
-      ) : (
-        <>
-          {!hasCity && (
-            <p className="mb-2 text-sm text-gray-500">
-              Set your city in the Account section to get your local playlist.
-            </p>
-          )}
-          <ul className="space-y-3">
-            {orderedPlaylists.map((playlist) => (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-sm font-medium">Home city</h3>
+        {!hasCity ? (
+          <p className="mt-1 text-sm text-gray-500">
+            Set your city in the Account section to get your local playlist.
+          </p>
+        ) : homePlaylists.length > 0 ? (
+          <ul className="mt-2 space-y-3">
+            {homePlaylists.map((playlist) => (
               <PlaylistCard
                 key={playlist.id}
                 userId={userId}
@@ -115,14 +111,26 @@ export function PlaylistsPanel({
               />
             ))}
           </ul>
-        </>
-      )}
+        ) : (
+          <p className="mt-1 text-sm text-gray-500">
+            No playlist yet. Sync to create your local playlist on Spotify.
+          </p>
+        )}
+      </section>
 
-      <div className="mt-6">
-        <PinCitySearch
-          userId={userId}
-          atCap={pinnedCount >= PINNED_PLAYLIST_CAP}
-        />
+      <section>
+        <h3 className="text-sm font-medium">Pinned cities</h3>
+        {pinnedPlaylists.length > 0 && (
+          <ul className="mt-2 space-y-3">
+            {pinnedPlaylists.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                userId={userId}
+                playlist={playlist}
+              />
+            ))}
+          </ul>
+        )}
         {pendingPins.length > 0 && (
           <ul className="mt-3 space-y-1">
             {pendingPins.map((playlist) => (
@@ -134,7 +142,13 @@ export function PlaylistsPanel({
             ))}
           </ul>
         )}
-      </div>
+        <div className="mt-3">
+          <PinCitySearch
+            userId={userId}
+            atCap={pinnedCount >= PINNED_PLAYLIST_CAP}
+          />
+        </div>
+      </section>
     </div>
   );
 }
@@ -312,8 +326,7 @@ function PinCitySearch({
   if (atCap) {
     return (
       <p className="text-sm text-gray-500">
-        You can pin at most {PINNED_PLAYLIST_CAP} cities (on top of your home
-        city). Delete a pinned city to add another.
+        You can pin up to {PINNED_PLAYLIST_CAP} additional cities. Delete an existing pin to add another.
       </p>
     );
   }
