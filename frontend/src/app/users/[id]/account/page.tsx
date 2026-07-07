@@ -61,7 +61,7 @@ export default async function AccountPage(
   );
 
   return (
-    <main className="mx-auto max-w-xl p-8">
+    <main className="mx-auto w-full max-w-xl p-8">
       <Link
         href={`/users/${id}`}
         className="text-sm text-gray-500 hover:underline"

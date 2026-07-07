@@ -61,10 +61,13 @@ export function SyncCard({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
+  // True until the first status fetch resolves: we don't yet know whether a
+  // run is already in progress, so the button shows a spinner meanwhile.
+  const [statusLoading, setStatusLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
-  // Briefly true after the run settles: the final step slides out while the
-  // button slides back in.
+  // Briefly true after the run settles: the final step slides up and out while
+  // the last-synced line slides in.
   const [leaving, setLeaving] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -74,15 +77,18 @@ export function SyncCard({
   useEffect(() => {
     let cancelled = false;
     fetchStatus(userId).then((next) => {
-      if (cancelled || next === null) {
+      if (cancelled) {
         return;
       }
-      // A Sync click may have set optimistic state before this resolved;
-      // never clobber it with the pre-click snapshot.
-      setStatus((prev) => prev ?? next);
-      if (next.status === "running") {
-        setPolling(true);
+      if (next !== null) {
+        // A Sync click may have set optimistic state before this resolved;
+        // never clobber it with the pre-click snapshot.
+        setStatus((prev) => prev ?? next);
+        if (next.status === "running") {
+          setPolling(true);
+        }
       }
+      setStatusLoading(false);
     });
     return () => {
       cancelled = true;
@@ -132,6 +138,10 @@ export function SyncCard({
   }, [leaving]);
 
   const running = status?.status === "running";
+  // The button shows a spinner while checking for an existing run, while one is
+  // in progress, and while the step playback is still catching up after the run
+  // finished behind the scenes (settling).
+  const busy = running || statusLoading || settling;
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
@@ -185,42 +195,52 @@ export function SyncCard({
 
   return (
     <div>
-      {/* Fixed-height area holding either the sync control or the running
-          steps, vertically centered, so swapping them never shifts the
-          layout below; expanding the step list is the one user-initiated
-          exception. */}
+      {/* The Sync button stays put; the running steps play out to its right,
+          centered against the button while a run plays and pinned to the top
+          once idle so expanding the step list only grows downward. */}
       <div className="flex min-h-9 flex-col justify-center">
-        {(running || settling) && status ? (
-          <div className="animate-fade-in">
-            <CurrentStep
-              key={runSeq}
-              steps={status.steps}
-              finished={!running}
-              onSettled={() => {
-                setSettling(false);
-                setLeaving(true);
-              }}
-            />
-          </div>
-        ) : (
-          <div className="relative">
-            {leaving && status && (
-              <div className="absolute inset-x-0 top-0 animate-slide-out-up">
-                <LastStepLine steps={status.steps} />
-              </div>
+        <div
+          className={`flex gap-3 ${
+            running || settling ? "items-center" : "items-start"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={onSync}
+            disabled={starting || busy || !canSync}
+            className="relative inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {/* Kept in the layout (just hidden) while busy so the button holds
+                the same width as when it reads "Sync". */}
+            <span className={busy ? "invisible" : undefined}>Sync</span>
+            {busy && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <Spinner />
+              </span>
             )}
-            <div className="animate-slide-in-up">
-              <div className="flex items-start gap-3">
-                <button
-                  type="button"
-                  onClick={onSync}
-                  disabled={starting || !canSync}
-                  className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Sync
-                </button>
+          </button>
+          <div className="min-w-0 flex-1">
+            {(running || settling) && status ? (
+              <div className="animate-fade-in">
+                <CurrentStep
+                  key={runSeq}
+                  steps={status.steps}
+                  finished={!running}
+                  onSettled={() => {
+                    setSettling(false);
+                    setLeaving(true);
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="relative pt-1">
+                {leaving && status && (
+                  <div className="absolute inset-x-0 top-0 animate-slide-out-up">
+                    <LastStepLine steps={status.steps} />
+                  </div>
+                )}
                 {status && status.status !== "none" && (
-                  <details className="min-w-0 flex-1 pt-1">
+                  <details className="animate-slide-in-up">
                     <summary
                       className={`cursor-pointer text-sm ${
                         status.status === "failed"
@@ -239,15 +259,41 @@ export function SyncCard({
                   </details>
                 )}
               </div>
-              {missingNote && (
-                <p className="mt-2 text-sm text-gray-500">{missingNote}</p>
-              )}
-              {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
+      {missingNote && (
+        <p className="mt-2 text-sm text-gray-500">{missingNote}</p>
+      )}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5 animate-spin"
+      fill="none"
+      aria-hidden
+    >
+      <circle
+        cx="8"
+        cy="8"
+        r="6"
+        stroke="currentColor"
+        strokeWidth={2}
+        className="opacity-25"
+      />
+      <path
+        d="M8 2a6 6 0 0 1 6 6"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -374,7 +420,7 @@ function CurrentStep({
 
 // The final step the playback showed - the furthest-progressed non-pending
 // step (the last completed step, or the failed one). Rendered on its way out
-// as the button slides back in.
+// as the last-synced line slides in.
 function LastStepLine({ steps }: { steps: SyncStep[] }) {
   let last = -1;
   for (let i = 0; i < steps.length; i += 1) {
@@ -417,11 +463,7 @@ function StepLine({
 }) {
   return (
     <div className="flex gap-2 text-sm">
-      {/* Keyed by status so a phase flip remounts and fades the icon. */}
-      <span
-        key={snapshot.status}
-        className={`mt-0.5 animate-fade-in ${stepMarkClasses[snapshot.status]}`}
-      >
+      <span className={`mt-0.5 ${stepMarkClasses[snapshot.status]}`}>
         <StepMark status={snapshot.status} />
       </span>
       <div className="min-w-0">
@@ -438,7 +480,10 @@ function StepLine({
             overflows; the post-run step list shows the full text. A running
             step has no summary yet, so a placeholder keeps the two-line
             height (and vertical centering) consistent. */}
-        <p className="animate-fade-in truncate text-xs text-gray-500">
+        <p
+          key={snapshot.status}
+          className="animate-fade-in truncate text-xs text-gray-500"
+        >
           {snapshot.summary ??
             (snapshot.status === "running" ? "In progress" : " ")}
         </p>
