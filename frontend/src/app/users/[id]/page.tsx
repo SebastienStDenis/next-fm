@@ -97,7 +97,6 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
   const suggestionsSection = (
     <>
       <section>
-        <h2 className="mb-3 text-lg font-medium">Sync</h2>
         <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
       </section>
       <section className="mt-8">

@@ -158,29 +158,21 @@ export function SyncCard({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onSync}
-          disabled={starting || running}
-          className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-        >
-          {running ? "Syncing..." : "Sync everything"}
-        </button>
-        <span className="text-sm text-gray-500">
-          {running
-            ? "Runs in the background - leaving this page won't stop it."
-            : "Taste, suggestions, concerts and playlists, in one go."}
-        </span>
-      </div>
+      <button
+        type="button"
+        onClick={onSync}
+        disabled={starting || running}
+        className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+      >
+        {running ? "Syncing..." : "Sync"}
+      </button>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {running && status && <StepList steps={status.steps} />}
       {!running && status && status.status !== "none" && (
         <div className="space-y-2">
           {status.status === "failed" ? (
             <p className="text-sm text-red-600">
-              Last sync failed{finishedAt && ` ${finishedAt}`}. Syncing again
-              picks up where it left off.
+              Last sync failed{finishedAt && ` ${finishedAt}`}.
             </p>
           ) : (
             <p className="text-sm text-gray-500">
