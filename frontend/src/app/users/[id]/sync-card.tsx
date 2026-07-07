@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { startSync } from "./actions";
 
 export type SyncStep = {
-  key: "artists" | "suggestions" | "events" | "playlists";
+  key: string;
   label: string;
   status: "pending" | "running" | "completed" | "failed";
   summary: string | null;
@@ -117,14 +117,6 @@ export function SyncCard({
     };
   }, [polling, userId, router]);
 
-  useEffect(() => {
-    if (!settling) {
-      return;
-    }
-    const timer = setTimeout(() => setSettling(false), STEP_HOLD_MS);
-    return () => clearTimeout(timer);
-  }, [settling]);
-
   if (!lastfmLinked) {
     return (
       <p className="text-sm text-gray-500">
@@ -175,7 +167,13 @@ export function SyncCard({
         {running ? "Syncing..." : "Sync"}
       </button>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {(running || settling) && status && <CurrentStep steps={status.steps} />}
+      {(running || settling) && status && (
+        <CurrentStep
+          steps={status.steps}
+          finished={!running}
+          onSettled={() => setSettling(false)}
+        />
+      )}
       {!running && !settling && status && status.status !== "none" && (
         <details>
           <summary
@@ -195,56 +193,88 @@ export function SyncCard({
   );
 }
 
-function CurrentStep({ steps }: { steps: SyncStep[] }) {
-  const activeKey =
-    (
-      steps.find((step) => step.status === "running") ??
-      steps.find((step) => step.status === "pending") ??
-      steps[steps.length - 1]
-    )?.key ?? null;
-  const [shownKey, setShownKey] = useState(activeKey);
+function CurrentStep({
+  steps,
+  finished,
+  onSettled,
+}: {
+  steps: SyncStep[];
+  finished: boolean;
+  onSettled: () => void;
+}) {
+  // Polling only snapshots the workflow, so a fast step can finish between
+  // polls without ever being seen running. Instead of mirroring the latest
+  // snapshot, a cursor plays the step list back at a readable pace: every
+  // step shows as running for a beat, then holds its final state, before the
+  // display advances. Playback may lag reality by a step or two.
+  const [cursor, setCursor] = useState<{
+    index: number;
+    phase: "running" | "final";
+  }>(() => {
+    const active = steps.findIndex((step) => step.status !== "completed");
+    return {
+      index: active === -1 ? steps.length - 1 : active,
+      phase: "running",
+    };
+  });
 
-  // When the shown step just finished, hold its final state briefly before
-  // advancing to the active one.
+  // Steps can arrive after mount (the optimistic click state has none), so
+  // clamp rather than trust the index.
+  const index = Math.min(Math.max(cursor.index, 0), steps.length - 1);
+  const step = index >= 0 ? steps[index] : undefined;
+
   useEffect(() => {
-    if (activeKey === shownKey) {
+    if (!step) {
+      if (finished) {
+        onSettled();
+      }
       return;
     }
-    const shown = steps.find((step) => step.key === shownKey);
-    const finished =
-      shown?.status === "completed" || shown?.status === "failed";
-    const timer = setTimeout(
-      () => setShownKey(activeKey),
-      finished ? STEP_HOLD_MS : 0,
-    );
-    return () => clearTimeout(timer);
-  }, [activeKey, shownKey, steps]);
+    const done = step.status === "completed" || step.status === "failed";
+    if (cursor.phase === "running") {
+      if (!done) {
+        return;
+      }
+      const timer = setTimeout(
+        () => setCursor({ index, phase: "final" }),
+        STEP_HOLD_MS,
+      );
+      return () => clearTimeout(timer);
+    }
+    const next = steps[index + 1];
+    if (next && next.status !== "pending") {
+      const timer = setTimeout(
+        () => setCursor({ index: index + 1, phase: "running" }),
+        STEP_HOLD_MS,
+      );
+      return () => clearTimeout(timer);
+    }
+    if (finished) {
+      const timer = setTimeout(onSettled, STEP_HOLD_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [steps, cursor.phase, index, step, finished, onSettled]);
 
-  const shown = steps.find((step) => step.key === shownKey);
-  if (!shown) {
+  if (!step) {
     return null;
   }
-  const position = steps.indexOf(shown) + 1;
+  const shownStatus = cursor.phase === "final" ? step.status : "running";
 
   return (
     <div className="flex gap-2 text-sm">
-      <span className={`mt-0.5 ${stepMarkClasses[shown.status]}`}>
-        <StepMark status={shown.status} />
+      <span className={`mt-0.5 ${stepMarkClasses[shownStatus]}`}>
+        <StepMark status={shownStatus} />
       </span>
       <div>
-        <span
-          className={shown.status === "pending" ? "text-gray-500" : undefined}
-        >
-          {shown.label}
-        </span>
-        {shown.status === "failed" && (
+        <span>{step.label}</span>
+        {shownStatus === "failed" && (
           <span className="ml-2 text-xs text-red-600">failed</span>
         )}
         <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
-          step {position} of {steps.length}
+          step {index + 1} of {steps.length}
         </span>
-        {shown.summary && (
-          <p className="text-xs text-gray-500">{shown.summary}</p>
+        {cursor.phase === "final" && step.summary && (
+          <p className="text-xs text-gray-500">{step.summary}</p>
         )}
       </div>
     </div>
