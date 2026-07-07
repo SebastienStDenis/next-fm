@@ -113,6 +113,35 @@ For a playlist of kind `city_shows`:
    first. The cap keeps the playlist listenable and the whole tracklist within a
    single 100-URI replace request.
 
+### Why the order and the cap go by show date, not suggestion score
+
+Score decides *who is in the pool*, date decides *what fits the playlist*. Suggestion
+score does its whole job upstream - the enter/exit thresholds and the score-ranked
+budget gate which artists become suggestions at all - and never enters playlist
+assembly. Once every candidate has cleared that quality bar, the playlist question is
+"which of these shows can you act on", and a lower-scored artist playing Thursday
+beats a higher-scored one playing in nine months.
+
+Cutting from the far end of the calendar makes the cap a moving window, not a
+verdict: a track dropped today is the *least actionable* one, and future syncs pull
+it back in as its show approaches. Nothing is permanently lost. Two more properties
+fall out:
+
+- **Stability.** Show dates change rarely; scores wobble a little every suggestion
+  sync. A score-based cut would churn the playlist tail (and the truthfulness of the
+  `added_at`-based "Date added" sort with it) with no user-visible justification.
+- **Coherence.** If position means "soonest first", truncation must cut the end;
+  dropping mid-list tracks by an invisible second criterion would make the order lie.
+
+The novelty view ("newly announced shows first") is deliberately *not* the position
+order - it lives in Spotify's "Date added" sort, which the full-replace write keeps
+truthful (see the write-strategy section).
+
+Deferred, revisit after calibration: if the cap regularly cuts great matches in
+favor of mediocre near-term ones, a hybrid is the tuning lever - e.g. score-weighted
+tie-breaking among shows in the same week - rather than replacing the date order
+wholesale.
+
 ## Schema
 
 Two identity/cache tables on the artist side, two playlist tables on the user side.
