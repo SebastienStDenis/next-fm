@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { startSync } from "./actions";
 
@@ -227,13 +227,30 @@ function CurrentStep({
     };
   });
 
+  // The previously displayed state, kept mounted briefly so it can animate
+  // out upward while the new state slides in from below.
+  const [leaving, setLeaving] = useState<StepSnapshot | null>(null);
+
   // Steps can arrive after mount (the optimistic click state has none), so
   // clamp rather than trust the index.
   const index = Math.min(Math.max(cursor.index, 0), steps.length - 1);
   const step = index >= 0 ? steps[index] : undefined;
+  const snapshot = useMemo<StepSnapshot | null>(
+    () =>
+      step
+        ? {
+            key: `${index}-${cursor.phase}`,
+            label: step.label,
+            status: cursor.phase === "final" ? step.status : "running",
+            summary: cursor.phase === "final" ? step.summary : null,
+            position: index + 1,
+          }
+        : null,
+    [step, index, cursor.phase],
+  );
 
   useEffect(() => {
-    if (!step) {
+    if (!step || !snapshot) {
       if (finished) {
         onSettled();
       }
@@ -247,59 +264,90 @@ function CurrentStep({
       if (!done) {
         return;
       }
-      const timer = setTimeout(
-        () => setCursor({ index, phase: "final", since: Date.now() }),
-        holdLeft,
-      );
+      const timer = setTimeout(() => {
+        setLeaving(snapshot);
+        setCursor({ index, phase: "final", since: Date.now() });
+      }, holdLeft);
       return () => clearTimeout(timer);
     }
     const next = steps[index + 1];
     if (next && next.status !== "pending") {
       const nextDone =
         next.status === "completed" || next.status === "failed";
-      const timer = setTimeout(
-        () =>
-          setCursor({
-            index: index + 1,
-            phase: nextDone ? "final" : "running",
-            since: Date.now(),
-          }),
-        holdLeft,
-      );
+      const timer = setTimeout(() => {
+        setLeaving(snapshot);
+        setCursor({
+          index: index + 1,
+          phase: nextDone ? "final" : "running",
+          since: Date.now(),
+        });
+      }, holdLeft);
       return () => clearTimeout(timer);
     }
     if (finished) {
       const timer = setTimeout(onSettled, holdLeft);
       return () => clearTimeout(timer);
     }
-  }, [steps, cursor, index, step, finished, onSettled]);
+  }, [steps, cursor, index, step, snapshot, finished, onSettled]);
 
-  if (!step) {
+  useEffect(() => {
+    if (!leaving) {
+      return;
+    }
+    const timer = setTimeout(() => setLeaving(null), 250);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+
+  if (!snapshot) {
     return null;
   }
-  const shownStatus = cursor.phase === "final" ? step.status : "running";
 
   return (
-    // Keyed by displayed state so each transition remounts and fades in.
-    <div
-      key={`${index}-${cursor.phase}`}
-      className="flex animate-fade-in gap-2 text-sm"
-    >
-      <span className={`mt-0.5 ${stepMarkClasses[shownStatus]}`}>
-        <StepMark status={shownStatus} />
+    <div className="relative">
+      {leaving && (
+        <div className="absolute inset-x-0 top-0 animate-slide-out-up">
+          <StepLine snapshot={leaving} total={steps.length} />
+        </div>
+      )}
+      <div key={snapshot.key} className="animate-slide-in-up">
+        <StepLine snapshot={snapshot} total={steps.length} />
+      </div>
+    </div>
+  );
+}
+
+type StepSnapshot = {
+  key: string;
+  label: string;
+  status: SyncStep["status"];
+  summary: string | null;
+  position: number;
+};
+
+function StepLine({
+  snapshot,
+  total,
+}: {
+  snapshot: StepSnapshot;
+  total: number;
+}) {
+  return (
+    <div className="flex gap-2 text-sm">
+      <span className={`mt-0.5 ${stepMarkClasses[snapshot.status]}`}>
+        <StepMark status={snapshot.status} />
       </span>
       <div className="min-w-0">
-        <span>{step.label}</span>
-        {shownStatus === "failed" && (
+        <span>{snapshot.label}</span>
+        {snapshot.status === "failed" && (
           <span className="ml-2 text-xs text-red-600">failed</span>
         )}
         <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
-          step {index + 1} of {steps.length}
+          step {snapshot.position} of {total}
         </span>
         {/* One truncated line so the fixed-height status area never
             overflows; the post-run step list shows the full text. */}
-        {cursor.phase === "final" && step.summary && (
-          <p className="truncate text-xs text-gray-500">{step.summary}</p>
+        {snapshot.summary && (
+          <p className="truncate text-xs text-gray-500">{snapshot.summary}</p>
         )}
       </div>
     </div>
