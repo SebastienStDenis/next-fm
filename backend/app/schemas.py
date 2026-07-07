@@ -179,3 +179,28 @@ class PlaylistSyncResult(BaseModel):
     artists_unresolved: int
     top_tracks_refreshed: int
     playlists: list[PlaylistSyncItem]
+
+
+SyncStepKey = Literal["artists", "suggestions", "events", "playlists"]
+
+
+class SyncStepProgress(BaseModel):
+    key: SyncStepKey
+    label: str
+    status: Literal["pending", "running", "completed", "failed"]
+    summary: str | None = None
+
+
+class SyncRunResult(BaseModel):
+    steps: list[SyncStepProgress]
+
+
+class SyncStartResult(BaseModel):
+    workflow_id: str
+    status: Literal["running"] = "running"
+
+
+class SyncStatusResult(BaseModel):
+    status: Literal["none", "running", "completed", "failed"]
+    started_at: datetime | None = None
+    steps: list[SyncStepProgress]

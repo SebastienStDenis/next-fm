@@ -12,9 +12,9 @@ and the design constraint throughout is dev/prod parity: the workflow, activitie
 worker, and API code are identical in both environments; only connection env vars
 change.
 
-> **Status: design only.** Nothing here is implemented. Scheduled background re-sync
-> and on-demand rate limiting are explicitly out of scope; the last section sketches
-> how this design accommodates them later.
+> **Status: implemented as designed.** Scheduled background re-sync and on-demand
+> rate limiting remain out of scope; the last section sketches how this design
+> accommodates them later.
 
 ## Why Temporal (and what the alternative was)
 

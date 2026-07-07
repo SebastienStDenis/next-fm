@@ -24,6 +24,7 @@ services:
              uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+      TEMPORAL_ADDRESS: temporal:7233
       LASTFM_API_KEY: ${LASTFM_API_KEY:?set in .env}
       BANDSINTOWN_API_KEY: ${BANDSINTOWN_API_KEY:?set in .env}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set in .env}
@@ -49,6 +50,51 @@ services:
       - ./frontend/src:/app/src
     depends_on:
       - api
+
+  temporal:
+    image: temporalio/auto-setup:1.29.7
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_SEEDS: db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-postgres}
+      DEFAULT_NAMESPACE_RETENTION: 168h
+    ports:
+      - "${TEMPORAL_PORT:-7233}:7233"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:2.51.1
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "${TEMPORAL_UI_PORT:-8080}:8080"
+    depends_on:
+      - temporal
+
+  worker:
+    build: ./backend
+    # watchfiles restarts the worker on code edits, standing in for uvicorn's --reload
+    command: >
+      sh -c "uv run watchfiles --filter python 'python -m app.worker' app"
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+      TEMPORAL_ADDRESS: temporal:7233
+      LASTFM_API_KEY: ${LASTFM_API_KEY:?set in .env}
+      BANDSINTOWN_API_KEY: ${BANDSINTOWN_API_KEY:?set in .env}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set in .env}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set in .env}
+      SPOTIFY_REFRESH_TOKEN: ${SPOTIFY_REFRESH_TOKEN:?set in .env}
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+      temporal:
+        condition: service_started
 
 volumes:
   pgdata:

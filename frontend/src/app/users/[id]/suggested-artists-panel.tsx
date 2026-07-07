@@ -1,8 +1,5 @@
 "use client";
 
-import { useActionState } from "react";
-
-import { syncSuggestions } from "./actions";
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import type { Interest, UserArtist } from "./artists-panel";
 
@@ -27,18 +24,12 @@ function reasonOf(userArtist: UserArtist): string | null {
 }
 
 export function SuggestedArtistsPanel({
-  userId,
   lastfmLinked,
   suggestedArtists,
 }: {
-  userId: string;
   lastfmLinked: boolean;
   suggestedArtists: UserArtist[];
 }) {
-  const [state, formAction, pending] = useActionState(
-    syncSuggestions.bind(null, userId),
-    { error: null, summary: null },
-  );
   const sortedArtists = [...suggestedArtists].sort(
     (a, b) =>
       scoreOf(b) - scoreOf(a) || a.artist.name.localeCompare(b.artist.name),
@@ -46,21 +37,7 @@ export function SuggestedArtistsPanel({
 
   return (
     <div>
-      {lastfmLinked ? (
-        <div className="space-y-2">
-          <form action={formAction}>
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-            >
-              {pending ? "Syncing... (this can take a while)" : "Sync suggestions"}
-            </button>
-          </form>
-          {state.summary && <p className="text-sm text-gray-500">{state.summary}</p>}
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-        </div>
-      ) : (
+      {!lastfmLinked && (
         <p className="text-sm text-gray-500">
           Link a Last.fm account to get suggestions.
         </p>

@@ -7,7 +7,7 @@ import {
   useTransition,
 } from "react";
 
-import { createCityPlaylist, deletePlaylist, syncPlaylists } from "./actions";
+import { createCityPlaylist, deletePlaylist } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 
@@ -74,11 +74,6 @@ export function PlaylistsPanel({
   hasArtists: boolean;
   playlists: Playlist[];
 }) {
-  const [state, syncAction, syncing] = useActionState(
-    syncPlaylists.bind(null, userId),
-    { error: null, summary: null },
-  );
-
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
@@ -95,28 +90,12 @@ export function PlaylistsPanel({
           one.
         </p>
       )}
-      <div className="space-y-2">
-        <form action={syncAction}>
-          <button
-            type="submit"
-            disabled={syncing}
-            className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-          >
-            {syncing ? "Syncing... (this can take a while)" : "Sync playlists"}
-          </button>
-        </form>
-        {state.summary && (
-          <p className="text-sm text-gray-500">{state.summary}</p>
-        )}
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      </div>
-
       {playlists.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="text-sm text-gray-500">
           No playlists yet. Sync to create your first one on Spotify.
         </p>
       ) : (
-        <ul className="mt-4 space-y-3">
+        <ul className="space-y-3">
           {playlists.map((playlist) => (
             <PlaylistCard
               key={playlist.id}

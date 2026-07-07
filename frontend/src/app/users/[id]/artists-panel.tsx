@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
-import { syncLastfmArtists } from "./actions";
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 
 export type Artist = {
@@ -94,40 +93,20 @@ function interestLabel(interest: Interest): string {
 }
 
 export function ArtistsPanel({
-  userId,
   lastfmLinked,
   userArtists,
   allArtists,
 }: {
-  userId: string;
   lastfmLinked: boolean;
   userArtists: UserArtist[];
   allArtists: Artist[];
 }) {
-  const [state, formAction, pending] = useActionState(
-    syncLastfmArtists.bind(null, userId),
-    { error: null, summary: null },
-  );
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
 
   return (
     <div>
-      {lastfmLinked ? (
-        <div className="space-y-2">
-          <form action={formAction}>
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
-            >
-              {pending ? "Syncing..." : "Sync artists"}
-            </button>
-          </form>
-          {state.summary && <p className="text-sm text-gray-500">{state.summary}</p>}
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-        </div>
-      ) : (
+      {!lastfmLinked && (
         <p className="text-sm text-gray-500">
           Link a Last.fm account to sync artists.
         </p>

@@ -13,7 +13,7 @@ Monorepo: `backend/` (FastAPI, Python 3.14, managed with uv), `frontend/` (Next.
 ### Full stack
 
 ```sh
-docker compose up --build       # Postgres :5432, API :8000, web :3000
+docker compose up --build       # Postgres :5432, API :8000, web :3000, Temporal :7233 (UI :8080), worker
 docker compose up -d db         # only Postgres (for running apps outside Docker)
 docker compose exec db psql -U postgres app
 ```
@@ -70,6 +70,10 @@ Small layered FastAPI app; keep the separation when adding features:
 - `suggestion_sync.py` - recomputes each user's suggested artists from Last.fm similar-artist edges: seed affinity, scoring, selection with hysteresis, known-artist floors, show-tied grace (see `docs/2026-07-06-artist-suggestions-plan.md`).
 - `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/2026-07-06-event-ingestion-plan.md`).
 - `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/2026-07-06-playlist-plan.md`).
+- `sync_workflow.py` - `SyncUserWorkflow`, the durable Temporal workflow chaining the four sync steps per user with queryable per-step progress (see `docs/2026-07-07-sync-orchestration-plan.md`).
+- `sync_activities.py` - Temporal activities wrapping the four sync entrypoints; each attempt opens its own session and commits.
+- `temporal.py` - Temporal client connection helper shared by API and worker; local server by default, Temporal Cloud when `TEMPORAL_API_KEY` is set.
+- `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service.
 - `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the match join, haversine distance.
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
@@ -87,4 +91,4 @@ Important: `frontend/AGENTS.md` warns that this Next.js version has breaking cha
 
 ### Configuration
 
-All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (`LASTFM_API_KEY`, `BANDSINTOWN_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup.
+All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (`LASTFM_API_KEY`, `BANDSINTOWN_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup. The `TEMPORAL_*` settings default to the compose-provided Temporal server; pointing them at a Temporal Cloud namespace is the entire production switch.

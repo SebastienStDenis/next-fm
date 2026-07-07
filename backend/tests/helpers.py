@@ -12,6 +12,7 @@ from app.main import (
     get_lastfm_client,
     get_musicbrainz_client,
     get_spotify_client,
+    get_temporal_client,
 )
 from app.musicbrainz import MusicBrainzClient
 from app.spotify import SpotifyClient
@@ -62,6 +63,7 @@ async def request(
     bandsintown: BandsintownClient | None = None,
     spotify: SpotifyClient | None = None,
     musicbrainz: MusicBrainzClient | None = None,
+    temporal: object | None = None,
     json: dict | None = None,
 ) -> Response:
     app.dependency_overrides[get_session] = lambda: session
@@ -73,6 +75,8 @@ async def request(
         app.dependency_overrides[get_spotify_client] = lambda: spotify
     if musicbrainz is not None:
         app.dependency_overrides[get_musicbrainz_client] = lambda: musicbrainz
+    if temporal is not None:
+        app.dependency_overrides[get_temporal_client] = lambda: temporal
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             return await client.request(method, url, json=json)
