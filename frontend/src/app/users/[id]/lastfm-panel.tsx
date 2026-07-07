@@ -160,7 +160,7 @@ function AccountCard({
       </dl>
 
       <div className="mt-4 flex items-center justify-between">
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 italic">
           {account.last_synced_at
             ? `Last synced ${formatDateTime(account.last_synced_at)}`
             : "Never synced"}

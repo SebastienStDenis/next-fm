@@ -83,7 +83,7 @@ export default async function AccountPage(
       >
         <LastfmPanel userId={user.id} account={lastfm} />
       </Section>
-      <Section heading="City" alert={city === null} className="mt-8">
+      <Section heading="Home City" alert={city === null} className="mt-8">
         <CityPanel userId={user.id} city={city} />
       </Section>
       <Section heading="Discovery" className="mt-8">
@@ -92,7 +92,7 @@ export default async function AccountPage(
           includeKnownArtists={user.include_known_artists}
         />
       </Section>
-      <Section heading="My artists" className="mt-8">
+      <Section heading="My Artists" className="mt-8">
         <TastePanel userArtists={knownArtists} />
       </Section>
       <section className="mt-8">

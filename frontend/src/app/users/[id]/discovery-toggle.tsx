@@ -31,7 +31,7 @@ export function DiscoveryToggle({
         />
         Include artists I know in my playlists
       </label>
-      <p className="mt-1 text-sm text-gray-500">
+      <p className="mt-1 text-xs text-gray-500 italic">
         When off, playlists feature only suggested artists&apos; shows -
         discovery mode.
       </p>
