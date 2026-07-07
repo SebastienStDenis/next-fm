@@ -239,16 +239,27 @@ export function SyncCard({
                 {status && status.status !== "none" && (
                   <details className="animate-slide-in-up">
                     <summary
-                      className={`cursor-pointer text-sm ${
+                      className={`flex cursor-pointer items-center gap-1.5 text-sm list-none [&::-webkit-details-marker]:hidden ${
                         status.status === "failed"
-                          ? "text-red-600"
+                          ? "text-foreground"
                           : "text-gray-500"
                       }`}
                     >
-                      {status.status === "failed"
-                        ? "Last sync failed"
-                        : "Last synced"}
-                      {finishedAt && ` ${finishedAt}`}.
+                      <span
+                        className={
+                          status.status === "failed"
+                            ? "text-red-600"
+                            : "text-green-600 dark:text-green-500"
+                        }
+                      >
+                        <StepMark status={status.status} />
+                      </span>
+                      <span>
+                        {status.status === "failed"
+                          ? "Last sync failed"
+                          : "Last synced"}
+                        {finishedAt && ` ${finishedAt}`}.
+                      </span>
                     </summary>
                     <div className="mt-2">
                       <StepList steps={status.steps} />
