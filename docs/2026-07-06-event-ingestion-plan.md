@@ -1,7 +1,9 @@
 # Event ingestion design
 
+*Written 2026-07-06 by Claude (Fable 5).*
+
 How concert events enter the system, how they attach to the canonical artist registry
-(see `docs/artist-ingestion-plan.md`), and how a user's upcoming shows are computed from
+(see `docs/2026-07-05-artist-ingestion-plan.md`), and how a user's upcoming shows are computed from
 data we already hold. Scope for now: suggest events only for artists the user is already
 linked to; suggested artists are covered at the end because they change nothing in this
 pipeline.
@@ -252,6 +254,6 @@ refresh-endpoint pattern; no background infrastructure yet.
 interest-referenced artists, removing the freshness check from the request path.
 
 **Phase 4 - suggested artists.** The suggestion engine writes capped
-`similar_artist` interests (see `docs/artist-suggestions-plan.md`, which settles the
+`similar_artist` interests (see `docs/2026-07-06-artist-suggestions-plan.md`, which settles the
 kind name and the known-vs-suggested terminology); this pipeline picks them up
 unchanged.

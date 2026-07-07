@@ -64,11 +64,11 @@ Small layered FastAPI app; keep the separation when adding features:
 - `schemas.py` - Pydantic v2 API schemas. ORM models and Pydantic schemas are deliberately separate (no SQLModel); response models use `ConfigDict(from_attributes=True)`.
 - `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`, `get_top_artists`, `get_loved_tracks`, `get_artist_top_tracks`), injected via the `get_lastfm_client` dependency in `main.py`.
 - `bandsintown.py` - async Bandsintown API client for artists' upcoming events.
-- `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/playlist-plan.md`.
+- `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/2026-07-06-playlist-plan.md`.
 - `musicbrainz.py` - async MusicBrainz client (MBID -> Spotify artist link), throttled to 1 req/s.
-- `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/artist-ingestion-plan.md`).
-- `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/event-ingestion-plan.md`).
-- `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/playlist-plan.md`).
+- `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/2026-07-05-artist-ingestion-plan.md`).
+- `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/2026-07-06-event-ingestion-plan.md`).
+- `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/2026-07-06-playlist-plan.md`).
 - `matching.py` - the artist/event match join pieces shared by events and playlists (haversine distance, radius).
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.

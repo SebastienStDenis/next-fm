@@ -1,8 +1,10 @@
 # Artist suggestions design
 
+*Written 2026-07-06 by Claude (Fable 5).*
+
 How the system recommends artists the user does *not* know, so playlists become a
 discovery product ("a band you'd love is playing Thursday") instead of a tour tracker
-for artists they already listen to. This is the layer `docs/artist-matching-plan.md`
+for artists they already listen to. This is the layer `docs/2026-07-06-artist-matching-plan.md`
 explored; this doc commits to a direction, adds the suggestion lifecycle, and specifies
 the "include artists I know" setting.
 

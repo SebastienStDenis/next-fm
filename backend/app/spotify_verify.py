@@ -1,4 +1,4 @@
-"""Phase 0 of docs/playlist-plan.md: empirically verify what the Spotify API
+"""Phase 0 of docs/2026-07-06-playlist-plan.md: empirically verify what the Spotify API
 allows a development-mode Client ID, before trusting the design's assumptions.
 
 Needs SPOTIFY_CLIENT_ID/SECRET/REFRESH_TOKEN in .env (run app.spotify_auth

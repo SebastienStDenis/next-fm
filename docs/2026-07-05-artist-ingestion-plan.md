@@ -1,5 +1,7 @@
 # Artist ingestion design
 
+*Written 2026-07-05 by Claude (Fable 5).*
+
 How artists enter the system from external taste sources (Last.fm first), how they are
 represented so future sources (Spotify, Apple Music, ...) fit without rework, and how
 per-user interest in an artist is modeled with explicit reasons.
@@ -158,7 +160,7 @@ by `last_synced_at`), throttled well under 5 req/s.
 
 **Phase 4 - enrichment + cross-service.** `artist.getInfo` for tags, `artist.getSimilar`
 for suggested-artist interests (`kind="similar_artist"`, evidence carrying the match
-score and the seed artist; see `docs/artist-suggestions-plan.md`). Spotify resolution lands here as a `spotify_artists` table
+score and the seed artist; see `docs/2026-07-06-artist-suggestions-plan.md`). Spotify resolution lands here as a `spotify_artists` table
 populated by search-by-name, with MusicBrainz as validator when an MBID exists.
 
 ## To verify empirically (undocumented)

@@ -1,5 +1,7 @@
 # Artist matching design (hypothetical, work in progress)
 
+*Written 2026-07-06 by Claude (Fable 5).*
+
 > **Status: exploratory notes, not a decision.** This summarizes a design discussion
 > about how to score whether a user would like an event artist. Nothing here is
 > committed to; numbers and API behaviors should be verified empirically before

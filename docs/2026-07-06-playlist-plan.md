@@ -1,7 +1,9 @@
 # Playlist generation design
 
+*Written 2026-07-06 by Claude (Fable 5).*
+
 How a user's city-matched shows become one public Spotify playlist, maintained by an
-app-owned bot account. This is the layer the event plan (`docs/event-ingestion-plan.md`)
+app-owned bot account. This is the layer the event plan (`docs/2026-07-06-event-ingestion-plan.md`)
 owes its output to: it consumes "current (artist, event) pairs for a user" and produces
 a synced tracklist with provenance.
 
