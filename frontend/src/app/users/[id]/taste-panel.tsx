@@ -102,15 +102,6 @@ export function TastePanel({
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
 
   function ignore(artist: Artist) {
-    if (
-      !window.confirm(
-        `Ignore ${artist.name}? This also stops suggesting artists that were ` +
-          `recommended only because you listen to them. Undo it any time from ` +
-          `Ignored artists.`,
-      )
-    ) {
-      return;
-    }
     setPendingId(artist.id);
     startTransition(async () => {
       const result = await ignoreArtist(userId, artist.id);
