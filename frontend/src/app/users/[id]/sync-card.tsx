@@ -119,7 +119,9 @@ export function SyncCard({
 
   if (!lastfmLinked) {
     return (
-      <p className="text-sm text-gray-500">Link a Last.fm account to sync.</p>
+      <p className="text-sm text-gray-500">
+        Link a Last.fm account in the Account section to sync.
+      </p>
     );
   }
 
@@ -168,7 +170,7 @@ export function SyncCard({
         <span className="text-sm text-gray-500">
           {running
             ? "Runs in the background - leaving this page won't stop it."
-            : "Artists, suggestions, concerts and playlists, in one go."}
+            : "Taste, suggestions, concerts and playlists, in one go."}
         </span>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}

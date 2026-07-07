@@ -110,7 +110,7 @@ class _StepSpec:
 STEP_SPECS = (
     _StepSpec(
         key="artists",
-        label="Sync Last.fm artists",
+        label="Sync taste from Last.fm",
         activity="sync_artists",
         result_type=ArtistSyncResult,
         timeout=timedelta(minutes=2),
