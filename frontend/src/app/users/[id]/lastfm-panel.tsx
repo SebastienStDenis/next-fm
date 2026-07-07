@@ -103,7 +103,7 @@ function AccountCard({
   const error = refreshState.error ?? unlinkState.error;
 
   return (
-    <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
+    <div>
       <div className="flex items-center gap-4">
         {account.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element

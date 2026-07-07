@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
-import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
+import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 
 export type Artist = {
   id: string;
@@ -84,41 +83,24 @@ function interestLabel(interest: Interest): string {
     const count = interest.evidence.track_count ?? 0;
     return `${count} loved ${count === 1 ? "track" : "tracks"}`;
   }
-  if (interest.kind === SIMILAR_ARTIST_KIND) {
-    // A known artist can briefly hold a suggestion row too (the show-grace
-    // window); label it rather than showing the raw kind.
-    return `suggested · score ${(interest.weight ?? 0).toFixed(2)}`;
-  }
   return interest.kind;
 }
 
-export function ArtistsPanel({
-  lastfmLinked,
-  userArtists,
-  allArtists,
-}: {
-  lastfmLinked: boolean;
-  userArtists: UserArtist[];
-  allArtists: Artist[];
-}) {
+export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
 
   return (
     <div>
-      {!lastfmLinked && (
-        <p className="text-sm text-gray-500">
-          Link a Last.fm account to sync artists.
-        </p>
-      )}
-
       {userArtists.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">No artists synced yet.</p>
+        <p className="text-sm text-gray-500">
+          Nothing synced yet. Sync your taste from the Suggestions section.
+        </p>
       ) : (
         <>
-          <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium">
-              Synced artists ({numberFormat.format(userArtists.length)})
+              Artists you listen to ({numberFormat.format(userArtists.length)})
             </h3>
             <label className="text-xs text-gray-500">
               Sort by{" "}
@@ -141,36 +123,21 @@ export function ArtistsPanel({
                 className="flex flex-wrap items-center gap-2 text-sm"
               >
                 <span>{artist.name}</span>
-                {interests.map((interest) => (
-                  <span
-                    key={`${interest.kind}-${interest.source}`}
-                    className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
-                  >
-                    {interestLabel(interest)}
-                  </span>
-                ))}
+                {interests
+                  .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
+                  .map((interest) => (
+                    <span
+                      key={`${interest.kind}-${interest.source}`}
+                      className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
+                    >
+                      {interestLabel(interest)}
+                    </span>
+                  ))}
               </li>
             ))}
           </ul>
         </>
       )}
-
-      <div className="mt-6">
-        <h3 className="mb-2 text-sm font-medium">
-          <Link href="/artists" className="hover:underline">
-            All artists ({numberFormat.format(allArtists.length)}) &rarr;
-          </Link>
-        </h3>
-        {allArtists.length === 0 ? (
-          <p className="text-sm text-gray-500">No artists in the registry.</p>
-        ) : (
-          <ul className="max-h-64 overflow-y-auto rounded border border-gray-300 px-3 py-2 text-sm text-gray-500 dark:border-gray-700">
-            {allArtists.map((artist) => (
-              <li key={artist.id}>{artist.name}</li>
-            ))}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }

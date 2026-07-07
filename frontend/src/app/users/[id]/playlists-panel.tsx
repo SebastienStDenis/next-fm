@@ -68,51 +68,63 @@ export function PlaylistsPanel({
   hasCity,
   hasArtists,
   playlists,
+  pendingPins,
 }: {
   userId: string;
   hasCity: boolean;
   hasArtists: boolean;
   playlists: Playlist[];
+  pendingPins: Playlist[];
 }) {
-  if (!hasArtists) {
-    return (
-      <p className="text-sm text-gray-500">
-        Sync artists first to build playlists from shows near you.
-      </p>
-    );
-  }
-
   return (
     <div>
-      {!hasCity && (
-        <p className="mb-2 text-sm text-gray-500">
-          Set a city to get your local playlist; pinned cities work without
-          one.
-        </p>
-      )}
-      {playlists.length === 0 ? (
+      {!hasArtists ? (
         <p className="text-sm text-gray-500">
-          No playlists yet. Sync to create your first one on Spotify.
+          Nothing synced yet. Run a sync from the Account section to build
+          playlists from shows near you.
+        </p>
+      ) : playlists.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          {hasCity
+            ? "No playlists yet. Sync to create your first one on Spotify."
+            : "No playlists yet. Set your city in the Account section to get your local playlist."}
         </p>
       ) : (
-        <ul className="space-y-3">
-          {playlists.map((playlist) => (
-            <PlaylistCard
-              key={playlist.id}
-              userId={userId}
-              playlist={playlist}
-            />
-          ))}
-        </ul>
+        <>
+          {!hasCity && (
+            <p className="mb-2 text-sm text-gray-500">
+              Set your city in the Account section to get your local playlist.
+            </p>
+          )}
+          <ul className="space-y-3">
+            {playlists.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                userId={userId}
+                playlist={playlist}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
       <div className="mt-6">
         <h3 className="text-sm font-medium">Pin another city</h3>
         <p className="mt-1 mb-2 text-sm text-gray-500">
-          A pinned playlist tracks shows in a city of your choice, independent
-          of where you live.
+          Create another playlist to track shows in a city of your choice.
         </p>
         <PinCitySearch userId={userId} />
+        {pendingPins.length > 0 && (
+          <ul className="mt-3 space-y-1">
+            {pendingPins.map((playlist) => (
+              <PendingPinRow
+                key={playlist.id}
+                userId={userId}
+                playlist={playlist}
+              />
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -204,6 +216,46 @@ function PlaylistCard({
         </button>
       </form>
       {state.error && <p className="mt-1 text-sm text-red-600">{state.error}</p>}
+    </li>
+  );
+}
+
+// A pinned city whose Spotify playlist doesn't exist yet: shown so a fresh
+// pin is visible before the first sync creates it, removable from here.
+function PendingPinRow({
+  userId,
+  playlist,
+}: {
+  userId: string;
+  playlist: Playlist;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function remove() {
+    startTransition(async () => {
+      const result = await deletePlaylist(userId, playlist.id);
+      setError(result.error);
+    });
+  }
+
+  return (
+    <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
+      <span>
+        {playlist.city?.name}
+        <span className="text-gray-500"> · awaiting first sync</span>
+      </span>
+      <span className="flex items-baseline gap-2">
+        {error && <span className="text-xs text-red-600">{error}</span>}
+        <button
+          type="button"
+          onClick={remove}
+          disabled={pending}
+          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+        >
+          {pending ? "Removing..." : "Remove"}
+        </button>
+      </span>
     </li>
   );
 }

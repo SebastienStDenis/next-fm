@@ -29,11 +29,11 @@ export function DiscoveryToggle({
             });
           }}
         />
-        Include artists I know in concerts and playlists
+        Include artists I know in my playlists
       </label>
       <p className="mt-1 text-sm text-gray-500">
-        When off, only suggested artists&apos; shows are served - discovery
-        mode.
+        When off, playlists feature only suggested artists&apos; shows -
+        discovery mode.
       </p>
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
     </div>

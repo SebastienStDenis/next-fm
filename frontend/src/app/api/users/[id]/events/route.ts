@@ -6,9 +6,14 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
   const geonameid = new URL(request.url).searchParams.get("geonameid");
-  const query = geonameid ? `?geonameid=${encodeURIComponent(geonameid)}` : "";
+  // Known artists are always requested; hiding them is a view-side filter in
+  // the events panel, independent of the user's global setting.
+  const params = new URLSearchParams({ include_known_artists: "true" });
+  if (geonameid) {
+    params.set("geonameid", geonameid);
+  }
   try {
-    const res = await fetch(`${apiUrl}/users/${id}/events${query}`, {
+    const res = await fetch(`${apiUrl}/users/${id}/events?${params}`, {
       cache: "no-store",
     });
     if (!res.ok) {

@@ -55,7 +55,7 @@ function CityCard({
   );
 
   return (
-    <div className="rounded border border-gray-300 p-4 dark:border-gray-700">
+    <div>
       <div className="flex items-center justify-between gap-4">
         <p className="font-medium">{cityLabel(city)}</p>
         <div className="flex gap-2">
