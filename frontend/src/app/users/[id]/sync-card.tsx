@@ -195,15 +195,11 @@ export function SyncCard({
 
   return (
     <div>
-      {/* The Sync button stays put; the running steps play out to its right,
-          centered against the button while a run plays and pinned to the top
-          once idle so expanding the step list only grows downward. */}
+      {/* The Sync button stays pinned to the top in every state, so it never
+          shifts as the running steps play out or the step list expands to its
+          right - both only grow downward. */}
       <div className="flex flex-col">
-        <div
-          className={`flex gap-3 ${
-            running || settling ? "items-center" : "items-start"
-          }`}
-        >
+        <div className="flex gap-3 items-start">
           <button
             type="button"
             onClick={onSync}
