@@ -107,10 +107,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               key: "suggested",
               label: `Suggested artists (${suggestedArtists.length})`,
               content: (
-                <SuggestedArtistsPanel
-                  lastfmLinked={lastfm !== null}
-                  suggestedArtists={suggestedArtists}
-                />
+                <SuggestedArtistsPanel suggestedArtists={suggestedArtists} />
               ),
             },
             {

@@ -24,10 +24,8 @@ function reasonOf(userArtist: UserArtist): string | null {
 }
 
 export function SuggestedArtistsPanel({
-  lastfmLinked,
   suggestedArtists,
 }: {
-  lastfmLinked: boolean;
   suggestedArtists: UserArtist[];
 }) {
   const sortedArtists = [...suggestedArtists].sort(
@@ -37,20 +35,14 @@ export function SuggestedArtistsPanel({
 
   return (
     <div>
-      {!lastfmLinked && (
-        <p className="text-sm text-gray-500">
-          Link a Last.fm account to get suggestions.
-        </p>
-      )}
-
       {suggestedArtists.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
-          No suggestions yet. Sync to discover artists similar to the ones you
-          listen to - concerts and playlists are built from these.
+        <p className="text-sm text-gray-500">
+          Nothing synced yet. Run a sync above to discover artists similar to
+          the ones you listen to.
         </p>
       ) : (
         <>
-          <h3 className="mt-4 text-sm font-medium">
+          <h3 className="text-sm font-medium">
             Suggested artists ({suggestedArtists.length})
           </h3>
           <ul className="mt-2 space-y-1">
