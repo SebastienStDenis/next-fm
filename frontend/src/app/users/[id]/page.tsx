@@ -96,7 +96,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               key: "suggested",
               label: `Suggested artists (${suggestedArtists.length})`,
               description:
-                "Artists we think you'll like, based on the ones you already listen to.",
+                "Artists we think you'll like based on your listening history.",
               content: (
                 <SuggestedArtistsPanel suggestedArtists={suggestedArtists} />
               ),
@@ -105,7 +105,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               key: "concerts",
               label: `Concerts (${suggestedEventCount})`,
               description:
-                "Upcoming shows near you by artists you listen to or might like.",
+                "Upcoming shows near you by suggested artists.",
               content: (
                 <EventsPanel
                   userId={user.id}
@@ -121,7 +121,7 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               key: "playlists",
               label: `Playlists (${linkedPlaylists.length})`,
               description:
-                "Spotify playlists, one per city, kept in sync with your upcoming shows.",
+                "Spotify playlists tracking suggested shows in your cities.",
               content: (
                 <PlaylistsPanel
                   userId={user.id}

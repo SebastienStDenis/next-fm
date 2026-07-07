@@ -3,7 +3,7 @@
 import { useState, useTransition, type ReactNode } from "react";
 
 import type { City } from "./city-panel";
-import { CitySearchBox, cityLabel } from "./city-search-box";
+import { CitySearchBox } from "./city-search-box";
 
 export type UserEvent = {
   event: {
@@ -76,6 +76,7 @@ export function EventsPanel({
   const [viewCity, setViewCity] = useState<City | null>(null);
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [viewError, setViewError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [loading, startTransition] = useTransition();
 
   if (!hasArtists) {
@@ -99,6 +100,7 @@ export function EventsPanel({
       setViewEvents(await res.json());
       setViewCity(selected);
       setViewError(null);
+      setSearchOpen(false);
     });
   }
 
@@ -116,41 +118,39 @@ export function EventsPanel({
   );
   const hiddenCount = shownEvents.length - visibleEvents.length;
 
+  const cityControls = (
+    <CityControls
+      homeCity={city}
+      viewCity={viewCity}
+      searchOpen={searchOpen}
+      loading={loading}
+      error={viewError}
+      onToggleSearch={() => setSearchOpen((open) => !open)}
+      onBackHome={() => {
+        setViewCity(null);
+        setSearchOpen(false);
+      }}
+      onSelect={selectCity}
+    />
+  );
+
   return (
     <div>
-      <div className="space-y-2">
-        <CitySearchBox
-          placeholder="See concerts in another city"
-          disabled={loading}
-          onSelect={selectCity}
-        />
-        {viewCity && (
-          <p className="text-sm text-gray-500">
-            Showing concerts near {cityLabel(viewCity)}.{" "}
-            <button
-              type="button"
-              onClick={() => setViewCity(null)}
-              className="underline hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              {city ? `Back to ${city.name}` : "Back to your city"}
-            </button>
-          </p>
-        )}
-        {viewError && <p className="text-sm text-red-600">{viewError}</p>}
-      </div>
-
       {!city && !viewCity ? (
-        <p className="mt-4 text-sm text-gray-500">
-          Set your city in the Account section to see local concerts, or
-          search one above.
-        </p>
+        <div>
+          <p className="text-sm text-gray-500">
+            Set your city in the Account section to see local concerts.
+          </p>
+          {cityControls}
+        </div>
       ) : (
         <>
-          <h3 className="mt-4 text-sm font-medium">
+          <h3 className="text-sm font-medium">
             Upcoming concerts in {(viewCity ?? city)?.name} (
             {visibleEvents.length})
           </h3>
-          <div className="mt-2 flex flex-wrap gap-2">
+          {cityControls}
+          <div className="mt-3 flex flex-wrap gap-2">
             <FilterPill
               selected={showSuggested}
               onToggle={() => setShowSuggested(!showSuggested)}
@@ -226,6 +226,57 @@ export function EventsPanel({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function CityControls({
+  homeCity,
+  viewCity,
+  searchOpen,
+  loading,
+  error,
+  onToggleSearch,
+  onBackHome,
+  onSelect,
+}: {
+  homeCity: City | null;
+  viewCity: City | null;
+  searchOpen: boolean;
+  loading: boolean;
+  error: string | null;
+  onToggleSearch: () => void;
+  onBackHome: () => void;
+  onSelect: (city: City) => void;
+}) {
+  return (
+    <div className="mt-1 space-y-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        {viewCity && (
+          <button
+            type="button"
+            onClick={onBackHome}
+            className="text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            &larr; {homeCity ? `Back to ${homeCity.name}` : "Back"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onToggleSearch}
+          className="text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+        >
+          See concerts in another city
+        </button>
+      </div>
+      {searchOpen && (
+        <CitySearchBox
+          placeholder="Search for a city"
+          disabled={loading}
+          onSelect={onSelect}
+        />
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }

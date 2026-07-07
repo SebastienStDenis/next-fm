@@ -109,10 +109,6 @@ export function PlaylistsPanel({
       )}
 
       <div className="mt-6">
-        <h3 className="text-sm font-medium">Pin another city</h3>
-        <p className="mt-1 mb-2 text-sm text-gray-500">
-          Create another playlist to track shows in a city of your choice.
-        </p>
         <PinCitySearch userId={userId} />
         {pendingPins.length > 0 && (
           <ul className="mt-3 space-y-1">
@@ -261,6 +257,7 @@ function PendingPinRow({
 }
 
 function PinCitySearch({ userId }: { userId: string }) {
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -268,7 +265,22 @@ function PinCitySearch({ userId }: { userId: string }) {
     startTransition(async () => {
       const result = await createCityPlaylist(userId, city.geonameid);
       setError(result.error);
+      if (!result.error) {
+        setOpen(false);
+      }
     });
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+      >
+        + Pin another city
+      </button>
+    );
   }
 
   return (
@@ -279,6 +291,16 @@ function PinCitySearch({ userId }: { userId: string }) {
         onSelect={select}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(false);
+          setError(null);
+        }}
+        className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+      >
+        Cancel
+      </button>
     </div>
   );
 }
