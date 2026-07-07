@@ -53,9 +53,11 @@ async function fetchStatus(userId: string): Promise<SyncStatus | null> {
 export function SyncCard({
   userId,
   lastfmLinked,
+  citySet,
 }: {
   userId: string;
   lastfmLinked: boolean;
+  citySet: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
@@ -129,20 +131,28 @@ export function SyncCard({
     return () => clearTimeout(timer);
   }, [leaving]);
 
-  if (!lastfmLinked) {
-    return (
-      <p className="text-sm text-gray-500">
-        Link a Last.fm account above to sync.
-      </p>
-    );
-  }
-
   const running = status?.status === "running";
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
 
+  // Client-side gate only (no backend change yet): a sync needs both a linked
+  // Last.fm account and a city, both set from sections below.
+  const missing = [
+    !lastfmLinked && "link a Last.fm account",
+    !citySet && "set a city",
+  ].filter((item): item is string => item !== false);
+  const canSync = missing.length === 0;
+  const missingNote = canSync
+    ? null
+    : `${missing.join(" and ")} below to sync.`.replace(/^./, (c) =>
+        c.toUpperCase(),
+      );
+
   function onSync() {
+    if (!canSync) {
+      return;
+    }
     // Show the run as started right away; the first poll replaces this with
     // real state, and a failed start reverts it.
     const previous = status;
@@ -204,8 +214,8 @@ export function SyncCard({
                 <button
                   type="button"
                   onClick={onSync}
-                  disabled={starting}
-                  className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+                  disabled={starting || !canSync}
+                  className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Sync
                 </button>
@@ -229,6 +239,9 @@ export function SyncCard({
                   </details>
                 )}
               </div>
+              {missingNote && (
+                <p className="mt-2 text-sm text-gray-500">{missingNote}</p>
+              )}
               {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
             </div>
           </div>

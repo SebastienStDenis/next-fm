@@ -64,7 +64,11 @@ export default async function AccountPage(
       </Link>
       <h1 className="mt-2 mb-6 text-2xl font-semibold">{user.name}</h1>
       <Section heading="Sync">
-        <SyncCard userId={user.id} lastfmLinked={lastfm !== null} />
+        <SyncCard
+          userId={user.id}
+          lastfmLinked={lastfm !== null}
+          citySet={city !== null}
+        />
       </Section>
       <Section
         heading="Last.fm"
