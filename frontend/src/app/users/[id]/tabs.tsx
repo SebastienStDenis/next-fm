@@ -5,7 +5,12 @@ import { useState, type ReactNode } from "react";
 export function Tabs({
   tabs,
 }: {
-  tabs: { key: string; label: string; content: ReactNode }[];
+  tabs: {
+    key: string;
+    label: string;
+    description?: string;
+    content: ReactNode;
+  }[];
 }) {
   const [active, setActive] = useState(tabs[0].key);
 
@@ -36,6 +41,9 @@ export function Tabs({
           summaries, search inputs) survives switching. */}
       {tabs.map((tab) => (
         <div key={tab.key} hidden={active !== tab.key} className="mt-4">
+          {tab.description && (
+            <p className="mb-4 text-sm text-gray-500">{tab.description}</p>
+          )}
           {tab.content}
         </div>
       ))}

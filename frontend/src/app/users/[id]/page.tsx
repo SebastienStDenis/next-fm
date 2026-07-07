@@ -83,9 +83,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       <h1 className="mt-2 text-2xl font-semibold">{user.name}</h1>
       <Link
         href={`/users/${id}/account`}
-        className="mt-1 inline-block text-sm text-gray-500 hover:underline"
+        className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:border-foreground hover:text-foreground dark:border-gray-700 dark:text-gray-400"
       >
-        Account
+        Account settings
+        <span aria-hidden>&rarr;</span>
         {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
       </Link>
       <section className="mt-6">
@@ -94,6 +95,8 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
             {
               key: "suggested",
               label: `Suggested artists (${suggestedArtists.length})`,
+              description:
+                "Artists we think you'll like, based on the ones you already listen to.",
               content: (
                 <SuggestedArtistsPanel suggestedArtists={suggestedArtists} />
               ),
@@ -101,6 +104,8 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
             {
               key: "concerts",
               label: `Concerts (${suggestedEventCount})`,
+              description:
+                "Upcoming shows near you by artists you listen to or might like.",
               content: (
                 <EventsPanel
                   userId={user.id}
@@ -115,6 +120,8 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
             {
               key: "playlists",
               label: `Playlists (${linkedPlaylists.length})`,
+              description:
+                "Spotify playlists, one per city, kept in sync with your upcoming shows.",
               content: (
                 <PlaylistsPanel
                   userId={user.id}

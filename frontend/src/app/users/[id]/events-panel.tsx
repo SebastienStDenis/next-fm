@@ -147,7 +147,8 @@ export function EventsPanel({
       ) : (
         <>
           <h3 className="mt-4 text-sm font-medium">
-            Upcoming concerts ({visibleEvents.length})
+            Upcoming concerts in {(viewCity ?? city)?.name} (
+            {visibleEvents.length})
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
             <FilterPill
