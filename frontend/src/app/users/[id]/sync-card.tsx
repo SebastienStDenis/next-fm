@@ -24,10 +24,6 @@ const POLL_INTERVAL_MS = 1500;
 // moves on.
 const STEP_HOLD_MS = 900;
 
-// TEMP demo: cycle each finished run's shown outcome so every last-synced
-// variant can be previewed. Remove this and its uses (search "demo") when done.
-const DEMO_OUTCOMES = ["completed", "failed", "none"] as const;
-
 const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -76,8 +72,6 @@ export function SyncCard({
   const [runSeq, setRunSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
-  // TEMP demo: -1 until the first run finishes, then advances each run.
-  const [demoOutcomeSeq, setDemoOutcomeSeq] = useState(-1);
 
   // Loaded client-side so the page never waits on Temporal to render.
   useEffect(() => {
@@ -124,7 +118,6 @@ export function SyncCard({
         // Let the last step's final state show before collapsing to the
         // last-synced line.
         setSettling(true);
-        setDemoOutcomeSeq((seq) => seq + 1); // TEMP demo
         router.refresh();
       }
     }
@@ -152,12 +145,7 @@ export function SyncCard({
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
-  // TEMP demo: override the finished-run outcome shown on the last-synced line.
-  const demoOutcome =
-    demoOutcomeSeq >= 0
-      ? DEMO_OUTCOMES[demoOutcomeSeq % DEMO_OUTCOMES.length]
-      : null;
-  const finalOutcome = demoOutcome ?? status?.status ?? "none";
+  const finalOutcome = status?.status ?? "none";
 
   // Client-side gate only (no backend change yet): a sync needs both a linked
   // Last.fm account and a city, both set from sections below.
