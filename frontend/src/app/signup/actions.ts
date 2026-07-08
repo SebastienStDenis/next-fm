@@ -26,7 +26,7 @@ export async function signUp(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { display_name: name.trim() } },
@@ -34,5 +34,8 @@ export async function signUp(
   if (error) {
     return { error: error.message };
   }
-  redirect("/dashboard");
+  // With email confirmation on, signUp returns no session until the user clicks
+  // the emailed link; send them to a holding page instead of the dashboard
+  // (the proxy would bounce an unauthenticated /dashboard visit to /login).
+  redirect(data.session ? "/dashboard" : "/signup/check-email");
 }

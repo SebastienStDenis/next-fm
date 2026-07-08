@@ -3,7 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/about"]);
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/login",
+  "/signup",
+  "/signup/check-email",
+  "/about",
+]);
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -34,7 +40,12 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // API routes answer JSON; they handle missing sessions themselves rather
   // than redirecting a fetch() to an HTML login page.
-  if (!user && !PUBLIC_PATHS.has(pathname) && !pathname.startsWith("/api")) {
+  if (
+    !user &&
+    !PUBLIC_PATHS.has(pathname) &&
+    !pathname.startsWith("/api") &&
+    !pathname.startsWith("/auth")
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
