@@ -63,7 +63,8 @@ export function CitySearchBox({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
+        disabled={disabled}
+        className="w-full rounded border border-gray-300 bg-transparent px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700"
       />
       {results.length > 0 && (
         <ul className="divide-y divide-gray-300 rounded border border-gray-300 dark:divide-gray-700 dark:border-gray-700">

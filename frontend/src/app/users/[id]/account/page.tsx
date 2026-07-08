@@ -5,6 +5,8 @@ import { CityPanel, type City } from "../city-panel";
 import { DeleteUserButton } from "../delete-user-button";
 import { DiscoveryToggle } from "../discovery-toggle";
 import { LastfmPanel, type LastfmAccount } from "../lastfm-panel";
+import { PinnedCitiesPanel } from "../pinned-cities-panel";
+import { type Playlist } from "../playlists-panel";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
@@ -60,18 +62,27 @@ export default async function AccountPage(
   const { id } = await props.params;
   const user = await loadUser(id);
 
-  const [lastfm, city, userArtists, neverSynced] = await Promise.all([
-    fetchOptional<LastfmAccount>(
-      `${apiUrl}/users/${id}/lastfm`,
-      "Last.fm account",
-    ),
-    fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
-    fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
-    loadNeverSynced(id),
-  ]);
+  const [lastfm, city, userArtists, playlists, neverSynced] =
+    await Promise.all([
+      fetchOptional<LastfmAccount>(
+        `${apiUrl}/users/${id}/lastfm`,
+        "Last.fm account",
+      ),
+      fetchOptional<City>(`${apiUrl}/users/${id}/city`, "city"),
+      fetchJson<UserArtist[]>(`${apiUrl}/users/${id}/artists`, "user artists"),
+      // A playlists outage should only blank the Pinned Cities panel, not take
+      // down the rest of account settings, so degrade to an empty list.
+      fetchJson<Playlist[]>(`${apiUrl}/users/${id}/playlists`, "playlists").catch(
+        (): Playlist[] => [],
+      ),
+      loadNeverSynced(id),
+    ]);
 
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
+  );
+  const pinnedPlaylists = playlists.filter(
+    (playlist) => playlist.city !== null,
   );
 
   return (
@@ -116,6 +127,13 @@ export default async function AccountPage(
         className="mt-8"
       >
         <CityPanel userId={user.id} city={city} />
+      </Section>
+      <Section
+        heading="Pinned Cities"
+        description="Extra playlists are created for concerts in other cities you pin."
+        className="mt-8"
+      >
+        <PinnedCitiesPanel userId={user.id} pinned={pinnedPlaylists} />
       </Section>
       <Section heading="Options" className="mt-8">
         <DiscoveryToggle

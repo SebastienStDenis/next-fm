@@ -19,6 +19,7 @@ async function callApi(
   init: RequestInit,
   fallback: string,
   revalidate: string,
+  revalidateType?: "page" | "layout",
 ): Promise<ActionState> {
   let res: Response;
   try {
@@ -30,7 +31,7 @@ async function callApi(
     return { error: await errorMessage(res, fallback) };
   }
 
-  revalidatePath(revalidate);
+  revalidatePath(revalidate, revalidateType);
   return { error: null };
 }
 
@@ -142,6 +143,7 @@ export async function createCityPlaylist(
     },
     "Failed to create playlist.",
     `/users/${userId}`,
+    "layout",
   );
 }
 
@@ -154,6 +156,7 @@ export async function deletePlaylist(
     { method: "DELETE" },
     "Failed to delete playlist.",
     `/users/${userId}`,
+    "layout",
   );
 }
 
