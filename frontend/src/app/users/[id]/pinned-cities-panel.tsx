@@ -9,12 +9,6 @@ import type { Playlist } from "./playlists-panel";
 
 const PINNED_PLAYLIST_CAP = 2;
 
-// A pinned city is a playlist tied to a specific city; the home-city playlist
-// has a null city and is managed separately.
-export function isPinned(playlist: Playlist): boolean {
-  return playlist.city !== null;
-}
-
 export function PinnedCitiesPanel({
   userId,
   pinned,

@@ -5,7 +5,7 @@ import { CityPanel, type City } from "../city-panel";
 import { DeleteUserButton } from "../delete-user-button";
 import { DiscoveryToggle } from "../discovery-toggle";
 import { LastfmPanel, type LastfmAccount } from "../lastfm-panel";
-import { PinnedCitiesPanel, isPinned } from "../pinned-cities-panel";
+import { PinnedCitiesPanel } from "../pinned-cities-panel";
 import { type Playlist } from "../playlists-panel";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
@@ -81,7 +81,9 @@ export default async function AccountPage(
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
   );
-  const pinnedPlaylists = playlists.filter(isPinned);
+  const pinnedPlaylists = playlists.filter(
+    (playlist) => playlist.city !== null,
+  );
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">
