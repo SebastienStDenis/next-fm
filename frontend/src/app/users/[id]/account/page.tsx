@@ -120,7 +120,7 @@ export default async function AccountPage(
       </Section>
       <Section
         heading="My Artists"
-        description="Your artists are used to suggest new artists and concerts."
+        description="Artists you listen to are used to suggest new artists and concerts."
         className="mt-8"
       >
         <TastePanel userArtists={knownArtists} />
