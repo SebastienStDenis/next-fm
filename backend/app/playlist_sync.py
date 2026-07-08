@@ -97,9 +97,7 @@ async def sync_user_playlists(
 
     for playlist, city, matches in to_sync:
         items.append(
-            await _sync_playlist(
-                session, spotify, playlist, user, city, matches, now, include_known_artists
-            )
+            await _sync_playlist(session, spotify, playlist, user, city, matches, now)
         )
 
     contributing = sum(1 for row in resolved if row.match_confidence != MATCH_FUZZY)
@@ -375,7 +373,6 @@ async def _sync_playlist(
     city: City,
     matches: list[ArtistMatch],
     now: datetime,
-    include_known_artists: bool,
 ) -> PlaylistSyncItem:
     top_tracks = await _top_tracks_by_artist(session, {match.artist_id for match in matches})
     desired = desired_tracks(matches, top_tracks)
