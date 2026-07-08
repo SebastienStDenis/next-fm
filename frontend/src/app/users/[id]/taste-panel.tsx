@@ -94,7 +94,7 @@ export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
     <div>
       {userArtists.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Nothing synced yet.
+          Nothing synced yet. Run a sync above.
         </p>
       ) : (
         <>
