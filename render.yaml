@@ -1,0 +1,31 @@
+# Render Blueprint: the FastAPI api and the Temporal worker, both built from
+# backend/Dockerfile. Shared configuration lives in the `live-playlists` env
+# group (created in the Render dashboard); see docs/2026-07-08-production-deployment-plan.md.
+services:
+  - type: web
+    name: live-playlists-api
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    # Runs once per deploy (not per replica), before the new version goes live,
+    # so schema changes and the cities load land exactly once and the worker
+    # never races the migration.
+    preDeployCommand: uv run alembic upgrade head && uv run python -m app.seed --cities-only
+    envVars:
+      - fromGroup: live-playlists
+
+  - type: worker
+    name: live-playlists-worker
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # The image's CMD starts uvicorn; the worker runs the poller instead. No
+    # watchfiles wrapper here - that only exists to hot-reload local edits.
+    dockerCommand: uv run python -m app.worker
+    envVars:
+      - fromGroup: live-playlists

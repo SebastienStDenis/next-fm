@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 
 from sqlalchemy import select
@@ -35,11 +36,19 @@ async def seed_cities(session: AsyncSession) -> None:
     print(f"Upserted {len(cities)} cities.")
 
 
-async def seed() -> None:
+async def seed(cities_only: bool = False) -> None:
     async with session_factory() as session:
-        await seed_users(session)
+        if not cities_only:
+            await seed_users(session)
         await seed_cities(session)
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    parser = argparse.ArgumentParser(description="Seed reference data.")
+    parser.add_argument(
+        "--cities-only",
+        action="store_true",
+        help="Load only the cities table, skipping the demo user (use in production).",
+    )
+    args = parser.parse_args()
+    asyncio.run(seed(cities_only=args.cities_only))
