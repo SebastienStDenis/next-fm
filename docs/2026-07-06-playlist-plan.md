@@ -296,6 +296,16 @@ the Spotify side (`DELETE /v1/playlists/{id}/followers` - Spotify has no true de
 before or after removing local rows; an orphaned public playlist on the bot account is
 the failure mode to avoid.
 
+**What a user can remove is asymmetric, by surface.** A pinned city playlist is removed
+by deleting its pin in account settings (`DELETE /users/{id}/playlists/{playlist_id}`),
+the mirror of the explicit action that created it. The home (`city_id null`,
+follow-the-user) playlist has no delete affordance: it is the default every user carries,
+`_ensure_default_playlist` recreates it on the next sync if it goes missing, and changing
+home city re-targets it in place rather than replacing it. It is meant to disappear only
+when the user themselves is deleted - a user with no home-city playlist serves no purpose
+- so wiring the Spotify-side unfollow into the user-deletion path (the "user deleted" case
+above) is the remaining piece to build.
+
 ## Bot account, auth, and configuration
 
 - A dedicated Spotify account owns every playlist. It authorizes the app **once** via

@@ -94,9 +94,15 @@ export function PlaylistsPanel({
     );
   }
 
+  // Home-city playlist (null city) always leads, pinned cities follow.
+  const ordered = [
+    ...playlists.filter((playlist) => playlist.city === null),
+    ...playlists.filter((playlist) => playlist.city !== null),
+  ];
+
   return (
     <ul className="space-y-3">
-      {playlists.map((playlist) => (
+      {ordered.map((playlist) => (
         <PlaylistCard key={playlist.id} playlist={playlist} />
       ))}
     </ul>
@@ -109,7 +115,9 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="font-medium">{playlist.name}</span>
         <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
-          {playlist.city ? `pinned to ${playlist.city.name}` : "follows your city"}
+          {playlist.city
+            ? `pinned to ${playlist.city.name}`
+            : "follows your home city"}
         </span>
       </div>
       <p className="mt-1 text-sm text-gray-500">
