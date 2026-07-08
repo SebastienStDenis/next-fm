@@ -81,6 +81,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
         &larr; Users
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">Hey, {user.name}</h1>
+      <p className="mt-1 text-xs text-gray-500 italic">
+        Find upcoming concerts near you by artists that match your listening
+        history, and get them as Spotify playlists.
+      </p>
       <Link
         href={`/users/${id}/account`}
         className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:border-foreground hover:text-foreground dark:border-gray-700 dark:text-gray-400"
