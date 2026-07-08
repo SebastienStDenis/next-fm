@@ -138,12 +138,8 @@ def test_playlist_description_chooses_copy_by_setting() -> None:
     now = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
 
     assert (
-        playlist_description("Montréal", now, include_known_artists=False)
-        == "New artists you might like playing near Montréal. Updated July 2026."
-    )
-    assert (
-        playlist_description("Montréal", now, include_known_artists=True)
-        == "Artists you love playing near Montréal. Updated July 2026."
+        playlist_description("Montréal", now)
+        == "Artists you might like playing near Montréal. Updated July 2026."
     )
 
 
@@ -422,7 +418,7 @@ def make_playlist(spotify_playlist_id: str | None = "pl-1") -> Playlist:
         user_id=uuid.uuid7(),
         kind="city_shows",
         name=playlist_title("Alice", "Montréal"),
-        description=playlist_description("Montréal", SYNC_NOW, include_known_artists=False),
+        description=playlist_description("Montréal", SYNC_NOW),
         spotify_playlist_id=spotify_playlist_id,
         snapshot_id="snap-0",
     )
@@ -449,7 +445,6 @@ async def run_sync_playlist(
         City(geonameid=6077243, name="Montréal"),
         matches,
         SYNC_NOW,
-        include_known_artists=False,
     )
 
 
@@ -523,7 +518,7 @@ async def test_sync_playlist_skips_replace_for_fresh_empty_playlist() -> None:
 
     spotify.create_playlist.assert_awaited_once_with(
         playlist_title("Alice", "Montréal"),
-        playlist_description("Montréal", SYNC_NOW, include_known_artists=False),
+        playlist_description("Montréal", SYNC_NOW),
     )
     spotify.replace_playlist_items.assert_not_awaited()
     session.commit.assert_awaited_once()  # the remote id is persisted right after creation

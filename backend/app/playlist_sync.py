@@ -50,10 +50,8 @@ def playlist_title(user_name: str, city_name: str | None) -> str:
     return f"{user_name}'s shows in {city_name}"
 
 
-def playlist_description(city_name: str, now: datetime, include_known_artists: bool) -> str:
-    if include_known_artists:
-        return f"Artists you love playing near {city_name}. Updated {now:%B %Y}."
-    return f"New artists you might like playing near {city_name}. Updated {now:%B %Y}."
+def playlist_description(city_name: str, now: datetime) -> str:
+    return f"Artists you might like playing near {city_name}. Updated {now:%B %Y}."
 
 
 async def sync_user_playlists(
@@ -99,9 +97,7 @@ async def sync_user_playlists(
 
     for playlist, city, matches in to_sync:
         items.append(
-            await _sync_playlist(
-                session, spotify, playlist, user, city, matches, now, include_known_artists
-            )
+            await _sync_playlist(session, spotify, playlist, user, city, matches, now)
         )
 
     contributing = sum(1 for row in resolved if row.match_confidence != MATCH_FUZZY)
@@ -377,13 +373,12 @@ async def _sync_playlist(
     city: City,
     matches: list[ArtistMatch],
     now: datetime,
-    include_known_artists: bool,
 ) -> PlaylistSyncItem:
     top_tracks = await _top_tracks_by_artist(session, {match.artist_id for match in matches})
     desired = desired_tracks(matches, top_tracks)
 
     name = playlist_title(user.name, city.name)
-    description = playlist_description(city.name, now, include_known_artists)
+    description = playlist_description(city.name, now)
     created = False
     spotify_playlist_id = playlist.spotify_playlist_id
     if spotify_playlist_id is None:
