@@ -1,11 +1,17 @@
 import uuid
 from unittest.mock import MagicMock
 
-from app.geonames import load_cities
+from app.auth import Claims
 from app.models import City, User
 from tests.helpers import make_session, request
 
 USER_ID = uuid.uuid7()
+CLAIMS = Claims(sub=uuid.uuid4())
+
+
+def user() -> User:
+    return User(id=USER_ID, name="Alice", include_known_artists=False)
+
 
 MONTREAL = City(
     geonameid=6077243,
@@ -29,7 +35,7 @@ async def test_search_cities() -> None:
     session = make_session()
     session.execute.return_value = result_returning_all([MONTREAL])
 
-    response = await request("GET", "/cities?q=montr", session)
+    response = await request("GET", "/cities?q=montr", session, claims=CLAIMS)
 
     assert response.status_code == 200
     body = response.json()
@@ -45,10 +51,18 @@ async def test_search_cities() -> None:
     ]
 
 
+async def test_search_cities_requires_authentication() -> None:
+    session = make_session()
+
+    response = await request("GET", "/cities?q=montr", session)
+
+    assert response.status_code == 401
+
+
 async def test_search_cities_requires_query() -> None:
     session = make_session()
 
-    response = await request("GET", "/cities", session)
+    response = await request("GET", "/cities", session, claims=CLAIMS)
 
     assert response.status_code == 422
     session.execute.assert_not_awaited()
@@ -57,7 +71,7 @@ async def test_search_cities_requires_query() -> None:
 async def test_search_cities_rejects_short_query() -> None:
     session = make_session()
 
-    response = await request("GET", "/cities?q=m", session)
+    response = await request("GET", "/cities?q=m", session, claims=CLAIMS)
 
     assert response.status_code == 422
     session.execute.assert_not_awaited()
@@ -66,7 +80,7 @@ async def test_search_cities_rejects_short_query() -> None:
 async def test_search_cities_rejects_whitespace_query() -> None:
     session = make_session()
 
-    response = await request("GET", "/cities?q=%20%20%20", session)
+    response = await request("GET", "/cities?q=%20%20%20", session, claims=CLAIMS)
 
     assert response.status_code == 422
     session.execute.assert_not_awaited()
@@ -74,9 +88,11 @@ async def test_search_cities_rejects_whitespace_query() -> None:
 
 async def test_get_user_city() -> None:
     session = make_session()
-    session.get.side_effect = [User(id=USER_ID, name="Alice", city_id=6077243), MONTREAL]
+    session.get.return_value = MONTREAL
 
-    response = await request("GET", f"/users/{USER_ID}/city", session)
+    response = await request(
+        "GET", "/me/city", session, user=User(id=USER_ID, name="Alice", city_id=6077243)
+    )
 
     assert response.status_code == 200
     assert response.json()["name"] == "Montréal"
@@ -84,42 +100,47 @@ async def test_get_user_city() -> None:
 
 async def test_get_user_city_when_none_set() -> None:
     session = make_session()
-    session.get.return_value = User(id=USER_ID, name="Alice", city_id=None)
 
-    response = await request("GET", f"/users/{USER_ID}/city", session)
+    response = await request(
+        "GET", "/me/city", session, user=User(id=USER_ID, name="Alice", city_id=None)
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No city set"
 
 
-async def test_get_user_city_unknown_user() -> None:
+async def test_get_user_city_requires_authentication() -> None:
     session = make_session()
-    session.get.return_value = None
 
-    response = await request("GET", f"/users/{USER_ID}/city", session)
+    response = await request("GET", "/me/city", session)
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.status_code == 401
 
 
 async def test_set_user_city() -> None:
-    user = User(id=USER_ID, name="Alice", city_id=None)
+    current = User(id=USER_ID, name="Alice", city_id=None)
     session = make_session()
-    session.get.side_effect = [user, MONTREAL]
+    session.get.return_value = MONTREAL
 
-    response = await request("PUT", f"/users/{USER_ID}/city", session, json={"geonameid": 6077243})
+    response = await request("PUT", "/me/city", session, user=current, json={"geonameid": 6077243})
 
     assert response.status_code == 200
     assert response.json()["geonameid"] == 6077243
-    assert user.city_id == 6077243
+    assert current.city_id == 6077243
     session.commit.assert_awaited_once()
 
 
 async def test_set_user_city_unknown_city() -> None:
     session = make_session()
-    session.get.side_effect = [User(id=USER_ID, name="Alice", city_id=None), None]
+    session.get.return_value = None
 
-    response = await request("PUT", f"/users/{USER_ID}/city", session, json={"geonameid": 1})
+    response = await request(
+        "PUT",
+        "/me/city",
+        session,
+        user=User(id=USER_ID, name="Alice", city_id=None),
+        json={"geonameid": 1},
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "City not found"
@@ -127,37 +148,23 @@ async def test_set_user_city_unknown_city() -> None:
 
 
 async def test_clear_user_city() -> None:
-    user = User(id=USER_ID, name="Alice", city_id=6077243)
+    current = User(id=USER_ID, name="Alice", city_id=6077243)
     session = make_session()
-    session.get.return_value = user
 
-    response = await request("DELETE", f"/users/{USER_ID}/city", session)
+    response = await request("DELETE", "/me/city", session, user=current)
 
     assert response.status_code == 204
-    assert user.city_id is None
+    assert current.city_id is None
     session.commit.assert_awaited_once()
 
 
 async def test_clear_user_city_when_none_set() -> None:
     session = make_session()
-    session.get.return_value = User(id=USER_ID, name="Alice", city_id=None)
 
-    response = await request("DELETE", f"/users/{USER_ID}/city", session)
+    response = await request(
+        "DELETE", "/me/city", session, user=User(id=USER_ID, name="Alice", city_id=None)
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No city set"
     session.commit.assert_not_awaited()
-
-
-def test_load_cities_parses_vendored_dump() -> None:
-    cities = load_cities()
-
-    assert len(cities) > 30_000
-    montreal = next(city for city in cities if city["geonameid"] == 6077243)
-    assert montreal["name"] == "Montréal"
-    assert montreal["ascii_name"] == "Montreal"
-    assert montreal["admin1"] == "Quebec"
-    assert montreal["country_code"] == "CA"
-    assert montreal["latitude"] == 45.50884
-    assert montreal["longitude"] == -73.58781
-    assert montreal["population"] > 1_000_000

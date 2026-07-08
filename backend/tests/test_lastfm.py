@@ -21,10 +21,15 @@ from app.lastfm import (
     _parse_top_artist,
     _parse_user_info,
 )
-from app.models import LastfmAccount
+from app.models import LastfmAccount, User
 from tests.helpers import make_session, request, result_returning
 
 USER_ID = uuid.uuid7()
+
+
+def user() -> User:
+    return User(id=USER_ID, name="Alice", include_known_artists=False)
+
 
 USER_INFO = LastfmUserInfo(
     username="rj",
@@ -57,7 +62,7 @@ async def test_get_linked_account() -> None:
     session = make_session()
     session.execute.return_value = result_returning(make_account())
 
-    response = await request("GET", f"/users/{USER_ID}/lastfm", session)
+    response = await request("GET", "/me/lastfm", session, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -69,20 +74,18 @@ async def test_get_linked_account_when_none() -> None:
     session = make_session()
     session.execute.return_value = result_returning(None)
 
-    response = await request("GET", f"/users/{USER_ID}/lastfm", session)
+    response = await request("GET", "/me/lastfm", session, user=user())
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"
 
 
-async def test_get_linked_account_unknown_user() -> None:
+async def test_get_linked_account_requires_authentication() -> None:
     session = make_session()
-    session.get.return_value = None
 
-    response = await request("GET", f"/users/{USER_ID}/lastfm", session)
+    response = await request("GET", "/me/lastfm", session)
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.status_code == 401
 
 
 async def test_link_creates_account_and_connection() -> None:
@@ -92,7 +95,7 @@ async def test_link_creates_account_and_connection() -> None:
     lastfm.get_user_info.return_value = USER_INFO
 
     response = await request(
-        "PUT", f"/users/{USER_ID}/lastfm", session, lastfm, json={"username": "RJ"}
+        "PUT", "/me/lastfm", session, lastfm, user=user(), json={"username": "RJ"}
     )
 
     assert response.status_code == 200
@@ -113,7 +116,7 @@ async def test_link_replaces_existing_connection() -> None:
     lastfm.get_user_info.return_value = USER_INFO
 
     response = await request(
-        "PUT", f"/users/{USER_ID}/lastfm", session, lastfm, json={"username": "rj"}
+        "PUT", "/me/lastfm", session, lastfm, user=user(), json={"username": "rj"}
     )
 
     assert response.status_code == 200
@@ -129,7 +132,7 @@ async def test_link_unknown_lastfm_user() -> None:
     lastfm.get_user_info.side_effect = LastfmUserNotFoundError("nope")
 
     response = await request(
-        "PUT", f"/users/{USER_ID}/lastfm", session, lastfm, json={"username": "nope"}
+        "PUT", "/me/lastfm", session, lastfm, user=user(), json={"username": "nope"}
     )
 
     assert response.status_code == 404
@@ -144,7 +147,7 @@ async def test_refresh_updates_account() -> None:
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_user_info.return_value = USER_INFO
 
-    response = await request("POST", f"/users/{USER_ID}/lastfm/refresh", session, lastfm)
+    response = await request("POST", "/me/lastfm/refresh", session, lastfm, user=user())
 
     assert response.status_code == 200
     assert response.json()["playcount"] == 123456
@@ -398,7 +401,7 @@ async def test_refresh_when_not_linked() -> None:
     session.execute.return_value = result_returning(None)
     lastfm = AsyncMock(spec=LastfmClient)
 
-    response = await request("POST", f"/users/{USER_ID}/lastfm/refresh", session, lastfm)
+    response = await request("POST", "/me/lastfm/refresh", session, lastfm, user=user())
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"
@@ -409,7 +412,7 @@ async def test_unlink_deletes_connection() -> None:
     session = make_session()
     session.execute.return_value = result_returning(connection)
 
-    response = await request("DELETE", f"/users/{USER_ID}/lastfm", session)
+    response = await request("DELETE", "/me/lastfm", session, user=user())
 
     assert response.status_code == 204
     session.delete.assert_awaited_once_with(connection)
@@ -420,7 +423,7 @@ async def test_unlink_when_not_linked() -> None:
     session = make_session()
     session.execute.return_value = result_returning(None)
 
-    response = await request("DELETE", f"/users/{USER_ID}/lastfm", session)
+    response = await request("DELETE", "/me/lastfm", session, user=user())
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"

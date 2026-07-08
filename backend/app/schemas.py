@@ -15,10 +15,6 @@ class UserRead(BaseModel):
     include_known_artists: bool
 
 
-class UserCreate(BaseModel):
-    name: str = Field(min_length=1)
-
-
 class UserUpdate(BaseModel):
     include_known_artists: bool | None = None
 

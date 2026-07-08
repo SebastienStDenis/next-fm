@@ -1,21 +1,4 @@
 services:
-  db:
-    image: postgres:18
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-app}
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql
-    healthcheck:
-      # -h forces a TCP check; the socket also answers during initdb, before TCP is up
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d app"]
-      interval: 2s
-      timeout: 3s
-      retries: 15
-
   api:
     build: ./backend
     command: >
@@ -23,7 +6,7 @@ services:
              uv run python -m app.seed &&
              uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@host.docker.internal:54322/postgres
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-user-sync}
@@ -33,20 +16,25 @@ services:
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set in .env}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set in .env}
       SPOTIFY_REFRESH_TOKEN: ${SPOTIFY_REFRESH_TOKEN:?set in .env}
+      SUPABASE_URL: http://host.docker.internal:54321
+      SUPABASE_ISSUER: http://127.0.0.1:54321/auth/v1
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:-}
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./backend/app:/app/app
       - ./backend/migrations:/app/migrations
       - ./backend/tests:/app/tests
-    depends_on:
-      db:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   web:
     build: ./frontend
     environment:
       API_URL: http://api:8000
+      NEXT_PUBLIC_SUPABASE_URL: http://host.docker.internal:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH}
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:
@@ -55,41 +43,21 @@ services:
       - api
 
   temporal:
-    image: temporalio/auto-setup:1.29.7
-    # The dev server can fatal on boot (ringpop tries to rejoin the previous
-    # container's stale IP) and would otherwise stay down until started by hand.
-    restart: unless-stopped
-    environment:
-      DB: postgres12
-      DB_PORT: "5432"
-      POSTGRES_SEEDS: db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PWD: ${POSTGRES_PASSWORD:-postgres}
-      DEFAULT_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
-      DEFAULT_NAMESPACE_RETENTION: 168h
+    image: temporalio/temporal:1.7.2
+    # Run as root so the dev server can create its SQLite file on the
+    # root-owned named volume (dev-only; production is Temporal Cloud).
+    user: root
+    command: server start-dev --ip 0.0.0.0 --db-filename /data/temporal.db
     ports:
       - "${TEMPORAL_PORT:-7233}:7233"
+      - "${TEMPORAL_UI_PORT:-8080}:8233"
+    volumes:
+      - temporal-data:/data
     healthcheck:
-      # Healthy only once auto-setup has registered the namespace, which on a
-      # fresh database happens minutes after gRPC starts answering. The server
-      # binds to the container IP, not loopback, so dial via the service name.
-      test: ["CMD-SHELL", "temporal operator namespace describe -n ${TEMPORAL_NAMESPACE:-default} --address temporal:7233 >/dev/null 2>&1"]
-      interval: 5s
-      timeout: 10s
-      retries: 60
-      start_period: 15s
-    depends_on:
-      db:
-        condition: service_healthy
-
-  temporal-ui:
-    image: temporalio/ui:2.51.1
-    environment:
-      TEMPORAL_ADDRESS: temporal:7233
-    ports:
-      - "${TEMPORAL_UI_PORT:-8080}:8080"
-    depends_on:
-      - temporal
+      test: ["CMD", "temporal", "operator", "cluster", "health"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
   worker:
     build: ./backend
@@ -97,7 +65,7 @@ services:
     command: >
       sh -c "uv run watchfiles --filter python 'python -m app.worker' app"
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@host.docker.internal:54322/postgres
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-user-sync}
@@ -109,11 +77,11 @@ services:
       SPOTIFY_REFRESH_TOKEN: ${SPOTIFY_REFRESH_TOKEN:?set in .env}
     volumes:
       - ./backend/app:/app/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      db:
-        condition: service_healthy
       temporal:
         condition: service_healthy
 
 volumes:
-  pgdata:
+  temporal-data:

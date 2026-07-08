@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from httpx import ASGITransport, AsyncClient, Response
 
+from app.auth import Claims, get_claims, get_current_user
 from app.bandsintown import BandsintownClient
 from app.db import get_session
 from app.lastfm import LastfmClient
@@ -12,8 +13,10 @@ from app.main import (
     get_lastfm_client,
     get_musicbrainz_client,
     get_spotify_client,
+    get_supabase_admin,
     get_temporal_client,
 )
+from app.models import User
 from app.musicbrainz import MusicBrainzClient
 from app.spotify import SpotifyClient
 
@@ -64,9 +67,18 @@ async def request(
     spotify: SpotifyClient | None = None,
     musicbrainz: MusicBrainzClient | None = None,
     temporal: object | None = None,
+    user: User | None = None,
+    claims: Claims | None = None,
+    supabase_admin: object | None = None,
     json: dict | None = None,
 ) -> Response:
     app.dependency_overrides[get_session] = lambda: session
+    if user is not None:
+        app.dependency_overrides[get_current_user] = lambda: user
+    if claims is not None:
+        app.dependency_overrides[get_claims] = lambda: claims
+    if supabase_admin is not None:
+        app.dependency_overrides[get_supabase_admin] = lambda: supabase_admin
     if lastfm is not None:
         app.dependency_overrides[get_lastfm_client] = lambda: lastfm
     if bandsintown is not None:

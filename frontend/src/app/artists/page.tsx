@@ -1,12 +1,12 @@
+import { apiFetch } from "@/lib/api";
+
 type Artist = {
   id: string;
   name: string;
 };
 
-const apiUrl = process.env.API_URL ?? "http://localhost:8000";
-
 export default async function ArtistsPage() {
-  const res = await fetch(`${apiUrl}/artists`, { cache: "no-store" });
+  const res = await apiFetch("/artists", { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Failed to load artists: ${res.status}`);
   }

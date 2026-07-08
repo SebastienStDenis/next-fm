@@ -22,6 +22,7 @@ from temporalio.service import RPCError, RPCStatusCode
 
 from app.accounts import linked_lastfm_account
 from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
+from app.auth import CurrentUserDep, get_claims
 from app.bandsintown import BandsintownApiError, BandsintownClient
 from app.config import get_settings
 from app.db import get_session
@@ -74,13 +75,13 @@ from app.schemas import (
     SyncStartResult,
     SyncStatusResult,
     UserArtistRead,
-    UserCreate,
     UserEventRead,
     UserRead,
     UserUpdate,
 )
 from app.spotify import SpotifyApiError, SpotifyAuthError, SpotifyClient
 from app.suggestion_sync import sync_user_suggestions
+from app.supabase_admin import SupabaseAdminClient, SupabaseAdminError
 from app.sync_workflow import SyncUserWorkflow, pending_steps, user_sync_workflow_id
 from app.temporal import connect_temporal
 
@@ -148,6 +149,21 @@ async def get_musicbrainz_client() -> AsyncIterator[MusicBrainzClient]:
 
 MusicBrainzClientDep = Annotated[MusicBrainzClient, Depends(get_musicbrainz_client)]
 
+
+async def get_supabase_admin() -> AsyncIterator[SupabaseAdminClient | None]:
+    settings = get_settings()
+    if not settings.supabase_secret_key:
+        yield None
+        return
+    client = SupabaseAdminClient(settings.supabase_url, settings.supabase_secret_key)
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+SupabaseAdminDep = Annotated[SupabaseAdminClient | None, Depends(get_supabase_admin)]
+
 _temporal_client: TemporalClient | None = None
 
 
@@ -212,6 +228,11 @@ async def musicbrainz_api_error(request: Request, exc: MusicBrainzApiError) -> J
     return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
+@app.exception_handler(SupabaseAdminError)
+async def supabase_admin_error(request: Request, exc: SupabaseAdminError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
 @app.get("/health")
 async def health(session: SessionDep) -> dict[str, str]:
     """Check API and database connectivity."""
@@ -219,57 +240,43 @@ async def health(session: SessionDep) -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/users", response_model=list[UserRead])
-async def list_users(session: SessionDep) -> list[User]:
-    """List all users."""
-    result = await session.execute(select(User).order_by(User.id))
-    return list(result.scalars())
-
-
-@app.post("/users", response_model=UserRead, status_code=201)
-async def create_user(payload: UserCreate, session: SessionDep) -> User:
-    """Create a user."""
-    user = User(name=payload.name)
-    session.add(user)
-    await session.commit()
+@app.get("/me", response_model=UserRead)
+async def get_me(user: CurrentUserDep) -> User:
+    """Return the authenticated user, provisioning the row on first login."""
     return user
 
 
-@app.get("/users/{user_id}", response_model=UserRead)
-async def get_user(user_id: uuid.UUID, session: SessionDep) -> User:
-    """Fetch a single user."""
-    return await _require_user(session, user_id)
-
-
-@app.patch("/users/{user_id}", response_model=UserRead)
-async def update_user(user_id: uuid.UUID, payload: UserUpdate, session: SessionDep) -> User:
+@app.patch("/me", response_model=UserRead)
+async def update_me(user: CurrentUserDep, payload: UserUpdate, session: SessionDep) -> User:
     """Update the user's settings."""
-    user = await _require_user(session, user_id)
     if payload.include_known_artists is not None:
         user.include_known_artists = payload.include_known_artists
     await session.commit()
     return user
 
 
-@app.delete("/users/{user_id}", status_code=204)
-async def delete_user(user_id: uuid.UUID, session: SessionDep) -> None:
-    """Delete a user and their Last.fm link."""
-    user = await _require_user(session, user_id)
+@app.delete("/me", status_code=204)
+async def delete_me(user: CurrentUserDep, session: SessionDep, admin: SupabaseAdminDep) -> None:
+    """Delete the account: the Supabase auth user first (so a re-login can't
+    re-provision it mid-delete), then the app row and everything cascading. The
+    admin client - and thus SUPABASE_SECRET_KEY - is only required when the
+    account is actually linked to a Supabase auth user."""
+    if user.supabase_user_id is not None:
+        if admin is None:
+            raise HTTPException(status_code=503, detail="SUPABASE_SECRET_KEY is not configured")
+        await admin.delete_user(user.supabase_user_id)
     await session.delete(user)
     await session.commit()
-
-
-async def _require_user(session: AsyncSession, user_id: uuid.UUID) -> User:
-    user = await session.get(User, user_id)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
 
 
 CITY_FUZZY_THRESHOLD = 0.45
 
 
-@app.get("/cities", response_model=list[CityRead])
+@app.get(
+    "/cities",
+    response_model=list[CityRead],
+    dependencies=[Depends(get_claims)],
+)
 async def search_cities(
     q: Annotated[str, BeforeValidator(str.strip), Query(min_length=2)],
     session: SessionDep,
@@ -303,20 +310,18 @@ async def search_cities(
     return list(result.scalars())
 
 
-@app.get("/users/{user_id}/city", response_model=CityRead)
-async def get_user_city(user_id: uuid.UUID, session: SessionDep) -> City:
+@app.get("/me/city", response_model=CityRead)
+async def get_user_city(user: CurrentUserDep, session: SessionDep) -> City:
     """Return the user's city; 404 if none is set."""
-    user = await _require_user(session, user_id)
     city = await session.get(City, user.city_id) if user.city_id is not None else None
     if city is None:
         raise HTTPException(status_code=404, detail="No city set")
     return city
 
 
-@app.put("/users/{user_id}/city", response_model=CityRead)
-async def set_user_city(user_id: uuid.UUID, payload: CitySet, session: SessionDep) -> City:
+@app.put("/me/city", response_model=CityRead)
+async def set_user_city(user: CurrentUserDep, payload: CitySet, session: SessionDep) -> City:
     """Set the user's city, replacing any existing one."""
-    user = await _require_user(session, user_id)
     city = await session.get(City, payload.geonameid)
     if city is None:
         raise HTTPException(status_code=404, detail="City not found")
@@ -325,10 +330,9 @@ async def set_user_city(user_id: uuid.UUID, payload: CitySet, session: SessionDe
     return city
 
 
-@app.delete("/users/{user_id}/city", status_code=204)
-async def clear_user_city(user_id: uuid.UUID, session: SessionDep) -> None:
+@app.delete("/me/city", status_code=204)
+async def clear_user_city(user: CurrentUserDep, session: SessionDep) -> None:
     """Remove the user's city; 404 if none is set."""
-    user = await _require_user(session, user_id)
     if user.city_id is None:
         raise HTTPException(status_code=404, detail="No city set")
     user.city_id = None
@@ -347,25 +351,23 @@ def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: da
     account.last_synced_at = synced_at
 
 
-@app.get("/users/{user_id}/lastfm", response_model=LastfmAccountRead)
-async def get_linked_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> LastfmAccount:
+@app.get("/me/lastfm", response_model=LastfmAccountRead)
+async def get_linked_lastfm_account(user: CurrentUserDep, session: SessionDep) -> LastfmAccount:
     """Return the user's linked Last.fm account; 404 if none is linked."""
-    await _require_user(session, user_id)
-    account = await linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
     return account
 
 
-@app.put("/users/{user_id}/lastfm", response_model=LastfmAccountRead)
+@app.put("/me/lastfm", response_model=LastfmAccountRead)
 async def link_lastfm_account(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     payload: LastfmLink,
     session: SessionDep,
     lastfm: LastfmClientDep,
 ) -> LastfmAccount:
     """Link the user to a Last.fm account by username, replacing any existing link."""
-    await _require_user(session, user_id)
     info = await lastfm.get_user_info(payload.username)
 
     result = await session.execute(
@@ -379,11 +381,11 @@ async def link_lastfm_account(
     await session.flush()
 
     result = await session.execute(
-        select(LastfmConnection).where(LastfmConnection.user_id == user_id)
+        select(LastfmConnection).where(LastfmConnection.user_id == user.id)
     )
     connection = result.scalar_one_or_none()
     if connection is None:
-        session.add(LastfmConnection(user_id=user_id, lastfm_account_id=account.id))
+        session.add(LastfmConnection(user_id=user.id, lastfm_account_id=account.id))
     else:
         connection.lastfm_account_id = account.id
 
@@ -391,15 +393,14 @@ async def link_lastfm_account(
     return account
 
 
-@app.post("/users/{user_id}/lastfm/refresh", response_model=LastfmAccountRead)
+@app.post("/me/lastfm/refresh", response_model=LastfmAccountRead)
 async def refresh_lastfm_account(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     session: SessionDep,
     lastfm: LastfmClientDep,
 ) -> LastfmAccount:
     """Re-fetch the linked Last.fm account's details and update them."""
-    await _require_user(session, user_id)
-    account = await linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
@@ -409,31 +410,29 @@ async def refresh_lastfm_account(
     return account
 
 
-@app.post("/users/{user_id}/lastfm/artists/sync", response_model=ArtistSyncResult)
+@app.post("/me/lastfm/artists/sync", response_model=ArtistSyncResult)
 async def sync_lastfm_artists_for_user(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     session: SessionDep,
     lastfm: LastfmClientDep,
 ) -> ArtistSyncResult:
     """Fetch all of the linked Last.fm account's taste signals and upsert artist interests."""
-    await _require_user(session, user_id)
-    account = await linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    results = await sync_lastfm_artists(session, lastfm, user_id, account.username, SYNC_KINDS)
+    results = await sync_lastfm_artists(session, lastfm, user.id, account.username, SYNC_KINDS)
     await session.commit()
     return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)
 
 
-@app.get("/users/{user_id}/artists", response_model=list[UserArtistRead])
-async def list_user_artists(user_id: uuid.UUID, session: SessionDep) -> list[UserArtistRead]:
+@app.get("/me/artists", response_model=list[UserArtistRead])
+async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[UserArtistRead]:
     """List the user's artists of interest, grouped by artist with all reasons."""
-    await _require_user(session, user_id)
     result = await session.execute(
         select(UserArtistInterest, Artist)
         .join(Artist, UserArtistInterest.artist_id == Artist.id)
-        .where(UserArtistInterest.user_id == user_id)
+        .where(UserArtistInterest.user_id == user.id)
         .order_by(func.lower(Artist.name), UserArtistInterest.kind)
     )
     grouped: dict[uuid.UUID, UserArtistRead] = {}
@@ -446,23 +445,26 @@ async def list_user_artists(user_id: uuid.UUID, session: SessionDep) -> list[Use
     return list(grouped.values())
 
 
-@app.get("/artists", response_model=list[ArtistRead])
+@app.get(
+    "/artists",
+    response_model=list[ArtistRead],
+    dependencies=[Depends(get_claims)],
+)
 async def list_artists(session: SessionDep) -> list[Artist]:
     """List all canonical artists."""
     result = await session.execute(select(Artist).order_by(func.lower(Artist.name)))
     return list(result.scalars())
 
 
-@app.post("/users/{user_id}/suggestions/sync", response_model=SuggestionSyncResult)
+@app.post("/me/suggestions/sync", response_model=SuggestionSyncResult)
 async def sync_suggestions_for_user(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     session: SessionDep,
     lastfm: LastfmClientDep,
 ) -> SuggestionSyncResult:
     """Recompute the user's suggested artists from their taste (similar-artist
     edges, scoring, thresholds) and reconcile their suggestion interests."""
-    user = await _require_user(session, user_id)
-    account = await linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
@@ -471,22 +473,21 @@ async def sync_suggestions_for_user(
     return result
 
 
-@app.post("/users/{user_id}/events/sync", response_model=EventSyncResult)
+@app.post("/me/events/sync", response_model=EventSyncResult)
 async def sync_events_for_user(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     session: SessionDep,
     bandsintown: BandsintownClientDep,
 ) -> EventSyncResult:
     """Refresh upcoming events for the user's interest artists (freshness-gated per artist)."""
-    await _require_user(session, user_id)
-    result = await sync_user_events(session, bandsintown, user_id)
+    result = await sync_user_events(session, bandsintown, user.id)
     await session.commit()
     return result
 
 
-@app.get("/users/{user_id}/events", response_model=list[UserEventRead])
+@app.get("/me/events", response_model=list[UserEventRead])
 async def list_user_events(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     session: SessionDep,
     radius_km: Annotated[float, Query(gt=0, le=500)] = EVENT_MATCH_RADIUS_KM,
     geonameid: int | None = None,
@@ -495,7 +496,6 @@ async def list_user_events(
     """List upcoming events by the user's servable artists near the given
     city (defaulting to the user's own). include_known_artists overrides the
     user's setting, letting the UI show everything."""
-    user = await _require_user(session, user_id)
     if geonameid is not None:
         city = await session.get(City, geonameid)
         if city is None:
@@ -514,7 +514,7 @@ async def list_user_events(
         .join(Artist, Artist.id == EventArtist.artist_id)
         .outerjoin(BandsintownEvent, BandsintownEvent.event_id == Event.id)
         .where(
-            artist_qualifies(user_id, EventArtist.artist_id, include_known_artists),
+            artist_qualifies(user.id, EventArtist.artist_id, include_known_artists),
             Event.starts_at > func.now(),
             distance <= radius_km,
         )
@@ -544,14 +544,13 @@ async def _require_playlist(
     return playlist
 
 
-@app.get("/users/{user_id}/playlists", response_model=list[PlaylistRead])
-async def list_user_playlists(user_id: uuid.UUID, session: SessionDep) -> list[PlaylistRead]:
+@app.get("/me/playlists", response_model=list[PlaylistRead])
+async def list_user_playlists(user: CurrentUserDep, session: SessionDep) -> list[PlaylistRead]:
     """List the user's playlists with tracks and provenance (artist + show per track)."""
-    await _require_user(session, user_id)
     result = await session.execute(
         select(Playlist, City)
         .outerjoin(City, City.geonameid == Playlist.city_id)
-        .where(Playlist.user_id == user_id)
+        .where(Playlist.user_id == user.id)
         .order_by(Playlist.id)
     )
     playlists = {
@@ -596,19 +595,18 @@ async def list_user_playlists(user_id: uuid.UUID, session: SessionDep) -> list[P
     return list(playlists.values())
 
 
-@app.post("/users/{user_id}/playlists", response_model=PlaylistRead, status_code=201)
+@app.post("/me/playlists", response_model=PlaylistRead, status_code=201)
 async def create_pinned_playlist(
-    user_id: uuid.UUID, payload: PlaylistCreate, session: SessionDep
+    user: CurrentUserDep, payload: PlaylistCreate, session: SessionDep
 ) -> PlaylistRead:
     """Pin a playlist to a city, independent of where the user lives."""
-    user = await _require_user(session, user_id)
     city = await session.get(City, payload.geonameid)
     if city is None:
         raise HTTPException(status_code=404, detail="City not found")
 
     result = await session.execute(
         select(Playlist).where(
-            Playlist.user_id == user_id,
+            Playlist.user_id == user.id,
             Playlist.kind == CITY_SHOWS_KIND,
             Playlist.city_id.is_not(None),
         )
@@ -622,7 +620,7 @@ async def create_pinned_playlist(
         )
 
     playlist = Playlist(
-        user_id=user_id,
+        user_id=user.id,
         kind=CITY_SHOWS_KIND,
         city_id=city.geonameid,
         name=playlist_title(user.name, city.name),
@@ -648,9 +646,9 @@ async def create_pinned_playlist(
     )
 
 
-@app.post("/users/{user_id}/playlists/sync", response_model=PlaylistSyncResult)
+@app.post("/me/playlists/sync", response_model=PlaylistSyncResult)
 async def sync_playlists_for_user(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     session: SessionDep,
     spotify: SpotifyClientDep,
     lastfm: LastfmClientDep,
@@ -658,22 +656,20 @@ async def sync_playlists_for_user(
 ) -> PlaylistSyncResult:
     """Reconcile all of the user's playlists on Spotify against their current
     matched shows, refreshing artist resolutions and top-track caches as needed."""
-    user = await _require_user(session, user_id)
     result = await sync_user_playlists(session, spotify, lastfm, musicbrainz, user)
     await session.commit()
     return result
 
 
-@app.delete("/users/{user_id}/playlists/{playlist_id}", status_code=204)
+@app.delete("/me/playlists/{playlist_id}", status_code=204)
 async def delete_playlist(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     playlist_id: uuid.UUID,
     session: SessionDep,
     spotify: SpotifyClientDep,
 ) -> None:
     """Unfollow the playlist on Spotify (its only notion of delete), then drop it locally."""
-    await _require_user(session, user_id)
-    playlist = await _require_playlist(session, user_id, playlist_id)
+    playlist = await _require_playlist(session, user.id, playlist_id)
     if playlist.spotify_playlist_id is not None:
         try:
             await spotify.unfollow_playlist(playlist.spotify_playlist_id)
@@ -684,12 +680,11 @@ async def delete_playlist(
     await session.commit()
 
 
-@app.delete("/users/{user_id}/lastfm", status_code=204)
-async def unlink_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> None:
+@app.delete("/me/lastfm", status_code=204)
+async def unlink_lastfm_account(user: CurrentUserDep, session: SessionDep) -> None:
     """Remove the user's Last.fm link; 404 if none is linked."""
-    await _require_user(session, user_id)
     result = await session.execute(
-        select(LastfmConnection).where(LastfmConnection.user_id == user_id)
+        select(LastfmConnection).where(LastfmConnection.user_id == user.id)
     )
     connection = result.scalar_one_or_none()
     if connection is None:
@@ -698,25 +693,24 @@ async def unlink_lastfm_account(user_id: uuid.UUID, session: SessionDep) -> None
     await session.commit()
 
 
-@app.post("/users/{user_id}/sync", response_model=SyncStartResult, status_code=202)
+@app.post("/me/sync", response_model=SyncStartResult, status_code=202)
 async def start_user_sync(
-    user_id: uuid.UUID,
+    user: CurrentUserDep,
     session: SessionDep,
     temporal: TemporalClientDep,
 ) -> SyncStartResult:
     """Run the full sync pipeline (artists, suggestions, events, playlists)
     as a durable workflow; attaches to the running one if a sync is already
     in flight."""
-    await _require_user(session, user_id)
-    account = await linked_lastfm_account(session, user_id)
+    account = await linked_lastfm_account(session, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
     try:
         handle = await temporal.start_workflow(
             SyncUserWorkflow.run,
-            str(user_id),
-            id=user_sync_workflow_id(user_id),
+            str(user.id),
+            id=user_sync_workflow_id(user.id),
             task_queue=get_settings().temporal_task_queue,
             id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
         )
@@ -734,16 +728,14 @@ _SYNC_STATUS_BY_EXECUTION: dict[
 }
 
 
-@app.get("/users/{user_id}/sync", response_model=SyncStatusResult)
+@app.get("/me/sync", response_model=SyncStatusResult)
 async def get_user_sync_status(
-    user_id: uuid.UUID,
-    session: SessionDep,
+    user: CurrentUserDep,
     temporal: TemporalClientDep,
 ) -> SyncStatusResult:
     """Report the user's current (or most recent retained) sync run with
     per-step progress; status "none" if no run exists."""
-    await _require_user(session, user_id)
-    handle = temporal.get_workflow_handle(user_sync_workflow_id(user_id), result_type=SyncRunResult)
+    handle = temporal.get_workflow_handle(user_sync_workflow_id(user.id), result_type=SyncRunResult)
     try:
         description = await handle.describe(rpc_timeout=timedelta(seconds=5))
     except RPCError as exc:

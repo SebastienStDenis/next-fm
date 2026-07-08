@@ -29,7 +29,7 @@ from app.sync_workflow import SyncUserWorkflow, pending_steps, user_sync_workflo
 from tests.helpers import make_session, request, result_returning
 
 USER_ID = uuid.uuid7()
-SYNC_URL = f"/users/{USER_ID}/sync"
+SYNC_URL = "/me/sync"
 WORKFLOW_ID = f"user-sync-{USER_ID}"
 
 SYNCED_AT = datetime(2026, 7, 7, 12, 0, tzinfo=UTC)
@@ -120,27 +120,25 @@ def make_handle(
     return handle
 
 
-# --- POST /users/{id}/sync ---
+# --- POST /me/sync ---
 
 
-async def test_start_sync_unknown_user() -> None:
+async def test_start_sync_requires_authentication() -> None:
     session = make_session()
-    session.get.return_value = None
     temporal = make_temporal()
 
     response = await request("POST", SYNC_URL, session, temporal=temporal)
 
-    assert response.status_code == 404
+    assert response.status_code == 401
     temporal.start_workflow.assert_not_awaited()
 
 
 async def test_start_sync_when_not_linked() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     session.execute.return_value = result_returning(None)
     temporal = make_temporal()
 
-    response = await request("POST", SYNC_URL, session, temporal=temporal)
+    response = await request("POST", SYNC_URL, session, temporal=temporal, user=make_user())
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"
@@ -149,11 +147,10 @@ async def test_start_sync_when_not_linked() -> None:
 
 async def test_start_sync_starts_workflow() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     session.execute.return_value = result_returning(make_account())
     temporal = make_temporal()
 
-    response = await request("POST", SYNC_URL, session, temporal=temporal)
+    response = await request("POST", SYNC_URL, session, temporal=temporal, user=make_user())
 
     assert response.status_code == 202
     assert response.json() == {"workflow_id": WORKFLOW_ID, "status": "running"}
@@ -165,29 +162,27 @@ async def test_start_sync_starts_workflow() -> None:
 
 async def test_start_sync_maps_temporal_errors_to_502() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     session.execute.return_value = result_returning(make_account())
     temporal = make_temporal()
     temporal.start_workflow = AsyncMock(
         side_effect=RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b"")
     )
 
-    response = await request("POST", SYNC_URL, session, temporal=temporal)
+    response = await request("POST", SYNC_URL, session, temporal=temporal, user=make_user())
 
     assert response.status_code == 502
 
 
-# --- GET /users/{id}/sync ---
+# --- GET /me/sync ---
 
 
 async def test_sync_status_without_any_run() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     handle = MagicMock()
     handle.describe = AsyncMock(side_effect=RPCError("not found", RPCStatusCode.NOT_FOUND, b""))
     temporal = make_temporal(handle)
 
-    response = await request("GET", SYNC_URL, session, temporal=temporal)
+    response = await request("GET", SYNC_URL, session, temporal=temporal, user=make_user())
 
     assert response.status_code == 200
     body = response.json()
@@ -204,7 +199,6 @@ async def test_sync_status_without_any_run() -> None:
 
 async def test_sync_status_running_reports_step_progress() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     steps = pending_steps()
     steps[0].status = "completed"
     steps[0].summary = "Synced 4 artists · 3 added, 1 updated, 0 removed"
@@ -212,7 +206,7 @@ async def test_sync_status_running_reports_step_progress() -> None:
     handle = make_handle(WorkflowExecutionStatus.RUNNING, steps)
     temporal = make_temporal(handle)
 
-    response = await request("GET", SYNC_URL, session, temporal=temporal)
+    response = await request("GET", SYNC_URL, session, temporal=temporal, user=make_user())
 
     assert response.status_code == 200
     body = response.json()
@@ -226,7 +220,6 @@ async def test_sync_status_running_reports_step_progress() -> None:
 
 async def test_sync_status_maps_terminal_statuses() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     for execution_status, expected in [
         (WorkflowExecutionStatus.COMPLETED, "completed"),
         (WorkflowExecutionStatus.FAILED, "failed"),
@@ -236,7 +229,7 @@ async def test_sync_status_maps_terminal_statuses() -> None:
         handle = make_handle(execution_status, finished_at=SYNCED_AT)
         temporal = make_temporal(handle)
 
-        response = await request("GET", SYNC_URL, session, temporal=temporal)
+        response = await request("GET", SYNC_URL, session, temporal=temporal, user=make_user())
 
         assert response.status_code == 200
         assert response.json()["status"] == expected
@@ -245,14 +238,13 @@ async def test_sync_status_maps_terminal_statuses() -> None:
 
 async def test_sync_status_completed_reads_steps_from_result() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     steps = pending_steps()
     for step in steps:
         step.status = "completed"
     handle = make_handle(WorkflowExecutionStatus.COMPLETED, steps, finished_at=SYNCED_AT)
     temporal = make_temporal(handle)
 
-    response = await request("GET", SYNC_URL, session, temporal=temporal)
+    response = await request("GET", SYNC_URL, session, temporal=temporal, user=make_user())
 
     assert response.status_code == 200
     body = response.json()
@@ -263,12 +255,11 @@ async def test_sync_status_completed_reads_steps_from_result() -> None:
 
 async def test_sync_status_degrades_when_query_fails() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     handle = make_handle(WorkflowExecutionStatus.RUNNING)
     handle.query = AsyncMock(side_effect=RPCError("gone", RPCStatusCode.NOT_FOUND, b""))
     temporal = make_temporal(handle)
 
-    response = await request("GET", SYNC_URL, session, temporal=temporal)
+    response = await request("GET", SYNC_URL, session, temporal=temporal, user=make_user())
 
     assert response.status_code == 200
     body = response.json()
@@ -295,7 +286,6 @@ async def test_sync_artists_activity_commits_and_wraps_results(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = make_session()
-    session.get.return_value = make_user()
     session.execute.return_value = result_returning(make_account())
     patch_session_factory(monkeypatch, session)
     sync = AsyncMock(return_value=ARTIST_RESULT.results)
@@ -312,7 +302,6 @@ async def test_sync_artists_activity_without_link_is_non_retryable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = make_session()
-    session.get.return_value = make_user()
     session.execute.return_value = result_returning(None)
     patch_session_factory(monkeypatch, session)
 

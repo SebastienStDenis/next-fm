@@ -30,7 +30,7 @@ from tests.helpers import (
 
 USER_ID = uuid.uuid7()
 PLAYLIST_ID = uuid.uuid7()
-PLAYLISTS_URL = f"/users/{USER_ID}/playlists"
+PLAYLISTS_URL = "/me/playlists"
 SYNC_URL = f"{PLAYLISTS_URL}/sync"
 
 
@@ -103,7 +103,6 @@ async def test_list_playlists_includes_city_and_track_provenance() -> None:
     )
     orphaned = PlaylistTrack(playlist_id=default.id, position=0, spotify_track_id="t2")
     session = make_session()
-    session.get.return_value = make_user()
     session.execute.side_effect = [
         result_with_rows([(pinned, city), (default, None)]),
         result_with_rows(
@@ -114,7 +113,7 @@ async def test_list_playlists_includes_city_and_track_provenance() -> None:
         ),
     ]
 
-    response = await request("GET", PLAYLISTS_URL, session)
+    response = await request("GET", PLAYLISTS_URL, session, user=make_user())
 
     assert response.status_code == 200
     body = response.json()
@@ -157,34 +156,33 @@ async def test_list_playlists_includes_city_and_track_provenance() -> None:
 
 async def test_list_playlists_empty() -> None:
     session = make_session()
-    session.get.return_value = make_user()
     session.execute.side_effect = [result_with_rows([])]
 
-    response = await request("GET", PLAYLISTS_URL, session)
+    response = await request("GET", PLAYLISTS_URL, session, user=make_user())
 
     assert response.status_code == 200
     assert response.json() == []
     assert session.execute.await_count == 1
 
 
-async def test_list_playlists_unknown_user() -> None:
+async def test_list_playlists_requires_authentication() -> None:
     session = make_session()
-    session.get.return_value = None
 
     response = await request("GET", PLAYLISTS_URL, session)
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.status_code == 401
 
 
 async def test_create_pinned_playlist() -> None:
     city = make_city()
     session = make_session()
-    session.get.side_effect = [make_user(), city]
+    session.get.return_value = city
     session.execute.side_effect = [result_with_scalars([])]
     commit_assigning_ids(session)
 
-    response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 6077243})
+    response = await request(
+        "POST", PLAYLISTS_URL, session, user=make_user(), json={"geonameid": 6077243}
+    )
 
     assert response.status_code == 201
     body = response.json()
@@ -202,9 +200,11 @@ async def test_create_pinned_playlist() -> None:
 
 async def test_create_pinned_playlist_unknown_city() -> None:
     session = make_session()
-    session.get.side_effect = [make_user(), None]
+    session.get.return_value = None
 
-    response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 999})
+    response = await request(
+        "POST", PLAYLISTS_URL, session, user=make_user(), json={"geonameid": 999}
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "City not found"
@@ -213,11 +213,13 @@ async def test_create_pinned_playlist_unknown_city() -> None:
 
 async def test_create_pinned_playlist_lost_race_is_conflict() -> None:
     session = make_session()
-    session.get.side_effect = [make_user(), make_city()]
+    session.get.return_value = make_city()
     session.execute.side_effect = [result_with_scalars([])]
     session.commit.side_effect = IntegrityError("stmt", {}, Exception("duplicate key"))
 
-    response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 6077243})
+    response = await request(
+        "POST", PLAYLISTS_URL, session, user=make_user(), json={"geonameid": 6077243}
+    )
 
     assert response.status_code == 409
     assert response.json()["detail"] == "A playlist for this city already exists"
@@ -225,10 +227,12 @@ async def test_create_pinned_playlist_lost_race_is_conflict() -> None:
 
 async def test_create_pinned_playlist_duplicate_city() -> None:
     session = make_session()
-    session.get.side_effect = [make_user(), make_city()]
+    session.get.return_value = make_city()
     session.execute.side_effect = [result_with_scalars([make_playlist()])]
 
-    response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 6077243})
+    response = await request(
+        "POST", PLAYLISTS_URL, session, user=make_user(), json={"geonameid": 6077243}
+    )
 
     assert response.status_code == 409
     assert response.json()["detail"] == "A playlist for this city already exists"
@@ -238,10 +242,12 @@ async def test_create_pinned_playlist_duplicate_city() -> None:
 async def test_create_pinned_playlist_at_cap() -> None:
     pinned = [make_playlist(id=uuid.uuid7(), city_id=geonameid) for geonameid in (1000, 2000)]
     session = make_session()
-    session.get.side_effect = [make_user(), make_city()]
+    session.get.return_value = make_city()
     session.execute.side_effect = [result_with_scalars(pinned)]
 
-    response = await request("POST", PLAYLISTS_URL, session, json={"geonameid": 6077243})
+    response = await request(
+        "POST", PLAYLISTS_URL, session, user=make_user(), json={"geonameid": 6077243}
+    )
 
     assert response.status_code == 409
     assert response.json()["detail"] == "At most 2 pinned playlists per user"
@@ -251,10 +257,12 @@ async def test_create_pinned_playlist_at_cap() -> None:
 async def test_delete_playlist_unfollows_on_spotify() -> None:
     playlist = make_playlist()
     session = make_session()
-    session.get.side_effect = [make_user(), playlist]
+    session.get.return_value = playlist
     spotify = AsyncMock(spec=SpotifyClient)
 
-    response = await request("DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify)
+    response = await request(
+        "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
+    )
 
     assert response.status_code == 204
     spotify.unfollow_playlist.assert_awaited_once_with("pl1")
@@ -265,10 +273,12 @@ async def test_delete_playlist_unfollows_on_spotify() -> None:
 async def test_delete_playlist_skips_unfollow_without_spotify_id() -> None:
     playlist = make_playlist(spotify_playlist_id=None)
     session = make_session()
-    session.get.side_effect = [make_user(), playlist]
+    session.get.return_value = playlist
     spotify = AsyncMock(spec=SpotifyClient)
 
-    response = await request("DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify)
+    response = await request(
+        "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
+    )
 
     assert response.status_code == 204
     spotify.unfollow_playlist.assert_not_awaited()
@@ -278,11 +288,13 @@ async def test_delete_playlist_skips_unfollow_without_spotify_id() -> None:
 async def test_delete_playlist_tolerates_spotify_not_found() -> None:
     playlist = make_playlist()
     session = make_session()
-    session.get.side_effect = [make_user(), playlist]
+    session.get.return_value = playlist
     spotify = AsyncMock(spec=SpotifyClient)
     spotify.unfollow_playlist.side_effect = SpotifyApiError(404, "not found")
 
-    response = await request("DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify)
+    response = await request(
+        "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
+    )
 
     assert response.status_code == 204
     session.delete.assert_awaited_once_with(playlist)
@@ -292,11 +304,13 @@ async def test_delete_playlist_tolerates_spotify_not_found() -> None:
 async def test_delete_playlist_propagates_spotify_failure() -> None:
     playlist = make_playlist()
     session = make_session()
-    session.get.side_effect = [make_user(), playlist]
+    session.get.return_value = playlist
     spotify = AsyncMock(spec=SpotifyClient)
     spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
 
-    response = await request("DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify)
+    response = await request(
+        "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
+    )
 
     assert response.status_code == 502
     assert response.json()["detail"] == "Spotify error 500: boom"
@@ -307,10 +321,12 @@ async def test_delete_playlist_propagates_spotify_failure() -> None:
 async def test_delete_playlist_of_another_user() -> None:
     playlist = make_playlist(user_id=uuid.uuid7())
     session = make_session()
-    session.get.side_effect = [make_user(), playlist]
+    session.get.return_value = playlist
     spotify = AsyncMock(spec=SpotifyClient)
 
-    response = await request("DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify)
+    response = await request(
+        "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Playlist not found"
@@ -335,7 +351,7 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
         city_id=None, name="Alice's shows in Montréal", spotify_playlist_id=None
     )
     session = make_session()
-    session.get.side_effect = [make_user(), city, city]
+    session.get.side_effect = [city, city]
     session.execute.side_effect = [
         result_with_scalars([]),
         MagicMock(),
@@ -359,6 +375,7 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
         lastfm=AsyncMock(spec=LastfmClient),
         spotify=spotify,
         musicbrainz=AsyncMock(spec=MusicBrainzClient),
+        user=make_user(),
     )
 
     assert response.status_code == 200
@@ -393,7 +410,7 @@ async def test_sync_requires_spotify_configuration(monkeypatch: pytest.MonkeyPat
         lambda: Settings(spotify_client_id="", spotify_client_secret="", spotify_refresh_token=""),
     )
 
-    response = await request("POST", SYNC_URL, session)
+    response = await request("POST", SYNC_URL, session, user=make_user())
 
     assert response.status_code == 503
     assert "SPOTIFY_REFRESH_TOKEN" in response.json()["detail"]

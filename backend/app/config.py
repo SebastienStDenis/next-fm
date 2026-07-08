@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/app"
+    database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres"
     database_disable_prepared_statements: bool = False
     lastfm_api_key: str = ""
     bandsintown_api_key: str = ""
@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     temporal_task_queue: str = "user-sync"
     temporal_api_key: str = ""
     cors_origins: str = "http://localhost:3000"
+    supabase_url: str = "http://127.0.0.1:54321"
+    # Defaults to {supabase_url}/auth/v1; set only when the URL the backend
+    # dials differs from the issuer in the tokens (compose containers).
+    supabase_issuer: str = ""
+    # Empty disables HS256 verification entirely; set it locally (CLI default
+    # secret) and in production only if the project still signs with the
+    # legacy JWT secret rather than asymmetric signing keys.
+    supabase_jwt_secret: str = ""
+    supabase_secret_key: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

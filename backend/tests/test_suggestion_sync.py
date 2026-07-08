@@ -1,7 +1,7 @@
 import math
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -19,6 +19,7 @@ from app.models import (
     LastfmAccount,
     LastfmArtist,
     LastfmSimilarArtist,
+    User,
     UserArtistInterest,
 )
 from app.suggestion_sync import (
@@ -42,7 +43,11 @@ from tests.helpers import (
 )
 
 USER_ID = uuid.uuid7()
-SYNC_URL = f"/users/{USER_ID}/suggestions/sync"
+SYNC_URL = "/me/suggestions/sync"
+
+
+def user() -> User:
+    return User(id=USER_ID, name="Alice", include_known_artists=False)
 
 
 def interest(kind: str, weight: float | None, artist_id: uuid.UUID | None = None):
@@ -317,7 +322,6 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
     seed = make_seed("Autechre", synced_at=datetime.now(UTC))
     seed_interest = interest(TOP_ARTIST_KIND, 100.0, artist_id=seed.artist_id)
     session = make_session()
-    session.get.return_value = MagicMock(id=USER_ID, city_id=None, include_known_artists=False)
     session.execute.side_effect = [
         result_returning(make_account()),
         result_with_scalars([seed_interest]),  # interests
@@ -334,7 +338,7 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
         LastfmTopArtist(name="Autechre", url=None, mbid=None, playcount=100, rank=1)
     ]
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -360,7 +364,15 @@ async def test_sync_when_not_linked() -> None:
     session = make_session()
     session.execute.return_value = result_returning(None)
 
-    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient))
+    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient), user=user())
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"
+
+
+async def test_sync_requires_authentication() -> None:
+    session = make_session()
+
+    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient))
+
+    assert response.status_code == 401

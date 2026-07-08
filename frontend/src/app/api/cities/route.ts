@@ -1,4 +1,4 @@
-const apiUrl = process.env.API_URL ?? "http://localhost:8000";
+import { apiFetch } from "@/lib/api";
 
 export async function GET(request: Request) {
   const q = new URL(request.url).searchParams.get("q")?.trim() ?? "";
@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     return Response.json([]);
   }
   try {
-    const res = await fetch(`${apiUrl}/cities?q=${encodeURIComponent(q)}`, {
+    const res = await apiFetch(`/cities?q=${encodeURIComponent(q)}`, {
       cache: "no-store",
     });
     if (!res.ok) {

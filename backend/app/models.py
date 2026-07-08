@@ -54,6 +54,7 @@ class User(Base):
         primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
     )
     name: Mapped[str]
+    supabase_user_id: Mapped[uuid.UUID | None] = mapped_column(unique=True, index=True)
     city_id: Mapped[int | None] = mapped_column(
         ForeignKey("cities.geonameid", ondelete="SET NULL"), index=True
     )

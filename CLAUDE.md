@@ -6,17 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Live-music discovery delivered as Spotify playlists: match a user's taste (Last.fm) against upcoming concerts near them (Bandsintown), and maintain one playlist per user via an app-owned Spotify bot account. See README.md for the full product description.
 
-Monorepo: `backend/` (FastAPI, Python 3.14, managed with uv), `frontend/` (Next.js App Router, TypeScript, Tailwind v4), PostgreSQL 18 via Docker Compose.
+Monorepo: `backend/` (FastAPI, Python 3.14, managed with uv), `frontend/` (Next.js App Router, TypeScript, Tailwind v4). App data and auth run on the Supabase CLI stack (`supabase start`); Docker Compose runs the app services and Temporal.
 
 ## Commands
 
 ### Full stack
 
 ```sh
-docker compose up --build       # Postgres :5432, API :8000, web :3000, Temporal :7233 (UI :8080), worker
-docker compose up -d db         # only Postgres (for running apps outside Docker)
-docker compose exec db psql -U postgres app
+supabase start                  # app Postgres :54322, Auth/API :54321, Studio :54323
+docker compose up --build       # API :8000, web :3000, Temporal :7233 (UI :8080), worker
+psql postgresql://postgres:postgres@127.0.0.1:54322/postgres
 ```
+
+`supabase start` must be running before `docker compose up` (the app data and
+auth engine live in it). Tear down with `docker compose down` and, when done,
+`supabase stop`. Running the apps outside Docker needs `supabase start` plus the
+`temporal` compose service.
 
 Source directories are bind-mounted, so code edits hot-reload. Dependency and config-file changes (lockfiles, `pyproject.toml`, `next.config.ts`, ...) are baked into the images: rebuild with `docker compose up -d --build`. The api container applies migrations and seeds on startup.
 

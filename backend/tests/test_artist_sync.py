@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 from app.artist_sync import loved_track_signals, top_artist_signals
+from app.auth import Claims
 from app.lastfm import (
     LastfmApiError,
     LastfmClient,
@@ -12,7 +13,7 @@ from app.lastfm import (
     LastfmTopArtist,
     LastfmUserNotFoundError,
 )
-from app.models import Artist, LastfmAccount, LastfmArtist, UserArtistInterest
+from app.models import Artist, LastfmAccount, LastfmArtist, User, UserArtistInterest
 from tests.helpers import (
     added_objects,
     make_session,
@@ -23,7 +24,11 @@ from tests.helpers import (
 )
 
 USER_ID = uuid.uuid7()
-SYNC_URL = f"/users/{USER_ID}/lastfm/artists/sync"
+SYNC_URL = "/me/lastfm/artists/sync"
+
+
+def user() -> User:
+    return User(id=USER_ID, name="Alice", include_known_artists=False)
 
 
 def top_artist(name: str, rank: int | None = None, playcount: int | None = None) -> LastfmTopArtist:
@@ -115,7 +120,7 @@ async def test_sync_creates_artists_and_interests() -> None:
         tracks=[loved_track("Windowlicker", "Aphex Twin")], total_pages=1
     )
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -180,7 +185,7 @@ async def test_resync_updates_and_prunes_interests() -> None:
     lastfm.get_top_artists.return_value = [top_artist("Autechre", rank=1, playcount=321)]
     lastfm.get_loved_tracks.return_value = LastfmLovedTracksPage(tracks=[], total_pages=1)
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 200
     assert response.json()["results"][0] == {
@@ -220,7 +225,7 @@ async def test_sync_fetches_all_loved_track_pages() -> None:
         ),
     ]
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 200
     assert response.json()["results"][1] == {
@@ -235,21 +240,19 @@ async def test_sync_fetches_all_loved_track_pages() -> None:
     assert [interest.evidence for interest in interests] == [{"track_count": 2}, {"track_count": 1}]
 
 
-async def test_sync_unknown_user() -> None:
+async def test_sync_requires_authentication() -> None:
     session = make_session()
-    session.get.return_value = None
 
     response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient))
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.status_code == 401
 
 
 async def test_sync_when_not_linked() -> None:
     session = make_session()
     session.execute.return_value = result_returning(None)
 
-    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient))
+    response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient), user=user())
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"
@@ -261,7 +264,7 @@ async def test_sync_unknown_lastfm_user() -> None:
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.side_effect = LastfmUserNotFoundError("rj")
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Last.fm user not found"
@@ -292,7 +295,7 @@ async def test_sync_skips_pruning_when_loved_tracks_are_truncated() -> None:
         for page in range(1, 11)
     ]
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 200
     assert response.json()["results"][1]["interests_removed"] == 0
@@ -306,7 +309,7 @@ async def test_sync_maps_unknown_lastfm_error_to_502() -> None:
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.side_effect = LastfmApiError(29, "Rate limit exceeded")
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 502
     assert response.json()["detail"] == "Last.fm error 29: Rate limit exceeded"
@@ -319,7 +322,7 @@ async def test_sync_private_lastfm_data() -> None:
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.side_effect = LastfmPrivateDataError("rj")
 
-    response = await request("POST", SYNC_URL, session, lastfm)
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 403
     assert response.json()["detail"] == "This Last.fm account's listening data is private"
@@ -363,7 +366,7 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
         ]
     )
 
-    response = await request("GET", f"/users/{USER_ID}/artists", session)
+    response = await request("GET", "/me/artists", session, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -379,14 +382,12 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
     assert len(body[1]["interests"]) == 1
 
 
-async def test_list_user_artists_unknown_user() -> None:
+async def test_list_user_artists_requires_authentication() -> None:
     session = make_session()
-    session.get.return_value = None
 
-    response = await request("GET", f"/users/{USER_ID}/artists", session)
+    response = await request("GET", "/me/artists", session)
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.status_code == 401
 
 
 async def test_list_artists() -> None:
@@ -397,7 +398,15 @@ async def test_list_artists() -> None:
     session = make_session()
     session.execute.return_value = result_with_scalars(artists)
 
-    response = await request("GET", "/artists", session)
+    response = await request("GET", "/artists", session, claims=Claims(sub=uuid.uuid4()))
 
     assert response.status_code == 200
     assert response.json() == [{"id": str(artist.id), "name": artist.name} for artist in artists]
+
+
+async def test_list_artists_requires_authentication() -> None:
+    session = make_session()
+
+    response = await request("GET", "/artists", session)
+
+    assert response.status_code == 401

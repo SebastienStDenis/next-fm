@@ -8,7 +8,7 @@ from app.bandsintown import (
     BandsintownClient,
     BandsintownEventData,
 )
-from app.models import Artist, BandsintownArtist, BandsintownEvent, City, Event
+from app.models import Artist, BandsintownArtist, BandsintownEvent, City, Event, User
 from tests.helpers import (
     added_objects,
     make_session,
@@ -19,8 +19,12 @@ from tests.helpers import (
 )
 
 USER_ID = uuid.uuid7()
-SYNC_URL = f"/users/{USER_ID}/events/sync"
-EVENTS_URL = f"/users/{USER_ID}/events"
+SYNC_URL = "/me/events/sync"
+EVENTS_URL = "/me/events"
+
+
+def user(city_id: int | None = None) -> User:
+    return User(id=USER_ID, name="Alice", city_id=city_id, include_known_artists=False)
 
 
 def event_data(external_id: str, starts_at: datetime | None = None) -> BandsintownEventData:
@@ -73,7 +77,7 @@ async def test_sync_creates_events_for_new_artist() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101"), event_data("102")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown)
+    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -107,7 +111,7 @@ async def test_sync_skips_recently_synced_artists() -> None:
     ]
     bandsintown = AsyncMock(spec=BandsintownClient)
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown)
+    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -138,7 +142,7 @@ async def test_sync_updates_existing_and_removes_vanished_events() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown)
+    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -168,7 +172,7 @@ async def test_sync_dedupes_repeated_external_ids_in_one_feed() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101"), event_data("101")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown)
+    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
 
     assert response.status_code == 200
     assert response.json()["events_created"] == 1
@@ -193,7 +197,7 @@ async def test_sync_adopts_event_created_by_concurrent_sync() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.return_value = [event_data("101")]
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown)
+    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -216,7 +220,7 @@ async def test_sync_treats_unknown_artist_as_no_events() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.side_effect = BandsintownArtistNotFoundError("nope")
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown)
+    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -238,7 +242,7 @@ async def test_sync_counts_api_errors_and_leaves_artist_retryable() -> None:
     bandsintown = AsyncMock(spec=BandsintownClient)
     bandsintown.get_artist_events.side_effect = BandsintownApiError(200, "{warn=Not found}")
 
-    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown)
+    response = await request("POST", SYNC_URL, session, bandsintown=bandsintown, user=user())
 
     assert response.status_code == 200
     body = response.json()
@@ -250,16 +254,14 @@ async def test_sync_counts_api_errors_and_leaves_artist_retryable() -> None:
     session.commit.assert_awaited_once()
 
 
-async def test_sync_unknown_user() -> None:
+async def test_sync_requires_authentication() -> None:
     session = make_session()
-    session.get.return_value = None
 
     response = await request(
         "POST", SYNC_URL, session, bandsintown=AsyncMock(spec=BandsintownClient)
     )
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
+    assert response.status_code == 401
 
 
 def make_matched_event(starts_at: datetime) -> Event:
@@ -287,13 +289,12 @@ async def test_list_events_groups_artists_per_event() -> None:
         longitude=-73.58781,
         population=1600000,
     )
-    user = MagicMock(city_id=montreal.geonameid)
     event1 = make_matched_event(datetime(2026, 8, 1, 20, 0, tzinfo=UTC))
     event2 = make_matched_event(datetime(2026, 8, 5, 20, 0, tzinfo=UTC))
     autechre = Artist(id=uuid.uuid7(), name="Autechre")
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
     session = make_session()
-    session.get.side_effect = [user, montreal]
+    session.get.return_value = montreal
     session.execute.return_value = result_with_rows(
         [
             (event1, autechre, "https://bandsintown.com/e/1", 2.9412),
@@ -302,7 +303,7 @@ async def test_list_events_groups_artists_per_event() -> None:
         ]
     )
 
-    response = await request("GET", EVENTS_URL, session)
+    response = await request("GET", EVENTS_URL, session, user=user(montreal.geonameid))
 
     assert response.status_code == 200
     body = response.json()
@@ -316,12 +317,19 @@ async def test_list_events_groups_artists_per_event() -> None:
 
 async def test_list_events_requires_a_city() -> None:
     session = make_session()
-    session.get.return_value = MagicMock(city_id=None)
 
-    response = await request("GET", EVENTS_URL, session)
+    response = await request("GET", EVENTS_URL, session, user=user(None))
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Set a city to match events"
+
+
+async def test_list_events_requires_authentication() -> None:
+    session = make_session()
+
+    response = await request("GET", EVENTS_URL, session)
+
+    assert response.status_code == 401
 
 
 async def test_list_events_accepts_an_explicit_city() -> None:
@@ -338,12 +346,14 @@ async def test_list_events_accepts_an_explicit_city() -> None:
     event = make_matched_event(datetime(2026, 8, 1, 20, 0, tzinfo=UTC))
     artist = Artist(id=uuid.uuid7(), name="Autechre")
     session = make_session()
-    session.get.side_effect = [MagicMock(city_id=None), seattle]
+    session.get.return_value = seattle
     session.execute.return_value = result_with_rows(
         [(event, artist, "https://bandsintown.com/e/1", 12.0)]
     )
 
-    response = await request("GET", f"{EVENTS_URL}?geonameid={seattle.geonameid}", session)
+    response = await request(
+        "GET", f"{EVENTS_URL}?geonameid={seattle.geonameid}", session, user=user(None)
+    )
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -352,19 +362,9 @@ async def test_list_events_accepts_an_explicit_city() -> None:
 
 async def test_list_events_unknown_explicit_city() -> None:
     session = make_session()
-    session.get.side_effect = [MagicMock(city_id=None), None]
+    session.get.return_value = None
 
-    response = await request("GET", f"{EVENTS_URL}?geonameid=999", session)
+    response = await request("GET", f"{EVENTS_URL}?geonameid=999", session, user=user(None))
 
     assert response.status_code == 404
     assert response.json()["detail"] == "City not found"
-
-
-async def test_list_events_unknown_user() -> None:
-    session = make_session()
-    session.get.return_value = None
-
-    response = await request("GET", EVENTS_URL, session)
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "User not found"
