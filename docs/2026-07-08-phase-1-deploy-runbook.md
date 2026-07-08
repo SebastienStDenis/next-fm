@@ -25,7 +25,9 @@ Phase 2.
 ## 1. Supabase (Postgres)
 
 1. Create a new project. Pick a region near the Render region you'll use in
-   step 3 (Oregon → US West). Save the database password.
+   step 3 - keep them together to cut api↔DB latency. This deployment uses
+   Render **Ohio** (US East, AWS `us-east-2`), so put Supabase in `us-east-2`
+   too. Save the database password.
 2. Security settings (offered at creation, or later under **Settings → API**).
    The app talks to Postgres directly over `DATABASE_URL` and never uses
    Supabase's Data API (PostgREST), so:

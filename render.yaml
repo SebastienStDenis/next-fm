@@ -6,7 +6,7 @@ services:
     name: live-playlists-api
     runtime: docker
     plan: starter
-    region: oregon
+    region: ohio
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /health
@@ -21,7 +21,7 @@ services:
     name: live-playlists-worker
     runtime: docker
     plan: starter
-    region: oregon
+    region: ohio
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     # The image's CMD starts uvicorn; the worker runs the poller instead. No
