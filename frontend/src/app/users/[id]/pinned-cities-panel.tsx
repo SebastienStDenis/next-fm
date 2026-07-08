@@ -103,7 +103,6 @@ function PinCitySearch({
   userId: string;
   atCap: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -111,50 +110,21 @@ function PinCitySearch({
     startTransition(async () => {
       const result = await createCityPlaylist(userId, city.geonameid);
       setError(result.error);
-      if (!result.error) {
-        setOpen(false);
-      }
     });
-  }
-
-  if (atCap) {
-    return (
-      <p className="text-sm text-gray-500">
-        Remove an existing pin to add another.
-      </p>
-    );
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-sm text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
-      >
-        + Add a playlist for another city
-      </button>
-    );
   }
 
   return (
     <div className="space-y-2">
       <CitySearchBox
-        placeholder="Search for a city to pin"
-        disabled={pending}
+        placeholder={
+          atCap
+            ? "Remove an existing pin to add another"
+            : "Add a playlist for another city"
+        }
+        disabled={atCap || pending}
         onSelect={select}
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(false);
-          setError(null);
-        }}
-        className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
-      >
-        Cancel
-      </button>
     </div>
   );
 }
