@@ -2,12 +2,36 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import get_settings
 from app.models import Base
+
+# uuidv7() is a built-in only in PostgreSQL 18+. Local dev runs PG18, but managed
+# hosts may run an older major (e.g. Supabase), where every migration's UUID
+# primary-key default and every runtime insert would fail. Define a persistent
+# SQL polyfill when the built-in is absent; on PG18 this whole step is a no-op.
+_UUIDV7_POLYFILL = """
+CREATE FUNCTION public.uuidv7() RETURNS uuid
+LANGUAGE sql VOLATILE AS $func$
+  SELECT encode(
+    set_bit(
+      set_bit(
+        overlay(
+          uuid_send(gen_random_uuid())
+          PLACING substring(int8send((extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3)
+          FROM 1 FOR 6
+        ),
+        52, 1
+      ),
+      53, 1
+    ),
+    'hex'
+  )::uuid
+$func$;
+"""
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -52,10 +76,17 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _ensure_uuidv7(connection: Connection) -> None:
+    native = connection.execute(text("SELECT to_regproc('uuidv7') IS NOT NULL")).scalar()
+    if not native:
+        connection.execute(text(_UUIDV7_POLYFILL))
+
+
 def do_run_migrations(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
+        _ensure_uuidv7(connection)
         context.run_migrations()
 
 
