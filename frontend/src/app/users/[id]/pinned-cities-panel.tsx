@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { createCityPlaylist, deletePlaylist } from "./actions";
 import type { City } from "./city-panel";
-import { CitySearchBox } from "./city-search-box";
+import { CitySearchBox, cityLabel } from "./city-search-box";
 import type { Playlist } from "./playlists-panel";
 
 export const PINNED_PLAYLIST_CAP = 2;
@@ -66,7 +66,7 @@ function PinnedCityRow({
   return (
     <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
       <span>
-        {playlist.city?.name}
+        {playlist.city && cityLabel(playlist.city)}
         {playlist.spotify_url && (
           <>
             {" · "}
@@ -120,7 +120,7 @@ function PinCitySearch({
   if (atCap) {
     return (
       <p className="text-sm text-gray-500">
-        You can pin up to {PINNED_PLAYLIST_CAP} cities. Remove an existing pin to add another.
+        Remove an existing pin to add another.
       </p>
     );
   }
