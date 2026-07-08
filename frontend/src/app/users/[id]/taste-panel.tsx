@@ -100,7 +100,7 @@ export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
         <>
           <div className="flex items-center justify-between">
             <h3 className="text-xs text-gray-500 italic">
-              Artists you listen to ({numberFormat.format(userArtists.length)})
+              ({numberFormat.format(userArtists.length)})
             </h3>
             <label className="text-xs text-gray-500">
               Sort by{" "}

@@ -86,7 +86,8 @@ export default async function AccountPage(
       <Section
         heading="Sync"
         alert={neverSynced}
-        alertText="Sync to import listening history, suggest concerts and create playlists."
+        alertText="Get started by running your first sync"
+        description="Import listening history, suggest concerts and create playlists."
       >
         <SyncCard
           userId={user.id}
