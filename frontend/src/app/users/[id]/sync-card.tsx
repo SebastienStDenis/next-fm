@@ -287,6 +287,9 @@ export function SyncCard({
                     </div>
                   </details>
                 )}
+                {finalOutcome === "none" && !statusLoading && (
+                  <p className="text-sm text-gray-500">Ready to sync</p>
+                )}
               </div>
             )}
           </div>
