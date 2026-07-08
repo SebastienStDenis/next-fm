@@ -22,7 +22,7 @@ from temporalio.service import RPCError, RPCStatusCode
 
 from app.accounts import linked_lastfm_account
 from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
-from app.auth import CurrentUserDep, get_current_user
+from app.auth import CurrentUserDep, get_claims
 from app.bandsintown import BandsintownApiError, BandsintownClient
 from app.config import get_settings
 from app.db import get_session
@@ -150,10 +150,11 @@ async def get_musicbrainz_client() -> AsyncIterator[MusicBrainzClient]:
 MusicBrainzClientDep = Annotated[MusicBrainzClient, Depends(get_musicbrainz_client)]
 
 
-async def get_supabase_admin() -> AsyncIterator[SupabaseAdminClient]:
+async def get_supabase_admin() -> AsyncIterator[SupabaseAdminClient | None]:
     settings = get_settings()
     if not settings.supabase_secret_key:
-        raise HTTPException(status_code=503, detail="SUPABASE_SECRET_KEY is not configured")
+        yield None
+        return
     client = SupabaseAdminClient(settings.supabase_url, settings.supabase_secret_key)
     try:
         yield client
@@ -161,7 +162,7 @@ async def get_supabase_admin() -> AsyncIterator[SupabaseAdminClient]:
         await client.aclose()
 
 
-SupabaseAdminDep = Annotated[SupabaseAdminClient, Depends(get_supabase_admin)]
+SupabaseAdminDep = Annotated[SupabaseAdminClient | None, Depends(get_supabase_admin)]
 
 _temporal_client: TemporalClient | None = None
 
@@ -257,8 +258,12 @@ async def update_me(user: CurrentUserDep, payload: UserUpdate, session: SessionD
 @app.delete("/me", status_code=204)
 async def delete_me(user: CurrentUserDep, session: SessionDep, admin: SupabaseAdminDep) -> None:
     """Delete the account: the Supabase auth user first (so a re-login can't
-    re-provision it mid-delete), then the app row and everything cascading."""
+    re-provision it mid-delete), then the app row and everything cascading. The
+    admin client - and thus SUPABASE_SECRET_KEY - is only required when the
+    account is actually linked to a Supabase auth user."""
     if user.supabase_user_id is not None:
+        if admin is None:
+            raise HTTPException(status_code=503, detail="SUPABASE_SECRET_KEY is not configured")
         await admin.delete_user(user.supabase_user_id)
     await session.delete(user)
     await session.commit()
@@ -270,7 +275,7 @@ CITY_FUZZY_THRESHOLD = 0.45
 @app.get(
     "/cities",
     response_model=list[CityRead],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_claims)],
 )
 async def search_cities(
     q: Annotated[str, BeforeValidator(str.strip), Query(min_length=2)],
@@ -443,7 +448,7 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
 @app.get(
     "/artists",
     response_model=list[ArtistRead],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_claims)],
 )
 async def list_artists(session: SessionDep) -> list[Artist]:
     """List all canonical artists."""

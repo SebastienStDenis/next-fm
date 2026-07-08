@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
@@ -25,7 +25,8 @@ async function callApi(
   let res: Response;
   try {
     res = await apiFetch(path, init);
-  } catch {
+  } catch (e) {
+    unstable_rethrow(e);
     return { error: fallback };
   }
   if (!res.ok) {
@@ -53,7 +54,7 @@ export async function linkLastfm(
       body: JSON.stringify({ username: username.trim() }),
     },
     "Failed to link Last.fm account.",
-    `/dashboard`,
+    `/dashboard/account`,
   );
 }
 
@@ -62,7 +63,7 @@ export async function refreshLastfm(): Promise<ActionState> {
     `/me/lastfm/refresh`,
     { method: "POST" },
     "Failed to refresh Last.fm account.",
-    `/dashboard`,
+    `/dashboard/account`,
   );
 }
 
@@ -71,7 +72,7 @@ export async function unlinkLastfm(): Promise<ActionState> {
     `/me/lastfm`,
     { method: "DELETE" },
     "Failed to unlink Last.fm account.",
-    `/dashboard`,
+    `/dashboard/account`,
   );
 }
 
@@ -101,7 +102,8 @@ export async function startSync(): Promise<ActionState> {
   let res: Response;
   try {
     res = await apiFetch(`/me/sync`, { method: "POST" });
-  } catch {
+  } catch (e) {
+    unstable_rethrow(e);
     return { error: "Failed to start sync." };
   }
   if (!res.ok) {
@@ -159,7 +161,13 @@ export async function signOut(): Promise<void> {
 }
 
 export async function deleteAccount(): Promise<ActionState> {
-  const res = await apiFetch("/me", { method: "DELETE" });
+  let res: Response;
+  try {
+    res = await apiFetch("/me", { method: "DELETE" });
+  } catch (e) {
+    unstable_rethrow(e);
+    return { error: "Failed to delete account." };
+  }
   if (!res.ok) {
     return { error: await errorMessage(res, "Failed to delete account.") };
   }

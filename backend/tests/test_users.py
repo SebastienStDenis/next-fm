@@ -1,6 +1,8 @@
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
+from sqlalchemy.exc import IntegrityError
+
 from app.auth import Claims
 from app.models import User
 from tests.helpers import added_objects, request, result_returning
@@ -109,3 +111,36 @@ async def test_delete_me_requires_authentication() -> None:
 
     assert response.status_code == 401
     session.delete.assert_not_awaited()
+
+
+async def test_delete_me_unlinked_user_needs_no_admin() -> None:
+    session = make_session()
+    user = User(id=USER_ID, name="Alice", supabase_user_id=None)
+
+    response = await request("DELETE", "/me", session, user=user)
+
+    assert response.status_code == 204
+    session.delete.assert_awaited_once()
+
+
+async def test_get_me_adopts_user_provisioned_by_a_concurrent_request() -> None:
+    session = make_session()
+    sub = uuid.uuid4()
+    existing = User(id=USER_ID, name="Ada", supabase_user_id=sub, include_known_artists=False)
+    session.execute.side_effect = [result_returning(None), result_returning(existing)]
+
+    async def failing_commit() -> None:
+        raise IntegrityError("INSERT", {}, Exception("duplicate supabase_user_id"))
+
+    session.commit = failing_commit
+
+    response = await request(
+        "GET",
+        "/me",
+        session,
+        claims=Claims(sub=sub, email="ada@example.com", display_name="Ada"),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(USER_ID)
+    session.rollback.assert_awaited_once()

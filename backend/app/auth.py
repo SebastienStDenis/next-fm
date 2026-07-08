@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
@@ -84,7 +85,13 @@ async def get_current_user(
         name = claims.display_name or (claims.email or "").split("@")[0] or "Music lover"
         user = User(supabase_user_id=claims.sub, name=name)
         session.add(user)
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError:
+            # A concurrent first request provisioned the same user; adopt it.
+            await session.rollback()
+            result = await session.execute(select(User).where(User.supabase_user_id == claims.sub))
+            user = result.scalar_one()
     return user
 
 

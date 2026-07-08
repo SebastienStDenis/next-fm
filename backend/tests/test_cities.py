@@ -1,10 +1,12 @@
 import uuid
 from unittest.mock import MagicMock
 
+from app.auth import Claims
 from app.models import City, User
 from tests.helpers import make_session, request
 
 USER_ID = uuid.uuid7()
+CLAIMS = Claims(sub=uuid.uuid4())
 
 
 def user() -> User:
@@ -33,7 +35,7 @@ async def test_search_cities() -> None:
     session = make_session()
     session.execute.return_value = result_returning_all([MONTREAL])
 
-    response = await request("GET", "/cities?q=montr", session, user=user())
+    response = await request("GET", "/cities?q=montr", session, claims=CLAIMS)
 
     assert response.status_code == 200
     body = response.json()
@@ -60,7 +62,7 @@ async def test_search_cities_requires_authentication() -> None:
 async def test_search_cities_requires_query() -> None:
     session = make_session()
 
-    response = await request("GET", "/cities", session, user=user())
+    response = await request("GET", "/cities", session, claims=CLAIMS)
 
     assert response.status_code == 422
     session.execute.assert_not_awaited()
@@ -69,7 +71,7 @@ async def test_search_cities_requires_query() -> None:
 async def test_search_cities_rejects_short_query() -> None:
     session = make_session()
 
-    response = await request("GET", "/cities?q=m", session, user=user())
+    response = await request("GET", "/cities?q=m", session, claims=CLAIMS)
 
     assert response.status_code == 422
     session.execute.assert_not_awaited()
@@ -78,7 +80,7 @@ async def test_search_cities_rejects_short_query() -> None:
 async def test_search_cities_rejects_whitespace_query() -> None:
     session = make_session()
 
-    response = await request("GET", "/cities?q=%20%20%20", session, user=user())
+    response = await request("GET", "/cities?q=%20%20%20", session, claims=CLAIMS)
 
     assert response.status_code == 422
     session.execute.assert_not_awaited()

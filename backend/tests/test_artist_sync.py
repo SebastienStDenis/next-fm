@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 from app.artist_sync import loved_track_signals, top_artist_signals
+from app.auth import Claims
 from app.lastfm import (
     LastfmApiError,
     LastfmClient,
@@ -397,7 +398,7 @@ async def test_list_artists() -> None:
     session = make_session()
     session.execute.return_value = result_with_scalars(artists)
 
-    response = await request("GET", "/artists", session, user=user())
+    response = await request("GET", "/artists", session, claims=Claims(sub=uuid.uuid4()))
 
     assert response.status_code == 200
     assert response.json() == [{"id": str(artist.id), "name": artist.name} for artist in artists]
