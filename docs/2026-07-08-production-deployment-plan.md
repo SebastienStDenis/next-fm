@@ -11,8 +11,8 @@ lean and modern, don't build what a managed service already does well, and prese
 dev/prod parity so `docker compose up` behaves like the real thing.
 
 This doc commits to a topology and sequences the work. It does **not** fully specify
-the authentication implementation - that earns its own design doc - but it scopes
-auth at the architecture level so the rest of the plan is coherent.
+the authentication implementation - that lives in `docs/2026-07-08-auth-plan.md` -
+but it scopes auth at the architecture level so the rest of the plan is coherent.
 
 ## Where we're starting from
 
@@ -258,11 +258,13 @@ workflow instead of on raw push.
 Parity is a first-class goal, and the good news is most of it already holds. Two
 services keep their local form, and one gains a local form:
 
-- **Temporal stays self-hosted locally.** The existing `temporal` +
-  `temporal-ui` compose services (auto-setup on the local Postgres) are unchanged;
-  locally `TEMPORAL_API_KEY` is empty so `connect_temporal()` takes the plaintext
-  path. Prod points the same vars at Cloud. Self-hosted locally, managed in prod,
-  identical app code - the switch already built.
+- **Temporal stays self-hosted locally.** As of Phase 2 it runs as the
+  single-container Temporal dev server (`temporalio/temporal`: SQLite
+  persistence, built-in UI - see `docs/2026-07-08-auth-plan.md`), replacing the
+  auto-setup + UI + Postgres trio; locally `TEMPORAL_API_KEY` is empty so
+  `connect_temporal()` takes the plaintext path. Prod points the same vars at
+  Cloud. Self-hosted locally, managed in prod, identical app code - the switch
+  already built.
 - **Supabase runs locally via its own CLI stack.** We use the sanctioned path -
   `supabase start` - rather than folding Supabase's images into our `docker-compose`.
   The CLI brings up Postgres + the same GoTrue auth engine *behind the same Kong
@@ -307,8 +309,8 @@ Supabase and `TEMPORAL_*` at Cloud; deploy backend to Render and frontend to Ver
 The existing app is now live on real infrastructure (still trusting UUIDs - internal
 only until Phase 2).
 
-**Phase 2 - authentication (own design doc).** Supabase Auth signup/login (email +
-Google); backend JWT-verification dependency; map Supabase identity to `User`
+**Phase 2 - authentication (designed in `docs/2026-07-08-auth-plan.md`).** Supabase
+Auth signup/login; backend JWT-verification dependency; map Supabase identity to `User`
 (create-or-link on first login); replace path-UUID trust; lock down CORS. This is what
 makes a public signup safe.
 
