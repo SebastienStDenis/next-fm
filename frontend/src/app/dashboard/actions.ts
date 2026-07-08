@@ -10,6 +10,11 @@ export type ActionState = {
   error: string | null;
 };
 
+export type MessageState = {
+  error: string | null;
+  success: string | null;
+};
+
 async function errorMessage(res: Response, fallback: string): Promise<string> {
   const body = await res.json().catch(() => null);
   return typeof body?.detail === "string" ? body.detail : fallback;
@@ -158,6 +163,50 @@ export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+export async function changePassword(
+  _prev: MessageState,
+  formData: FormData,
+): Promise<MessageState> {
+  const password = formData.get("password");
+  const confirm = formData.get("confirm");
+  if (typeof password !== "string" || password.length < 6) {
+    return { error: "Password must be at least 6 characters.", success: null };
+  }
+  if (password !== confirm) {
+    return { error: "Passwords do not match.", success: null };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    return { error: error.message, success: null };
+  }
+  return { error: null, success: "Password updated." };
+}
+
+export async function changeEmail(
+  _prev: MessageState,
+  formData: FormData,
+): Promise<MessageState> {
+  const email = formData.get("email");
+  if (typeof email !== "string" || email.trim() === "") {
+    return { error: "Enter a new email address.", success: null };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ email: email.trim() });
+  if (error) {
+    return { error: error.message, success: null };
+  }
+  // double_confirm_changes is on, so GoTrue emails a link to both the current
+  // and the new address; the change only lands once both are confirmed.
+  return {
+    error: null,
+    success:
+      "Confirmation links sent. Check both your current and new inboxes to finish the change.",
+  };
 }
 
 export async function deleteAccount(): Promise<ActionState> {

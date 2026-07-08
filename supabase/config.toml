@@ -63,3 +63,15 @@ enable_confirmations = true
 [auth.email.template.confirmation]
 subject = "Confirm your email for Live Playlists"
 content_path = "./supabase/templates/confirmation.html"
+
+# Sent by resetPasswordForEmail; the link lands on /reset-password (via the
+# recovery session established by /auth/confirm) to set a new password.
+[auth.email.template.recovery]
+subject = "Reset your Live Playlists password"
+content_path = "./supabase/templates/recovery.html"
+
+# Sent to both the current and new address when the email is changed
+# (double_confirm_changes); both links must be followed to apply the change.
+[auth.email.template.email_change]
+subject = "Confirm your email change for Live Playlists"
+content_path = "./supabase/templates/email_change.html"

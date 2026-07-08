@@ -1,6 +1,10 @@
 import Link from "next/link";
 
+import { createClient } from "@/lib/supabase/server";
+
 import { AttentionDot } from "../attention-dot";
+import { ChangeEmailForm } from "../change-email-form";
+import { ChangePasswordForm } from "../change-password-form";
 import { CityPanel, type City } from "../city-panel";
 import { DeleteAccountButton } from "../delete-account-button";
 import { DiscoveryToggle } from "../discovery-toggle";
@@ -52,6 +56,12 @@ function Section({
 
 export default async function AccountPage() {
   const user = await loadMe();
+
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  const email = authUser?.email ?? "";
 
   const [lastfm, city, userArtists, playlists, neverSynced] =
     await Promise.all([
@@ -125,6 +135,16 @@ export default async function AccountPage() {
         className="mt-8"
       >
         <TastePanel userArtists={knownArtists} />
+      </Section>
+      <Section
+        heading="Email"
+        description="Changing your email sends a confirmation link to both your current and new addresses."
+        className="mt-8"
+      >
+        <ChangeEmailForm currentEmail={email} />
+      </Section>
+      <Section heading="Password" className="mt-8">
+        <ChangePasswordForm />
       </Section>
       <section className="mt-8">
         <DeleteAccountButton userName={user.name} />

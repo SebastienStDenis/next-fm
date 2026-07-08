@@ -8,6 +8,14 @@ export default function LoginPage() {
       <h1 className="mb-6 text-2xl font-semibold">Log in</h1>
       <LoginForm />
       <p className="mt-4 text-sm text-gray-500">
+        <Link
+          href="/forgot-password"
+          className="underline hover:text-foreground"
+        >
+          Forgot password?
+        </Link>
+      </p>
+      <p className="mt-2 text-sm text-gray-500">
         No account?{" "}
         <Link href="/signup" className="underline hover:text-foreground">
           Sign up
