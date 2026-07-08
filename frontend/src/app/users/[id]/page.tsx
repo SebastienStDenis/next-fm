@@ -98,7 +98,10 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
               description:
                 "Artists we think you'll like based on your listening history.",
               content: (
-                <SuggestedArtistsPanel suggestedArtists={suggestedArtists} />
+                <SuggestedArtistsPanel
+                  userId={user.id}
+                  suggestedArtists={suggestedArtists}
+                />
               ),
             },
             {

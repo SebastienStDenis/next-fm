@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import Link from "next/link";
 
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
@@ -82,8 +83,14 @@ export function EventsPanel({
   if (!hasArtists) {
     return (
       <p className="text-sm text-gray-500">
-        Nothing synced yet. Run a sync from the Account section to find
-        concerts you would like.
+        Nothing synced yet. Run a sync from{" "}
+        <Link
+          href={`/users/${userId}/account`}
+          className="underline hover:text-foreground"
+        >
+          Account settings
+        </Link>
+        .
       </p>
     );
   }

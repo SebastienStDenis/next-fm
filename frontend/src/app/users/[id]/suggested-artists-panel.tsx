@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import type { Interest, UserArtist } from "./taste-panel";
 
@@ -24,8 +26,10 @@ function reasonOf(userArtist: UserArtist): string | null {
 }
 
 export function SuggestedArtistsPanel({
+  userId,
   suggestedArtists,
 }: {
+  userId: string;
   suggestedArtists: UserArtist[];
 }) {
   const sortedArtists = [...suggestedArtists].sort(
@@ -37,8 +41,14 @@ export function SuggestedArtistsPanel({
     <div>
       {suggestedArtists.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Nothing synced yet. Run a sync from the Account section to discover
-          artists similar to the ones you listen to.
+          Nothing synced yet. Run a sync from{" "}
+          <Link
+            href={`/users/${userId}/account`}
+            className="underline hover:text-foreground"
+          >
+            Account settings
+          </Link>
+          .
         </p>
       ) : (
         <>
