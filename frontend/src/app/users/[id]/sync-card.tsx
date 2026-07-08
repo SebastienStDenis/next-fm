@@ -162,7 +162,7 @@ export function SyncCard({
   // Client-side gate only (no backend change yet): a sync needs both a linked
   // Last.fm account and a city, both set from sections below.
   const missing = [
-    !lastfmLinked && "link Last.fm",
+    !lastfmLinked && "link Last.fm account",
     !citySet && "set home city",
   ].filter((item): item is string => item !== false);
   const canSync = missing.length === 0;

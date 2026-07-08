@@ -2,7 +2,7 @@
 
 import { useActionState, useSyncExternalStore } from "react";
 
-import { linkLastfm, refreshLastfm, unlinkLastfm } from "./actions";
+import { linkLastfm, unlinkLastfm } from "./actions";
 
 export type LastfmAccount = {
   id: string;
@@ -93,15 +93,11 @@ function AccountCard({
   userId: string;
   account: LastfmAccount;
 }) {
-  const [refreshState, refreshAction, refreshPending] = useActionState(
-    refreshLastfm.bind(null, userId),
-    { error: null },
-  );
   const [unlinkState, unlinkAction, unlinkPending] = useActionState(
     unlinkLastfm.bind(null, userId),
     { error: null },
   );
-  const error = refreshState.error ?? unlinkState.error;
+  const error = unlinkState.error;
   // Format in the viewer's local zone once mounted; the server and first client
   // render both report false (UTC) so hydration stays clean.
   const localTime = useSyncExternalStore(
@@ -170,32 +166,21 @@ function AccountCard({
       <div className="mt-4 flex items-center justify-between">
         <p className="text-xs text-gray-500 italic">
           {account.last_synced_at
-            ? `Imported ${formatDateTime(
+            ? `Linked ${formatDateTime(
                 account.last_synced_at,
                 localTime ? undefined : "UTC",
               )}`
-            : "Never imported"}
+            : "Never linked"}
         </p>
-        <div className="flex gap-2">
-          <form action={refreshAction}>
-            <button
-              type="submit"
-              disabled={refreshPending}
-              className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-            >
-              {refreshPending ? "Refreshing..." : "Refresh"}
-            </button>
-          </form>
-          <form action={unlinkAction}>
-            <button
-              type="submit"
-              disabled={unlinkPending}
-              className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-            >
-              {unlinkPending ? "Unlinking..." : "Unlink"}
-            </button>
-          </form>
-        </div>
+        <form action={unlinkAction}>
+          <button
+            type="submit"
+            disabled={unlinkPending}
+            className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+          >
+            {unlinkPending ? "Unlinking..." : "Unlink"}
+          </button>
+        </form>
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
