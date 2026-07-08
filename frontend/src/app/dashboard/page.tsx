@@ -77,7 +77,11 @@ export default async function DashboardPage() {
       </div>
       <p className="mt-1 text-xs text-gray-500 italic">
         We find upcoming concerts near you by artists that match your taste, and
-        generate Spotify playlists for you to discover them.
+        generate Spotify playlists for you to discover them. See{" "}
+        <Link href="/about" className="underline hover:no-underline">
+          About
+        </Link>{" "}
+        for more details.
       </p>
       <section className="mt-6">
         <Tabs

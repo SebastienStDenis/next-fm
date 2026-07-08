@@ -28,21 +28,13 @@ export default function AboutPage() {
           </p>
         </section>
         <section>
-          <h2 className="text-sm font-medium">Discovery mode</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            By default your concerts and playlist show suggested artists only -
-            the app bets you already know when your favorites are in town. The
-            &ldquo;Include artists I know&rdquo; setting shows everything.
-          </p>
-        </section>
-        <section>
           <h2 className="text-sm font-medium">Your playlist</h2>
           <p className="mt-1 text-sm text-gray-500">
             A few top tracks from each suggested artist playing near your city,
             soonest show first. Every sync rebuilds it against the current
             concert calendar, and you can pin extra cities to follow shows
-            where you travel. When something looks stale, sync in order:
-            artists, then suggestions, then concerts, then playlists.
+            where you travel. Your taste and playlists are regularly updated to
+            stay up to date.
           </p>
         </section>
       </div>

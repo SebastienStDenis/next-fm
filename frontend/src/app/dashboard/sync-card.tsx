@@ -278,7 +278,7 @@ export function SyncCard({
                 )}
                 {finalOutcome === "none" && !statusLoading && (
                   <p className="text-sm text-gray-500">
-                    Run a sync (requires Last.fm and home city).
+                    Run a sync (requires Last.fm and home city)
                   </p>
                 )}
               </div>
