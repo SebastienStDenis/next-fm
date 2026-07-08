@@ -168,7 +168,7 @@ export function SyncCard({
   const canSync = missing.length === 0;
   const missingNote = canSync
     ? null
-    : `${missing.join(" and ")} below to sync.`.replace(/^./, (c) =>
+    : `${missing.join(" and ")} below to enable sync.`.replace(/^./, (c) =>
         c.toUpperCase(),
       );
 

@@ -42,7 +42,6 @@ function formatDateTime(iso: string, timeZone?: string): string {
     hour: "numeric",
     minute: "2-digit",
     timeZone,
-    timeZoneName: "short",
   });
 }
 
@@ -72,12 +71,12 @@ function LinkForm({ userId }: { userId: string }) {
           name="username"
           placeholder="Last.fm username"
           required
-          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
+          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1.5 dark:border-gray-700"
         />
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
+          className="rounded bg-foreground px-4 py-1.5 font-medium text-background disabled:opacity-50"
         >
           {pending ? "Linking..." : "Link"}
         </button>

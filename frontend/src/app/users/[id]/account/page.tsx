@@ -20,6 +20,7 @@ function Section({
   heading,
   alert,
   alertText,
+  alertDot = true,
   description,
   className,
   children,
@@ -27,6 +28,7 @@ function Section({
   heading: string;
   alert?: boolean;
   alertText?: string;
+  alertDot?: boolean;
   description?: string;
   className?: string;
   children: React.ReactNode;
@@ -38,7 +40,7 @@ function Section({
           {heading}
           {alert && alertText && (
             <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-500 italic dark:bg-gray-800">
-              <AttentionDot />
+              {alertDot && <AttentionDot />}
               {alertText}
             </span>
           )}
@@ -87,7 +89,7 @@ export default async function AccountPage(
         heading="Sync"
         alert={neverSynced}
         alertText="Get started by running your first sync"
-        description="Import listening history, suggest concerts and create playlists."
+        description="Automatically import listening history, suggest concerts and create playlists."
       >
         <SyncCard
           userId={user.id}
@@ -99,6 +101,7 @@ export default async function AccountPage(
         heading="Last.fm"
         alert={lastfm === null}
         alertText="Link Last.fm account to enable sync."
+        alertDot={false}
         description="Listening history is imported from your Last.fm account."
         className="mt-8"
       >
@@ -108,6 +111,7 @@ export default async function AccountPage(
         heading="Home City"
         alert={city === null}
         alertText="Set home city to enable sync."
+        alertDot={false}
         description="A playlist is created for concerts in your home city."
         className="mt-8"
       >
