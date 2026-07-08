@@ -98,14 +98,20 @@ Phase 2.
 
 ## 4. Vercel (frontend)
 
-1. **New Project → import the same repo.** Set **Root Directory** to `frontend`
-   (framework auto-detects as Next.js). Vercel builds natively with
-   `next build` - it never uses `frontend/Dockerfile`.
+1. **New Project → import the same repo.** Set two settings explicitly:
+   - **Root Directory** → `frontend` (scopes the project to the Next.js app).
+   - **Framework Preset** → **Next.js**. Set it by hand; don't trust
+     auto-detect. If it's left on "Other," the build fails with
+     `No Output Directory named "public" found` - the symptom of Vercel not
+     treating it as Next.js (Next outputs `.next`, not `public`). Leave Output
+     Directory empty/default.
+
+   Vercel builds natively with `next build` - it never uses `frontend/Dockerfile`.
    - Vercel's import will also detect the Python `backend/` and offer to set it
-     up. **Ignore it** - do not create a project for the backend. Setting the
-     root directory to `frontend` scopes this project to the Next.js app and
-     drops the backend detection. The backend runs on Render (step 3); it can't
-     run on Vercel because the always-on Temporal worker rules out serverless.
+     up. **Ignore it** - do not create a project for the backend. Scoping to
+     `frontend` drops the backend detection. The backend runs on Render (step 3);
+     it can't run on Vercel because the always-on Temporal worker rules out
+     serverless.
 2. Add one env var: `API_URL` = the Render api URL from step 3. Keep it a plain
    var (no `NEXT_PUBLIC_` prefix) - the frontend reads the API server-side only,
    so the browser never sees it.

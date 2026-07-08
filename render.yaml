@@ -13,7 +13,7 @@ services:
     # Runs once per deploy (not per replica), before the new version goes live,
     # so schema changes and the cities load land exactly once and the worker
     # never races the migration.
-    preDeployCommand: uv run alembic upgrade head && uv run python -m app.seed --cities-only
+    preDeployCommand: 'sh -c "uv run alembic upgrade head && uv run python -m app.seed --cities-only"'
     envVars:
       - fromGroup: live-playlists
 
