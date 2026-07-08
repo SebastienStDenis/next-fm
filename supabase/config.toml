@@ -54,4 +54,12 @@ enable_anonymous_sign_ins = false
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
-enable_confirmations = false
+enable_confirmations = true
+
+# The confirmation link points at the frontend's /auth/confirm route (token-hash
+# flow), which verifies the OTP server-side and sets the session cookies. Locally
+# the mail is captured by Mailpit (http://127.0.0.1:54324); production needs a
+# custom SMTP provider (the built-in sender allows only a few emails/hour).
+[auth.email.template.confirmation]
+subject = "Confirm your Live Playlists account"
+content_path = "./supabase/templates/confirmation.html"
