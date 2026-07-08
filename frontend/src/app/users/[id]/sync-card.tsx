@@ -208,11 +208,10 @@ export function SyncCard({
 
   return (
     <div>
-      {/* The button keeps its natural height but reserves the two-line running
-          height with vertical margin, so the card stays the same height
-          whether it shows the last-synced line or the active steps, with the
-          button centered on both. It stays pinned to the top, so expanding the
-          step list only grows downward. */}
+      {/* The button uses regular padding. Each state's first line is nudged
+          down (pt-1) to line up with the button, so the button holds its
+          position between the active steps and the finished status line;
+          extra step lines just grow downward. */}
       <div className="flex flex-col">
         <div
           className={`flex gap-3 ${
@@ -223,7 +222,7 @@ export function SyncCard({
             type="button"
             onClick={onSync}
             disabled={starting || busy || !canSync}
-            className="relative order-last my-1 inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative order-last inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
           >
             {/* Kept in the layout (just hidden) while busy so the button holds
                 the same width as when it reads "Sync". */}
@@ -238,7 +237,7 @@ export function SyncCard({
             {missingNote ? (
               <p className="text-sm text-gray-500">{missingNote}</p>
             ) : (running || settling) && status ? (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in pt-1">
                 <CurrentStep
                   key={runSeq}
                   steps={status.steps}
@@ -250,7 +249,7 @@ export function SyncCard({
                 />
               </div>
             ) : (
-              <div className="relative pt-2">
+              <div className="relative pt-1">
                 {leaving && status && (
                   <div className="absolute inset-x-0 top-0 animate-slide-out-up">
                     <LastStepLine steps={status.steps} />
