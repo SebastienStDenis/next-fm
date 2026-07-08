@@ -37,7 +37,7 @@ function Section({
         <h2 className="flex items-center text-lg font-medium">
           {heading}
           {alert && alertText && (
-            <span className="ml-2 inline-flex items-center rounded-r-full bg-gray-100 py-0.5 pr-3 pl-2.5 text-xs font-normal text-foreground [clip-path:polygon(0_50%,8px_0,100%_0,100%_100%,8px_100%)] dark:bg-gray-800">
+            <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-foreground dark:bg-gray-800">
               <AttentionDot />
               {alertText}
             </span>
