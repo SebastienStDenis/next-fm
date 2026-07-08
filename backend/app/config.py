@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/app"
+    database_disable_prepared_statements: bool = False
     lastfm_api_key: str = ""
     bandsintown_api_key: str = ""
     spotify_client_id: str = ""
