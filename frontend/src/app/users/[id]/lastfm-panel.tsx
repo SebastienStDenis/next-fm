@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useSyncExternalStore } from "react";
 
-import { linkLastfm, refreshLastfm, unlinkLastfm } from "./actions";
+import { linkLastfm, unlinkLastfm } from "./actions";
 
 export type LastfmAccount = {
   id: string;
@@ -19,6 +19,10 @@ export type LastfmAccount = {
 
 const numberFormat = new Intl.NumberFormat("en-US");
 
+// Client-only flag (false during SSR/hydration, true after) so the local-time
+// swap never causes a hydration mismatch.
+const noopSubscribe = () => () => {};
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
@@ -28,15 +32,16 @@ function formatDate(iso: string): string {
   });
 }
 
-function formatDateTime(iso: string): string {
+// timeZone omitted => the viewer's local zone. The server render passes "UTC"
+// so it stays deterministic; the client swaps to local after mount.
+function formatDateTime(iso: string, timeZone?: string): string {
   return new Date(iso).toLocaleString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
-    timeZoneName: "short",
+    timeZone,
   });
 }
 
@@ -61,21 +66,17 @@ function LinkForm({ userId }: { userId: string }) {
 
   return (
     <form action={formAction} className="space-y-2">
-      <p className="text-sm text-gray-500">
-        No Last.fm account linked. Link one to match concerts to listening
-        history.
-      </p>
       <div className="flex gap-2">
         <input
           name="username"
           placeholder="Last.fm username"
           required
-          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
+          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm dark:border-gray-700"
         />
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
+          className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
         >
           {pending ? "Linking..." : "Link"}
         </button>
@@ -92,15 +93,18 @@ function AccountCard({
   userId: string;
   account: LastfmAccount;
 }) {
-  const [refreshState, refreshAction, refreshPending] = useActionState(
-    refreshLastfm.bind(null, userId),
-    { error: null },
-  );
   const [unlinkState, unlinkAction, unlinkPending] = useActionState(
     unlinkLastfm.bind(null, userId),
     { error: null },
   );
-  const error = refreshState.error ?? unlinkState.error;
+  const error = unlinkState.error;
+  // Format in the viewer's local zone once mounted; the server and first client
+  // render both report false (UTC) so hydration stays clean.
+  const localTime = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   return (
     <div>
@@ -162,29 +166,21 @@ function AccountCard({
       <div className="mt-4 flex items-center justify-between">
         <p className="text-xs text-gray-500 italic">
           {account.last_synced_at
-            ? `Last synced ${formatDateTime(account.last_synced_at)}`
-            : "Never synced"}
+            ? `Linked ${formatDateTime(
+                account.last_synced_at,
+                localTime ? undefined : "UTC",
+              )}`
+            : "Never linked"}
         </p>
-        <div className="flex gap-2">
-          <form action={refreshAction}>
-            <button
-              type="submit"
-              disabled={refreshPending}
-              className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-            >
-              {refreshPending ? "Refreshing..." : "Refresh"}
-            </button>
-          </form>
-          <form action={unlinkAction}>
-            <button
-              type="submit"
-              disabled={unlinkPending}
-              className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-            >
-              {unlinkPending ? "Unlinking..." : "Unlink"}
-            </button>
-          </form>
-        </div>
+        <form action={unlinkAction}>
+          <button
+            type="submit"
+            disabled={unlinkPending}
+            className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+          >
+            {unlinkPending ? "Unlinking..." : "Unlink"}
+          </button>
+        </form>
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>

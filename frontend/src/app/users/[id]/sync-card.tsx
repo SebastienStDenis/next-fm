@@ -145,17 +145,18 @@ export function SyncCard({
   const finishedAt = status?.finished_at
     ? syncedAtFormat.format(new Date(status.finished_at))
     : null;
+  const finalOutcome = status?.status ?? "none";
 
   // Client-side gate only (no backend change yet): a sync needs both a linked
   // Last.fm account and a city, both set from sections below.
   const missing = [
-    !lastfmLinked && "link a Last.fm account",
-    !citySet && "set a city",
+    !lastfmLinked && "link Last.fm account",
+    !citySet && "set home city",
   ].filter((item): item is string => item !== false);
   const canSync = missing.length === 0;
   const missingNote = canSync
     ? null
-    : `${missing.join(" and ")} below to sync.`.replace(/^./, (c) =>
+    : `${missing.join(" and ")} below to enable sync.`.replace(/^./, (c) =>
         c.toUpperCase(),
       );
 
@@ -195,20 +196,21 @@ export function SyncCard({
 
   return (
     <div>
-      {/* The Sync button stays put; the running steps play out to its right,
-          centered against the button while a run plays and pinned to the top
-          once idle so expanding the step list only grows downward. */}
+      {/* The button uses regular padding. Each state's first line is nudged
+          down (pt-1) to line up with the button, so the button holds its
+          position between the active steps and the finished status line;
+          extra step lines just grow downward. */}
       <div className="flex flex-col">
         <div
           className={`flex gap-3 ${
-            running || settling ? "items-center" : "items-start"
+            missingNote ? "items-center" : "items-start"
           }`}
         >
           <button
             type="button"
             onClick={onSync}
             disabled={starting || busy || !canSync}
-            className="relative inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative order-last inline-flex shrink-0 items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
           >
             {/* Kept in the layout (just hidden) while busy so the button holds
                 the same width as when it reads "Sync". */}
@@ -220,8 +222,10 @@ export function SyncCard({
             )}
           </button>
           <div className="min-w-0 flex-1">
-            {(running || settling) && status ? (
-              <div className="animate-fade-in">
+            {missingNote ? (
+              <p className="text-sm text-gray-500">{missingNote}</p>
+            ) : (running || settling) && status ? (
+              <div className="animate-fade-in pt-1">
                 <CurrentStep
                   key={runSeq}
                   steps={status.steps}
@@ -239,33 +243,45 @@ export function SyncCard({
                     <LastStepLine steps={status.steps} />
                   </div>
                 )}
-                {status && status.status !== "none" && (
-                  <details className="animate-slide-in-up">
+                {status && finalOutcome !== "none" && (
+                  <details className="group animate-slide-in-up">
                     <summary
-                      className={`cursor-pointer text-sm ${
-                        status.status === "failed"
-                          ? "text-red-600"
+                      className={`flex cursor-pointer items-center gap-1.5 text-sm list-none [&::-webkit-details-marker]:hidden ${
+                        finalOutcome === "failed"
+                          ? "text-foreground"
                           : "text-gray-500"
                       }`}
                     >
-                      {status.status === "failed"
-                        ? "Last sync failed"
-                        : "Last synced"}
-                      {finishedAt && ` ${finishedAt}`}.
+                      <span
+                        className={
+                          finalOutcome === "failed"
+                            ? "text-red-600"
+                            : "text-green-600 dark:text-green-500"
+                        }
+                      >
+                        <StepMark status={finalOutcome} />
+                      </span>
+                      <span>
+                        {finalOutcome === "failed"
+                          ? "Last sync failed"
+                          : "Last synced"}
+                        {finishedAt && ` ${finishedAt}`}.
+                      </span>
+                      <ExpandToggleMark />
                     </summary>
                     <div className="mt-2">
                       <StepList steps={status.steps} />
                     </div>
                   </details>
                 )}
+                {finalOutcome === "none" && !statusLoading && (
+                  <p className="text-sm text-gray-500">Ready to sync</p>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
-      {missingNote && (
-        <p className="mt-2 text-sm text-gray-500">{missingNote}</p>
-      )}
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
@@ -564,5 +580,41 @@ function StepMark({ status }: { status: SyncStep["status"] }) {
         strokeWidth={1.5}
       />
     </svg>
+  );
+}
+
+// Unfold marker: chevrons point away from each other when collapsed (expand)
+// and toward each other when open (collapse). Toggled by the parent
+// <details className="group"> via the group-open state.
+function ExpandToggleMark() {
+  return (
+    <span className="ml-0.5 text-gray-400 dark:text-gray-600">
+      <svg
+        viewBox="0 0 16 16"
+        className="h-3.5 w-3.5 group-open:hidden"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M5 6.5 8 3.5 11 6.5" />
+        <path d="M5 9.5 8 12.5 11 9.5" />
+      </svg>
+      <svg
+        viewBox="0 0 16 16"
+        className="hidden h-3.5 w-3.5 group-open:block"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M5 3.5 8 6.5 11 3.5" />
+        <path d="M5 12.5 8 9.5 11 12.5" />
+      </svg>
+    </span>
   );
 }

@@ -141,17 +141,12 @@ function CitySearch({
 
   return (
     <div className="space-y-2">
-      {!hasCity && (
-        <p className="text-sm text-gray-500">
-          No city set. Set one to find concerts nearby.
-        </p>
-      )}
       <div className="flex gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search for a city"
-          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
+          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm dark:border-gray-700"
         />
         {hasCity && (
           <button

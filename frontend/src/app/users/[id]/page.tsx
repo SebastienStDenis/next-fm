@@ -80,14 +80,14 @@ export default async function UserPage(props: PageProps<"/users/[id]">) {
       <Link href="/users" className="text-sm text-gray-500 hover:underline">
         &larr; Users
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold">{user.name}</h1>
+      <h1 className="mt-2 text-2xl font-semibold">Hey, {user.name}</h1>
       <Link
         href={`/users/${id}/account`}
         className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:border-foreground hover:text-foreground dark:border-gray-700 dark:text-gray-400"
       >
+        {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
         Account settings
         <span aria-hidden>&rarr;</span>
-        {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
       </Link>
       <section className="mt-6">
         <Tabs
