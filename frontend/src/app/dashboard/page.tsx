@@ -79,6 +79,12 @@ export default async function DashboardPage() {
         We find upcoming concerts near you by artists that match your taste, and
         generate Spotify playlists for you to discover them.
       </p>
+      <Link
+        href="/about"
+        className="mt-1 inline-block text-sm text-gray-500 hover:underline"
+      >
+        How it works
+      </Link>
       <section className="mt-6">
         <Tabs
           tabs={[
