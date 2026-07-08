@@ -34,6 +34,12 @@ export async function signUp(
   if (error) {
     return { error: error.message };
   }
+  // With email confirmation on, Supabase does not error on a duplicate email
+  // (to prevent enumeration); it returns a fake user with no identities. Surface
+  // it as a duplicate rather than sending the user to the check-email page.
+  if (data.user && data.user.identities?.length === 0) {
+    return { error: "That email is already registered. Try logging in." };
+  }
   // With email confirmation on, signUp returns no session until the user clicks
   // the emailed link; send them to a holding page instead of the dashboard
   // (the proxy would bounce an unauthenticated /dashboard visit to /login).
