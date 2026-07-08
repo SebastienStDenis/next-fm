@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
   // than redirecting a fetch() to an HTML login page.
   if (!user && !PUBLIC_PATHS.has(pathname) && !pathname.startsWith("/api")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
   if (user && (pathname === "/login" || pathname === "/signup")) {

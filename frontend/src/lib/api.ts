@@ -16,7 +16,7 @@ export async function apiFetch(
   } = await supabase.auth.getSession();
   if (!session) {
     // The proxy guards pages, so this only fires on expiry races.
-    redirect("/login");
+    redirect("/");
   }
   return fetch(`${apiUrl}${path}`, {
     ...init,
