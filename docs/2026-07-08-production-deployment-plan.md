@@ -11,8 +11,8 @@ lean and modern, don't build what a managed service already does well, and prese
 dev/prod parity so `docker compose up` behaves like the real thing.
 
 This doc commits to a topology and sequences the work. It does **not** fully specify
-the authentication implementation - that earns its own design doc - but it scopes
-auth at the architecture level so the rest of the plan is coherent.
+the authentication implementation - that lives in `docs/2026-07-08-auth-plan.md` -
+but it scopes auth at the architecture level so the rest of the plan is coherent.
 
 ## Where we're starting from
 
@@ -307,8 +307,8 @@ Supabase and `TEMPORAL_*` at Cloud; deploy backend to Render and frontend to Ver
 The existing app is now live on real infrastructure (still trusting UUIDs - internal
 only until Phase 2).
 
-**Phase 2 - authentication (own design doc).** Supabase Auth signup/login (email +
-Google); backend JWT-verification dependency; map Supabase identity to `User`
+**Phase 2 - authentication (designed in `docs/2026-07-08-auth-plan.md`).** Supabase
+Auth signup/login; backend JWT-verification dependency; map Supabase identity to `User`
 (create-or-link on first login); replace path-UUID trust; lock down CORS. This is what
 makes a public signup safe.
 
