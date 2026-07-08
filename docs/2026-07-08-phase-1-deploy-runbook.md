@@ -37,16 +37,17 @@ Phase 2.
      role that bypasses RLS, so backend queries and Alembic migrations are
      unaffected - RLS only ever guards the (now disabled) Data API path.
 3. Get the connection string from the green **Connect** button at the top of the
-   dashboard (older UI: **Settings → Database → Connection pooling**). It offers
-   three strings; the reliable tell is the port on the `...pooler.supabase.com`
-   host, not the label:
-   - **Direct** (`db.<ref>.supabase.co:5432`) - skip; IPv6-only without the paid
-     IPv4 add-on, which Render may not have.
-   - **Session pooler** (`...pooler.supabase.com:5432`) - **use this one.**
-   - **Transaction pooler** (`...pooler.supabase.com:6543`).
+   dashboard. The modal has tabs (Framework / Server / Direct / ORM / MCP); open
+   **Server** - the pooler string for a server-side app, which is IPv4 and works
+   on Render. Ignore **Direct** (IPv6-only without the paid IPv4 add-on) and
+   **Framework**/**MCP**. The Server string points at `...pooler.supabase.com`;
+   the port is the tell, not any label:
+   - `:5432` = **session mode** - what you want (persistent async pool; prepared
+     statements work).
+   - `:6543` = transaction mode, which the Server tab often shows by default. If
+     so, just change `:6543` to `:5432` - same host and `postgres.<ref>` user -
+     to get session mode (a Supabase-supported switch).
 
-   If the modal only shows the transaction string, change its `:6543` to
-   `:5432` - same host and `postgres.<ref>` user, that's the session pooler.
    Fill in the password and swap the scheme to psycopg 3 (async):
    ```
    postgresql+psycopg://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
