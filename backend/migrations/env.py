@@ -2,12 +2,48 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import get_settings
 from app.models import Base
+
+# Database prerequisites the schema depends on but Alembic autogenerate can't
+# express: the pg_trgm extension (backing the cities trigram indexes) and
+# uuidv7() (a PostgreSQL 18 built-in used as every UUID primary key's default).
+# Local dev runs PG18; managed hosts may run an older major (e.g. Supabase on
+# 17), so define a SQL polyfill when the built-in is absent. Applied before every
+# migration run so a fresh database has them before the schema is created.
+_UUIDV7_POLYFILL = """
+CREATE FUNCTION public.uuidv7() RETURNS uuid LANGUAGE sql VOLATILE AS $$
+  SELECT encode(
+    set_bit(
+      set_bit(
+        overlay(
+          uuid_send(gen_random_uuid())
+          PLACING substring(
+            int8send((extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3
+          )
+          FROM 1 FOR 6
+        ),
+        52, 1
+      ),
+      53, 1
+    ),
+    'hex'
+  )::uuid
+$$
+"""
+
+
+def _ensure_prerequisites(connection: Connection) -> None:
+    connection.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+    # Match the exact zero-arg signature: PG18 ships uuidv7() and uuidv7(interval),
+    # so the bare name is ambiguous to to_regproc and would falsely read as absent.
+    native = connection.execute(text("SELECT to_regprocedure('uuidv7()') IS NOT NULL")).scalar()
+    if not native:
+        connection.execute(text(_UUIDV7_POLYFILL))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -56,6 +92,7 @@ def do_run_migrations(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
+        _ensure_prerequisites(connection)
         context.run_migrations()
 
 
