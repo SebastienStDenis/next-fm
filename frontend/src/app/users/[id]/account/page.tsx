@@ -90,7 +90,7 @@ export default async function AccountPage(
       <Section
         heading="Sync"
         alert={neverSynced}
-        alertText="Get started by running your first sync"
+        alertText="Get started by running a sync"
         description="Imports listening history, suggests concerts and creates playlists. Re-runs automatically on a cadence."
       >
         <SyncCard
