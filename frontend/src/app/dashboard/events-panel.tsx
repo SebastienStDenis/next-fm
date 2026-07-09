@@ -272,6 +272,7 @@ function CityControls({
         <CitySearchBox
           placeholder="Search for a city"
           disabled={loading}
+          autoFocus
           onSelect={onSelect}
         />
       )}

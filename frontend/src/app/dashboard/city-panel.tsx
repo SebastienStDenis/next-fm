@@ -105,6 +105,7 @@ function CitySearch({
           <CitySearchBox
             placeholder="Search for a city"
             disabled={pending}
+            autoFocus={hasCity}
             onSelect={select}
           />
         </div>

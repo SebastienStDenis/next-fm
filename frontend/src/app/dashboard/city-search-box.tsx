@@ -15,10 +15,12 @@ function cityRegion(city: City): string {
 export function CitySearchBox({
   placeholder,
   disabled,
+  autoFocus,
   onSelect,
 }: {
   placeholder: string;
   disabled?: boolean;
+  autoFocus?: boolean;
   onSelect: (city: City) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -135,6 +137,7 @@ export function CitySearchBox({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        autoFocus={autoFocus}
         role="combobox"
         aria-expanded={showList}
         aria-controls={listboxId}
