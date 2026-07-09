@@ -97,6 +97,15 @@ function AccountCard({ account }: { account: LastfmAccount }) {
             <p className="text-sm text-gray-500">{account.real_name}</p>
           )}
         </div>
+        <form action={unlinkAction} className="ml-auto">
+          <button
+            type="submit"
+            disabled={unlinkPending}
+            className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+          >
+            {unlinkPending ? "Unlinking..." : "Unlink"}
+          </button>
+        </form>
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
@@ -113,18 +122,6 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           </>
         )}
       </dl>
-
-      <div className="mt-4 flex justify-end">
-        <form action={unlinkAction}>
-          <button
-            type="submit"
-            disabled={unlinkPending}
-            className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-          >
-            {unlinkPending ? "Unlinking..." : "Unlink"}
-          </button>
-        </form>
-      </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
