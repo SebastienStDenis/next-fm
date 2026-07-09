@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import Link from "next/link";
 
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
@@ -131,9 +132,16 @@ export function EventsPanel({
     <div>
       {!city && !viewCity ? (
         <div>
-          <p className="text-sm text-gray-500">
-            Set your home city in the Account section to see local concerts.
-          </p>
+          <EmptyState>
+            Set your home city in{" "}
+            <Link
+              href="/dashboard/account"
+              className="underline hover:text-foreground"
+            >
+              Account
+            </Link>{" "}
+            to see local concerts.
+          </EmptyState>
           {cityControls}
         </div>
       ) : (

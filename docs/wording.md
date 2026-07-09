@@ -44,9 +44,12 @@ step ran and found nothing". The step statuses come from `GET /me/sync`
 | Concerts tab | Run a sync in [Account] to find concerts. | Home view: "No concerts found near {city}." Browsing another city: "No concerts found. Try a different city." |
 | Playlists tab | Run a sync in [Account] to generate playlists. | No playlists generated. Set your home city in [Account]. |
 
-`[Account]` links to the account page. An empty tracklist inside a playlist
-always reads: "No songs found. We'll add new ones as your listening history
-and upcoming concerts change."
+`[Account]` links to the account page. Two related fixed messages:
+
+- Concerts tab with no home city set (regardless of sync state): "Set your
+  home city in [Account] to see local concerts."
+- An empty tracklist inside a playlist: "No songs found. We'll add new ones
+  as your listening history and upcoming concerts change."
 
 ## Section and tab names
 
