@@ -38,8 +38,6 @@ USER_INFO = LastfmUserInfo(
     profile_url="https://www.last.fm/user/rj",
     country="United Kingdom",
     registered_at=datetime(2002, 11, 20, tzinfo=UTC),
-    playcount=123456,
-    artist_count=789,
 )
 
 
@@ -52,8 +50,6 @@ def make_account() -> LastfmAccount:
         profile_url="https://www.last.fm/user/rj",
         country="United Kingdom",
         registered_at=datetime(2002, 11, 20, tzinfo=UTC),
-        playcount=100,
-        artist_count=10,
         last_synced_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
@@ -67,7 +63,6 @@ async def test_get_linked_account() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["username"] == "rj"
-    assert body["playcount"] == 100
 
 
 async def test_get_linked_account_when_none() -> None:
@@ -101,7 +96,6 @@ async def test_link_creates_account_and_connection() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["username"] == "rj"
-    assert body["playcount"] == 123456
     lastfm.get_user_info.assert_awaited_once_with("RJ")
     assert session.add.call_count == 2
     session.commit.assert_awaited_once()
@@ -120,7 +114,7 @@ async def test_link_replaces_existing_connection() -> None:
     )
 
     assert response.status_code == 200
-    assert response.json()["playcount"] == 123456
+    assert response.json()["username"] == "rj"
     session.add.assert_not_called()
     assert connection.lastfm_account_id == account.id
     session.commit.assert_awaited_once()
@@ -150,7 +144,7 @@ async def test_refresh_updates_account() -> None:
     response = await request("POST", "/me/lastfm/refresh", session, lastfm, user=user())
 
     assert response.status_code == 200
-    assert response.json()["playcount"] == 123456
+    assert response.json()["username"] == "rj"
     lastfm.get_user_info.assert_awaited_once_with("rj")
     session.commit.assert_awaited_once()
 
@@ -167,16 +161,12 @@ def test_parse_user_info() -> None:
                 {"size": "extralarge", "#text": "https://images.example/xl.png"},
             ],
             "registered": {"unixtime": "1037836800"},
-            "playcount": "123456",
-            "artist_count": "789",
         }
     )
 
     assert info.username == "rj"
     assert info.avatar_url == "https://images.example/xl.png"
     assert info.registered_at == datetime.fromtimestamp(1037836800, tz=UTC)
-    assert info.playcount == 123456
-    assert info.artist_count == 789
 
 
 def test_parse_user_info_treats_placeholders_as_none() -> None:
@@ -187,7 +177,6 @@ def test_parse_user_info_treats_placeholders_as_none() -> None:
             "country": "None",
             "image": [{"size": "small", "#text": ""}],
             "registered": {"unixtime": ""},
-            "playcount": "0",
         }
     )
 
@@ -195,8 +184,6 @@ def test_parse_user_info_treats_placeholders_as_none() -> None:
     assert info.country is None
     assert info.avatar_url is None
     assert info.registered_at is None
-    assert info.playcount == 0
-    assert info.artist_count is None
 
 
 def test_parse_top_artist() -> None:

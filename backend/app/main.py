@@ -346,8 +346,6 @@ def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: da
     account.profile_url = info.profile_url
     account.country = info.country
     account.registered_at = info.registered_at
-    account.playcount = info.playcount
-    account.artist_count = info.artist_count
     account.last_synced_at = synced_at
 
 

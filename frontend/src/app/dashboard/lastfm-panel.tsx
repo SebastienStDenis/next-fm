@@ -12,12 +12,8 @@ export type LastfmAccount = {
   profile_url: string | null;
   country: string | null;
   registered_at: string | null;
-  playcount: number | null;
-  artist_count: number | null;
   last_synced_at: string | null;
 };
-
-const numberFormat = new Intl.NumberFormat("en-US");
 
 // Client-only flag (false during SSR/hydration, true after) so the local-time
 // swap never causes a hydration mismatch.
@@ -128,18 +124,6 @@ function AccountCard({ account }: { account: LastfmAccount }) {
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        {account.playcount !== null && (
-          <>
-            <dt className="text-gray-500">Scrobbles</dt>
-            <dd>{numberFormat.format(account.playcount)}</dd>
-          </>
-        )}
-        {account.artist_count !== null && (
-          <>
-            <dt className="text-gray-500">Artists</dt>
-            <dd>{numberFormat.format(account.artist_count)}</dd>
-          </>
-        )}
         {account.country && (
           <>
             <dt className="text-gray-500">Country</dt>

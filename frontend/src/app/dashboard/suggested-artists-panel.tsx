@@ -52,7 +52,10 @@ export function SuggestedArtistsPanel({
         <>
           <ul className="space-y-3">
             {sortedArtists.map((userArtist) => (
-              <li key={userArtist.artist.id} className="text-sm">
+              <li
+                key={userArtist.artist.id}
+                className="border-l border-gray-300 pl-2 text-sm dark:border-gray-700"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <span>{userArtist.artist.name}</span>
                   <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
