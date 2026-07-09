@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import Link from "next/link";
 
 import type { City } from "./city-panel";
+import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 
 export type Playlist = {
@@ -72,7 +73,7 @@ export function PlaylistsPanel({
 
   if (playlists.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <EmptyState>
         No playlists generated. Set your home city in{" "}
         <Link
           href="/dashboard/account"
@@ -81,7 +82,7 @@ export function PlaylistsPanel({
           Account
         </Link>
         .
-      </p>
+      </EmptyState>
     );
   }
 

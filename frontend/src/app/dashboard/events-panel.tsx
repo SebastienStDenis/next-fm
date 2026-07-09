@@ -4,6 +4,7 @@ import { useState, useTransition, type ReactNode } from "react";
 
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
+import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 
 export type UserEvent = {
@@ -158,11 +159,11 @@ export function EventsPanel({
           </div>
           {visibleEvents.length === 0 ? (
             hiddenCount === 0 && (
-              <p className="mt-4 text-sm text-gray-500">
+              <EmptyState className="mt-4">
                 {viewCity
                   ? "No concerts found. Try a different city."
                   : `No concerts found near ${city?.name}.`}
-              </p>
+              </EmptyState>
             )
           ) : (
             <ul className="mt-3 space-y-3">

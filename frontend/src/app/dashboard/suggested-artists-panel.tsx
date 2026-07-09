@@ -1,6 +1,7 @@
 "use client";
 
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
+import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 import type { Interest, UserArtist } from "./taste-panel";
 
@@ -40,10 +41,10 @@ export function SuggestedArtistsPanel({
     <div>
       {suggestedArtists.length === 0 ? (
         synced ? (
-          <p className="text-sm text-gray-500">
+          <EmptyState>
             No artists suggested. If you just signed up for Last.fm, wait for
             Last.fm to capture future listening history.
-          </p>
+          </EmptyState>
         ) : (
           <RunSyncMessage action="suggest artists" />
         )
