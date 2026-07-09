@@ -703,6 +703,8 @@ async def start_user_sync(
     account = await linked_lastfm_account(session, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
+    if user.city_id is None:
+        raise HTTPException(status_code=404, detail="No home city set")
 
     try:
         handle = await temporal.start_workflow(

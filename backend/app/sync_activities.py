@@ -55,6 +55,13 @@ async def _require_lastfm_account(session: AsyncSession, user_id: uuid.UUID) -> 
     return account
 
 
+def _require_home_city(user: User) -> None:
+    # The pipeline is all-or-nothing: without a city there is no playlist to
+    # build, so fail on step 1 instead of running a partial sync.
+    if user.city_id is None:
+        raise ApplicationError("No home city set", non_retryable=True)
+
+
 class SyncActivities:
     def __init__(
         self,
@@ -72,6 +79,7 @@ class SyncActivities:
     async def sync_artists(self, user_id: str) -> ArtistSyncResult:
         async with session_factory() as session:
             user = await _require_user(session, user_id)
+            _require_home_city(user)
             account = await _require_lastfm_account(session, user.id)
             results = await sync_lastfm_artists(
                 session, self._lastfm, user.id, account.username, SYNC_KINDS
@@ -120,6 +128,7 @@ class SyncActivities:
             result = await session.execute(
                 select(User.id)
                 .join(LastfmConnection, LastfmConnection.user_id == User.id)
+                .where(User.city_id.is_not(None))
                 .where(User.last_seen_at >= now - ACTIVITY_WINDOW)
                 .where(
                     or_(

@@ -56,14 +56,18 @@ columns.
 
 ## Who gets synced: eligibility
 
-A user is due for a sync when all three hold:
+A user is due for a sync when all four hold:
 
 1. **They have a linked Last.fm account.** Without one the workflow fails on
    step 1 by design; the dispatcher should not start runs it knows are doomed,
    mirroring the validation `POST /me/sync` does before starting a manual run.
-2. **They were seen in the last 30 days** (`last_seen_at >= now() - 30 days`).
+2. **They have a home city set.** The pipeline is all-or-nothing: without a
+   city there is no playlist to build, so nothing starts a partial run - the
+   manual endpoint rejects it, the dispatcher never lists the user, and step 1
+   fails fast if a run begins anyway.
+3. **They were seen in the last 30 days** (`last_seen_at >= now() - 30 days`).
    See "Tracking activity" below.
-3. **They were not synced in the last 20 hours**
+4. **They were not synced in the last 20 hours**
    (`last_synced_at IS NULL OR last_synced_at < now() - 20 hours`).
 
 This is one SQL query in the `list_users_due_for_sync` activity, ordered by
@@ -216,7 +220,7 @@ The shared workflow ID makes both directions safe with zero locking:
   counts it as skipped, and moves on. The user is being synced right now
   anyway - the goal is met.
 - **Scheduled run in flight when the user presses Sync**: `POST /me/sync`
-  already starts with `USE_EXISTING` (`main.py:708`), so the button attaches
+  already starts with `USE_EXISTING` (`main.py`), so the button attaches
   to the running scheduled sync and the UI shows its live progress. From the
   user's perspective the button worked instantly.
 

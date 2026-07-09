@@ -96,7 +96,7 @@ PLAYLIST_RESULT = PlaylistSyncResult(
 
 
 def make_user() -> User:
-    return User(id=USER_ID, name="Ada", include_known_artists=True)
+    return User(id=USER_ID, name="Ada", include_known_artists=True, city_id=6077243)
 
 
 def make_account() -> LastfmAccount:
@@ -149,6 +149,19 @@ async def test_start_sync_when_not_linked() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No Last.fm account linked"
+    temporal.start_workflow.assert_not_awaited()
+
+
+async def test_start_sync_when_no_home_city() -> None:
+    session = make_session()
+    session.execute.return_value = result_returning(make_account())
+    temporal = make_temporal()
+    user = User(id=USER_ID, name="Ada", include_known_artists=True)
+
+    response = await request("POST", SYNC_URL, session, temporal=temporal, user=user)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No home city set"
     temporal.start_workflow.assert_not_awaited()
 
 
@@ -310,6 +323,20 @@ async def test_sync_artists_activity_without_link_is_non_retryable(
 ) -> None:
     session = make_session()
     session.execute.return_value = result_returning(None)
+    patch_session_factory(monkeypatch, session)
+
+    with pytest.raises(ApplicationError) as excinfo:
+        await make_activities().sync_artists(str(USER_ID))
+
+    assert excinfo.value.non_retryable
+    session.commit.assert_not_awaited()
+
+
+async def test_sync_artists_activity_without_city_is_non_retryable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = make_session()
+    session.get.return_value = User(id=USER_ID, name="Ada", include_known_artists=True)
     patch_session_factory(monkeypatch, session)
 
     with pytest.raises(ApplicationError) as excinfo:

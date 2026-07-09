@@ -64,7 +64,7 @@ export default async function AccountPage() {
       fetchJson<Playlist[]>("/me/playlists", "playlists").catch(
         (): Playlist[] => [],
       ),
-      loadNeverSynced(),
+      loadNeverSynced(user),
     ]);
 
   const knownArtists = userArtists.filter((userArtist) =>

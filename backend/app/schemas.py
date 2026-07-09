@@ -13,6 +13,7 @@ class UserRead(BaseModel):
     id: uuid.UUID
     name: str
     include_known_artists: bool
+    last_synced_at: datetime | None
 
 
 class UserUpdate(BaseModel):

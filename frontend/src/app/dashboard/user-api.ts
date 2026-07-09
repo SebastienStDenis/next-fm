@@ -6,6 +6,7 @@ export type User = {
   id: string;
   name: string;
   include_known_artists: boolean;
+  last_synced_at: string | null;
 };
 
 export async function loadMe(): Promise<User> {
@@ -27,16 +28,22 @@ export async function fetchJson<T>(path: string, what: string): Promise<T> {
   return res.json();
 }
 
-// True when no sync run exists for the user yet. Best-effort: any transport
-// or Temporal error resolves to false so the page never breaks over a dot.
-export async function loadNeverSynced(): Promise<boolean> {
+// True when the user has never completed a sync: the "get started" nudge.
+// last_synced_at is the durable success record; a retained completed run also
+// counts (it predates the column), and a running first sync isn't nudged.
+// Best-effort: any transport or Temporal error resolves to false so the page
+// never breaks over a dot.
+export async function loadNeverSynced(user: User): Promise<boolean> {
+  if (user.last_synced_at !== null) {
+    return false;
+  }
   try {
     const res = await apiFetch("/me/sync", { cache: "no-store" });
     if (!res.ok) {
       return false;
     }
     const data: { status: string } = await res.json();
-    return data.status === "none";
+    return data.status === "none" || data.status === "failed";
   } catch {
     return false;
   }

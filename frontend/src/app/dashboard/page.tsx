@@ -20,7 +20,7 @@ export default async function DashboardPage() {
       fetchOptional<City>("/me/city", "city"),
       fetchJson<UserArtist[]>("/me/artists", "user artists"),
       fetchJson<Playlist[]>("/me/playlists", "playlists"),
-      loadNeverSynced(),
+      loadNeverSynced(user),
     ]);
 
   // Known-artist events are fetched regardless of the user's global setting;
