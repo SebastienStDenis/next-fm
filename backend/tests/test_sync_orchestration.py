@@ -385,7 +385,7 @@ async def test_workflow_runs_all_steps_in_order() -> None:
     assert result.steps[0].summary == "Synced 4 artists · 3 added, 1 updated, 0 removed"
     assert result.steps[3].summary == (
         "Synced 0 playlists · 0 tracks added, 0 removed · "
-        "6 artists with shows nearby, 1 not found on Spotify"
+        "6 artists with concerts nearby, 1 not found on Spotify"
     )
 
 

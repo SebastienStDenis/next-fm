@@ -69,9 +69,9 @@ def make_playlist(**overrides) -> Playlist:
     fields = {
         "id": PLAYLIST_ID,
         "user_id": USER_ID,
-        "kind": "city_shows",
+        "kind": "city_concerts",
         "city_id": 6077243,
-        "name": "Alice's shows in Montréal",
+        "name": "Alice's concerts in Montréal",
         "spotify_playlist_id": "pl1",
     }
     fields.update(overrides)
@@ -91,7 +91,7 @@ def commit_assigning_ids(session: AsyncMock) -> None:
 async def test_list_playlists_includes_city_and_track_provenance() -> None:
     city = make_city()
     pinned = make_playlist()
-    default = make_playlist(id=uuid.uuid7(), city_id=None, name="Alice's shows")
+    default = make_playlist(id=uuid.uuid7(), city_id=None, name="Alice's concerts")
     artist = Artist(id=uuid.uuid7(), name="Autechre")
     event = make_matched_event()
     track = PlaylistTrack(
@@ -118,7 +118,7 @@ async def test_list_playlists_includes_city_and_track_provenance() -> None:
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 2
-    assert body[0]["name"] == "Alice's shows in Montréal"
+    assert body[0]["name"] == "Alice's concerts in Montréal"
     assert body[0]["city"]["name"] == "Montréal"
     assert body[0]["spotify_playlist_id"] == "pl1"
     assert body[0]["tracks"] == [
@@ -186,15 +186,15 @@ async def test_create_pinned_playlist() -> None:
 
     assert response.status_code == 201
     body = response.json()
-    assert body["kind"] == "city_shows"
-    assert body["name"] == "Alice's shows in Montréal"
+    assert body["kind"] == "city_concerts"
+    assert body["name"] == "Alice's concerts in Montréal"
     assert body["city"]["geonameid"] == 6077243
     assert body["spotify_playlist_id"] is None
     assert body["tracks"] == []
     playlists = added_objects(session, Playlist)
     assert len(playlists) == 1
     assert playlists[0].city_id == 6077243
-    assert playlists[0].kind == "city_shows"
+    assert playlists[0].kind == "city_concerts"
     session.commit.assert_awaited_once()
 
 
@@ -348,7 +348,7 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
     )
     cached = ArtistTopTrack(artist_id=artist_id, rank=1, title="Gantz Graf", spotify_track_id="t1")
     default = make_playlist(
-        city_id=None, name="Alice's shows in Montréal", spotify_playlist_id=None
+        city_id=None, name="Alice's concerts in Montréal", spotify_playlist_id=None
     )
     session = make_session()
     session.get.side_effect = [city, city]

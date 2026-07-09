@@ -31,8 +31,8 @@ export default function AboutPage() {
           <h2 className="text-sm font-medium">Your playlist</h2>
           <p className="mt-1 text-sm text-gray-500">
             A few top tracks from each suggested artist playing near your city,
-            soonest show first. Every sync rebuilds it against the current
-            concert calendar, and you can pin extra cities to follow shows
+            soonest concert first. Every sync rebuilds it against the current
+            concert calendar, and you can pin extra cities to follow concerts
             where you travel. Your taste and playlists are regularly updated to
             stay up to date.
           </p>
