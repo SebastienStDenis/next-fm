@@ -10,13 +10,13 @@ export default function AboutPage() {
           <h2 className="text-sm font-medium">What Next.fm does</h2>
           <p className="mt-1 text-sm text-gray-500">
             It finds live music you would love but do not know yet. Your
-            Last.fm listening tells us your taste, concert listings tell us who
-            is playing near you, and the overlap becomes a Spotify playlist of
-            artists worth discovering while they are in town.
+            Last.fm listening history tells us what you like, concert listings
+            tell us who is playing near you, and the overlap becomes a Spotify
+            playlist of artists worth discovering while they are in town.
           </p>
         </section>
         <section>
-          <h2 className="text-sm font-medium">How suggestions work</h2>
+          <h2 className="text-sm font-medium">How suggested artists work</h2>
           <p className="mt-1 text-sm text-gray-500">
             We look at who sounds similar to the artists you listen to most and
             keep the strongest matches - each one shows its reason, like
@@ -29,10 +29,9 @@ export default function AboutPage() {
           <h2 className="text-sm font-medium">Your playlist</h2>
           <p className="mt-1 text-sm text-gray-500">
             A few top tracks from each suggested artist playing near your city,
-            soonest concert first. Every sync rebuilds it against the current
-            concert calendar, and you can pin extra cities to follow concerts
-            where you travel. Your taste and playlists are regularly updated to
-            stay up to date.
+            soonest concert first. You can pin extra cities to follow concerts
+            where you travel. Tracklists are automatically updated as your
+            listening history and upcoming concerts change.
           </p>
         </section>
       </div>

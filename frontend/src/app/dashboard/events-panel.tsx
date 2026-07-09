@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import Link from "next/link";
 
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
+import { RunSyncMessage } from "./run-sync-message";
 
 export type UserEvent = {
   event: {
@@ -59,14 +59,12 @@ function artistChipLabel(
 
 export function EventsPanel({
   city,
-  hasArtists,
-  hasSuggestions,
+  synced,
   artistRelations,
   events,
 }: {
   city: City | null;
-  hasArtists: boolean;
-  hasSuggestions: boolean;
+  synced: boolean;
   artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
 }) {
@@ -78,19 +76,8 @@ export function EventsPanel({
   const [searchOpen, setSearchOpen] = useState(false);
   const [loading, startTransition] = useTransition();
 
-  if (!hasArtists) {
-    return (
-      <p className="text-sm text-gray-500">
-        Nothing synced yet. Run a sync from{" "}
-        <Link
-          href="/dashboard/account"
-          className="underline hover:text-foreground"
-        >
-          Account settings
-        </Link>
-        .
-      </p>
-    );
+  if (!synced) {
+    return <RunSyncMessage action="find concerts" />;
   }
 
   function selectCity(selected: City) {
@@ -144,7 +131,7 @@ export function EventsPanel({
       {!city && !viewCity ? (
         <div>
           <p className="text-sm text-gray-500">
-            Set your city in the Account section to see local concerts.
+            Set your home city in the Account section to see local concerts.
           </p>
           {cityControls}
         </div>
@@ -172,11 +159,7 @@ export function EventsPanel({
           {visibleEvents.length === 0 ? (
             hiddenCount === 0 && (
               <p className="mt-4 text-sm text-gray-500">
-                {!hasSuggestions
-                  ? "No suggested artists yet, so no concerts to show. Sync to get some."
-                  : viewCity
-                    ? `No upcoming concerts by your artists near ${viewCity.name}.`
-                    : "No upcoming concerts by your artists nearby. Try syncing."}
+                No concerts found. Try a different city.
               </p>
             )
           ) : (

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import type { SyncStatus } from "./sync-card";
 
 export type User = {
   id: string;
@@ -27,19 +28,31 @@ export async function fetchJson<T>(path: string, what: string): Promise<T> {
   return res.json();
 }
 
-// True when no sync run exists for the user yet. Best-effort: any transport
-// or Temporal error resolves to false so the page never breaks over a dot.
-export async function loadNeverSynced(): Promise<boolean> {
+// The latest sync run, if any. Best-effort: any transport or Temporal error
+// resolves to null so the page never breaks over status hints.
+export async function loadSyncStatus(): Promise<SyncStatus | null> {
   try {
     const res = await apiFetch("/me/sync", { cache: "no-store" });
     if (!res.ok) {
-      return false;
+      return null;
     }
-    const data: { status: string } = await res.json();
-    return data.status === "none";
+    return res.json();
   } catch {
-    return false;
+    return null;
   }
+}
+
+// Whether the latest sync run completed the given step. Empty lists read
+// differently depending on it: "run a sync" vs "the sync found nothing".
+export function syncStepCompleted(
+  sync: SyncStatus | null,
+  key: string,
+): boolean {
+  return (
+    sync?.steps.some(
+      (step) => step.key === key && step.status === "completed",
+    ) ?? false
+  );
 }
 
 export async function fetchOptional<T>(

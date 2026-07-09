@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
+import { RunSyncMessage } from "./run-sync-message";
 import type { Interest, UserArtist } from "./taste-panel";
 
 function suggestionOf(userArtist: UserArtist): Interest | undefined {
@@ -27,8 +26,10 @@ function reasonOf(userArtist: UserArtist): string | null {
 
 export function SuggestedArtistsPanel({
   suggestedArtists,
+  synced,
 }: {
   suggestedArtists: UserArtist[];
+  synced: boolean;
 }) {
   const sortedArtists = [...suggestedArtists].sort(
     (a, b) =>
@@ -38,16 +39,14 @@ export function SuggestedArtistsPanel({
   return (
     <div>
       {suggestedArtists.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          Nothing synced yet. Run a sync from{" "}
-          <Link
-            href="/dashboard/account"
-            className="underline hover:text-foreground"
-          >
-            Account settings
-          </Link>
-          .
-        </p>
+        synced ? (
+          <p className="text-sm text-gray-500">
+            No artists suggested. If you just signed up for Last.fm, wait for
+            Last.fm to capture future listening history.
+          </p>
+        ) : (
+          <RunSyncMessage action="suggest artists" />
+        )
       ) : (
         <>
           <ul className="space-y-3">
