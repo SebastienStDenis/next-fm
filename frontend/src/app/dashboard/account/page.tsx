@@ -1,5 +1,5 @@
 import { AttentionDot } from "../attention-dot";
-import { BackButton } from "../../back-button";
+import { HomeLink } from "../../home-link";
 import { CityPanel, type City } from "../city-panel";
 import { DeleteAccountButton } from "../delete-account-button";
 import { DiscoveryToggle } from "../discovery-toggle";
@@ -82,7 +82,7 @@ export default async function AccountPage() {
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">
-      <BackButton fallbackHref="/dashboard" />
+      <HomeLink />
       <div className="mt-2 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <SignOutButton />

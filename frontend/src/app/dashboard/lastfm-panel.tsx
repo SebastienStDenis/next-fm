@@ -71,7 +71,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
 
   return (
     <div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         {account.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -81,41 +81,40 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           />
         )}
         <div>
-          {account.profile_url ? (
-            <a
-              href={account.profile_url}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium hover:underline"
-            >
-              {account.username}
-            </a>
-          ) : (
-            <span className="font-medium">{account.username}</span>
-          )}
-          {account.real_name && (
-            <p className="text-sm text-gray-500">{account.real_name}</p>
-          )}
+          <p className="flex min-h-16 items-center font-medium">
+            {account.real_name ?? account.username}
+          </p>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <dt className="text-gray-500">Username</dt>
+            <dd>
+              {account.profile_url ? (
+                <a
+                  href={account.profile_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:underline"
+                >
+                  {account.username}
+                </a>
+              ) : (
+                account.username
+              )}
+            </dd>
+            {account.country && (
+              <>
+                <dt className="text-gray-500">Country</dt>
+                <dd>{account.country}</dd>
+              </>
+            )}
+            {account.registered_at && (
+              <>
+                <dt className="text-gray-500">Registered</dt>
+                <dd>{formatDate(account.registered_at)}</dd>
+              </>
+            )}
+          </dl>
         </div>
-      </div>
-
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        {account.country && (
-          <>
-            <dt className="text-gray-500">Country</dt>
-            <dd>{account.country}</dd>
-          </>
-        )}
-        {account.registered_at && (
-          <>
-            <dt className="text-gray-500">Registered</dt>
-            <dd>{formatDate(account.registered_at)}</dd>
-          </>
-        )}
-      </dl>
-
-      <div className="mt-4 flex justify-end">
-        <form action={unlinkAction}>
+        <form action={unlinkAction} className="ml-auto">
           <button
             type="submit"
             disabled={unlinkPending}

@@ -1,9 +1,9 @@
-import { BackButton } from "../back-button";
+import { HomeLink } from "../home-link";
 
 export default function AboutPage() {
   return (
     <main className="mx-auto w-full max-w-xl p-8">
-      <BackButton fallbackHref="/dashboard" />
+      <HomeLink />
       <h1 className="mt-2 mb-4 text-2xl font-semibold">About</h1>
       <div className="space-y-5">
         <section>
