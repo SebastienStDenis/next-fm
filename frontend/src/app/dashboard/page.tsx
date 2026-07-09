@@ -12,12 +12,7 @@ import { Tabs } from "./tabs";
 import { type UserArtist } from "./taste-panel";
 import { fetchJson, fetchOptional, loadMe, loadNeverSynced } from "./user-api";
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const { tab } = await searchParams;
+export default async function DashboardPage() {
   const user = await loadMe();
 
   const [lastfm, city, userArtists, playlists, neverSynced] =
@@ -90,7 +85,6 @@ export default async function DashboardPage({
       </p>
       <section className="mt-6">
         <Tabs
-          initialTab={tab}
           tabs={[
             {
               key: "suggested",

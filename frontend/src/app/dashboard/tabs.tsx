@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+
+import { useSearchParams } from "next/navigation";
 
 export function Tabs({
   tabs,
-  initialTab,
 }: {
   tabs: {
     key: string;
@@ -12,20 +13,21 @@ export function Tabs({
     description?: string;
     content: ReactNode;
   }[];
-  initialTab?: string;
 }) {
-  const [active, setActive] = useState(
-    initialTab && tabs.some((tab) => tab.key === initialTab)
-      ? initialTab
-      : tabs[0].key,
-  );
+  // The URL is the source of truth so the active tab follows browser and
+  // in-app back/forward navigation, not just the value seeded on first render.
+  const tabParam = useSearchParams().get("tab");
+  const active =
+    tabParam && tabs.some((tab) => tab.key === tabParam)
+      ? tabParam
+      : tabs[0].key;
 
   const selectTab = (key: string) => {
-    setActive(key);
     const params = new URLSearchParams(window.location.search);
     params.set("tab", key);
-    // Update the URL without a server round-trip so the panels stay mounted;
-    // replaceState keeps tab switches out of the back/forward history.
+    // replaceState updates the URL without a server round-trip (panels stay
+    // mounted) and keeps tab switches out of back/forward history, while still
+    // syncing useSearchParams so `active` above reflects the change.
     window.history.replaceState(null, "", `?${params.toString()}`);
   };
 
