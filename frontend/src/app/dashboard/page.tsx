@@ -61,7 +61,7 @@ export default async function DashboardPage() {
   ).length;
 
   return (
-    <main className="mx-auto max-w-xl p-8">
+    <main className="mx-auto max-w-xl p-8 pt-15">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Link
