@@ -78,7 +78,7 @@ Small layered FastAPI app; keep the separation when adding features:
 - `sync_workflow.py` - `SyncUserWorkflow`, the durable Temporal workflow chaining the four sync steps per user with queryable per-step progress (see `docs/design/2026-07-07-sync-orchestration-plan.md`), and `DispatchSyncsWorkflow`, the nightly re-sync running each due user as a sequential child sync (see `docs/design/2026-07-09-background-sync-plan.md`).
 - `sync_activities.py` - Temporal activities wrapping the four sync entrypoints plus the nightly dispatch bookkeeping (eligibility listing, last-synced stamp); each attempt opens its own session and commits.
 - `temporal.py` - Temporal client connection helper shared by API and worker; local server by default, Temporal Cloud when `TEMPORAL_API_KEY` is set.
-- `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service; creates the `nightly-sync` schedule at startup.
+- `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service; reconciles the `nightly-sync` schedule at startup (created when `NIGHTLY_SYNC_ENABLED` is true, deleted otherwise).
 - `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the match join, haversine distance.
 - `accounts.py` - shared linked-Last.fm-account lookup used by both the API and the sync activities.
 - `auth.py` - Supabase JWT verification and the `get_current_user` dependency: resolves tokens to `User` rows (JIT provisioning) and stamps `users.last_seen_at`, the activity signal for the nightly sync.

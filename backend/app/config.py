@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     temporal_namespace: str = "default"
     temporal_task_queue: str = "user-sync"
     temporal_api_key: str = ""
+    # Opt-in: the worker only keeps the nightly re-sync schedule when true, so
+    # a local stack doesn't churn every user through the third-party APIs
+    # overnight. Production must set it.
+    nightly_sync_enabled: bool = False
     cors_origins: str = "http://localhost:3000"
     supabase_url: str = "http://127.0.0.1:54321"
     # Defaults to {supabase_url}/auth/v1; set only when the URL the backend

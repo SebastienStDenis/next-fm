@@ -1,8 +1,9 @@
 """Temporal worker entrypoint (`python -m app.worker`).
 
-Runs the sync pipeline's workflows and activities, and provisions the
-`nightly-sync` schedule on startup so every environment gets the daily re-sync
-without dashboard setup (docs/design/2026-07-09-background-sync-plan.md). Builds from
+Runs the sync pipeline's workflows and activities, and reconciles the
+`nightly-sync` schedule on startup - created when `NIGHTLY_SYNC_ENABLED` is
+true, deleted otherwise - so no environment needs dashboard setup
+(docs/design/2026-07-09-background-sync-plan.md). Builds from
 the same image and settings as the API; the worker owns one long-lived
 instance of each API client, shared across activities for the life of the
 process.
@@ -24,7 +25,7 @@ from temporalio.client import (
     ScheduleRange,
     ScheduleSpec,
 )
-from temporalio.service import RPCError
+from temporalio.service import RPCError, RPCStatusCode
 from temporalio.worker import Worker
 
 from app.bandsintown import BandsintownClient
@@ -59,7 +60,18 @@ SCHEDULE_HOUR_UTC = 6
 SCHEDULE_CATCHUP_WINDOW = timedelta(hours=1)
 
 
-async def _ensure_nightly_schedule(client: Client, settings: Settings) -> None:
+async def _reconcile_nightly_schedule(client: Client, settings: Settings) -> None:
+    if not settings.nightly_sync_enabled:
+        # Deleting (not just skipping creation) is what makes turning the flag
+        # off effective: the schedule persists in Temporal's database from
+        # earlier starts.
+        try:
+            await client.get_schedule_handle(SCHEDULE_ID).delete()
+            logger.info("Deleted schedule %r (nightly sync disabled)", SCHEDULE_ID)
+        except RPCError as exc:
+            if exc.status != RPCStatusCode.NOT_FOUND:
+                raise
+        return
     # Create-if-missing: editing the spec below does not update an existing
     # schedule; delete it (or `temporal schedule update`) and let the worker
     # recreate it.
@@ -112,7 +124,7 @@ async def _connect_with_retry(settings: Settings) -> Client:
 
 async def _run_worker(settings: Settings, activities: SyncActivities) -> None:
     client = await _connect_with_retry(settings)
-    await _ensure_nightly_schedule(client, settings)
+    await _reconcile_nightly_schedule(client, settings)
     worker = Worker(
         client,
         task_queue=settings.temporal_task_queue,
