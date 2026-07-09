@@ -1,4 +1,4 @@
-# live-playlists
+# Next.fm
 
 A website for live-music discovery that works through listening instead of listings. It connects to a user's music taste, finds artists they'd like who are playing in their city in the coming weeks or months, and delivers the result as a Spotify playlist rather than a list of shows - so they can actually *hear* who's coming to town and decide who's worth seeing. The playlist stays fresh as new shows get announced; when an artist hooks them, they go find the tickets.
 
@@ -6,7 +6,7 @@ A website for live-music discovery that works through listening instead of listi
 
 - **Last.fm** - the taste source. Users enter their username, and it provides their top artists plus similar-artist suggestions for discovery. Free, open API, no login or approval process.
 - **Bandsintown** - the events source. The industry's broadest concert database (~2.3M events/year, aggregating Ticketmaster, AXS, Eventbrite, and artist-listed dates - it's what powers concert listings in Spotify and Apple Music). Used to check which of the user's matched artists have upcoming dates near them.
-- **Spotify via a bot account** - the delivery mechanism. A dedicated account owned by the app creates and maintains one playlist per user; the user just taps "Add to library." No Spotify sign-in required from the user, and because the app owns the playlist, it can refresh it automatically as new shows are announced.
+- **Spotify via a bot account** - the delivery mechanism. A dedicated account owned by Next.fm creates and maintains one playlist per user; the user just taps "Add to library." No Spotify sign-in required from the user, and because Next.fm owns the playlist, it can refresh it automatically as new shows are announced.
 
 ## Stack
 

@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "live-playlists API"
+description = "Next.fm API"
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.18.5",

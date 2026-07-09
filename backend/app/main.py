@@ -181,7 +181,7 @@ async def get_temporal_client() -> TemporalClient:
 
 TemporalClientDep = Annotated[TemporalClient, Depends(get_temporal_client)]
 
-app = FastAPI(title="live-playlists API")
+app = FastAPI(title="Next.fm API")
 
 app.add_middleware(
     CORSMiddleware,

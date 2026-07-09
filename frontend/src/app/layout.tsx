@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Live Playlists",
+  title: "Next.fm",
   description: "Live-music discovery through listening",
 };
 

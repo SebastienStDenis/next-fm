@@ -9,7 +9,7 @@ export default function AboutPage() {
       <h1 className="mt-2 mb-4 text-2xl font-semibold">About</h1>
       <div className="space-y-5">
         <section>
-          <h2 className="text-sm font-medium">What this app does</h2>
+          <h2 className="text-sm font-medium">What Next.fm does</h2>
           <p className="mt-1 text-sm text-gray-500">
             It finds live music you would love but do not know yet. Your
             Last.fm listening tells us your taste, concert listings tell us who

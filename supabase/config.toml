@@ -61,5 +61,5 @@ enable_confirmations = true
 # the mail is captured by Mailpit (http://127.0.0.1:54324); production needs a
 # custom SMTP provider (the built-in sender allows only a few emails/hour).
 [auth.email.template.confirmation]
-subject = "Confirm your email for Live Playlists"
+subject = "Confirm your email for Next.fm"
 content_path = "./supabase/templates/confirmation.html"
