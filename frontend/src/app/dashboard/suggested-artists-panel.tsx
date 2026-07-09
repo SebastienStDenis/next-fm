@@ -54,7 +54,7 @@ export function SuggestedArtistsPanel({
             {sortedArtists.map((userArtist) => (
               <li
                 key={userArtist.artist.id}
-                className="border-l-2 border-gray-300 pl-3 text-sm dark:border-gray-700"
+                className="border-l-2 border-gray-300 pl-2 text-sm dark:border-gray-700"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span>{userArtist.artist.name}</span>

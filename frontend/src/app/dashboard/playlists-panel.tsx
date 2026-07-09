@@ -144,10 +144,10 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
             {playlist.tracks.map((track) => (
               <li
                 key={track.spotify_track_id}
-                className="flex items-start gap-x-2 text-sm"
+                className="flex gap-x-2 text-sm"
               >
-                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-gray-100 px-1.5 text-xs font-medium tabular-nums text-gray-500 dark:bg-gray-800">
-                  {track.position + 1}
+                <span className="inline-block min-w-6 tabular-nums text-gray-500">
+                  {track.position + 1}.
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2">
