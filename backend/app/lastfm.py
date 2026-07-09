@@ -33,8 +33,6 @@ class LastfmUserInfo(BaseModel):
     profile_url: str | None
     country: str | None
     registered_at: datetime | None
-    playcount: int | None
-    artist_count: int | None
 
 
 class LastfmTopArtist(BaseModel):
@@ -176,8 +174,6 @@ def _parse_user_info(user: dict) -> LastfmUserInfo:
         profile_url=_text_or_none(user.get("url")),
         country=_text_or_none(user.get("country")),
         registered_at=registered_at,
-        playcount=_int_or_none(user.get("playcount")),
-        artist_count=_int_or_none(user.get("artist_count")),
     )
 
 

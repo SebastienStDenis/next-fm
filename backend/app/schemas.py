@@ -44,8 +44,6 @@ class LastfmAccountRead(BaseModel):
     profile_url: str | None
     country: str | None
     registered_at: datetime | None
-    playcount: int | None
-    artist_count: int | None
     last_synced_at: datetime | None
 
 
