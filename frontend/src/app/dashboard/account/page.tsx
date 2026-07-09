@@ -65,7 +65,7 @@ export default async function AccountPage() {
     fetchOptional<City>("/me/city", "city"),
     fetchJson<UserArtist[]>("/me/artists", "user artists"),
     // A playlists outage should only blank the Pinned Cities panel, not take
-    // down the rest of account settings, so degrade to an empty list.
+    // down the rest of the account page, so degrade to an empty list.
     fetchJson<Playlist[]>("/me/playlists", "playlists").catch(
       (): Playlist[] => [],
     ),
