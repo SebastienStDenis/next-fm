@@ -86,6 +86,7 @@ export async function setCity(geonameid: number): Promise<ActionState> {
     },
     "Failed to set city.",
     `/dashboard`,
+    "layout",
   );
 }
 
@@ -95,6 +96,7 @@ export async function clearCity(): Promise<ActionState> {
     { method: "DELETE" },
     "Failed to clear city.",
     `/dashboard`,
+    "layout",
   );
 }
 
