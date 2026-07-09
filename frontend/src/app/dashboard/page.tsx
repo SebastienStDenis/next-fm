@@ -98,7 +98,7 @@ export default async function DashboardPage() {
             {
               key: "concerts",
               label: `Concerts (${suggestedEventCount})`,
-              description: "Upcoming shows near you by suggested artists.",
+              description: "Upcoming concerts near you by suggested artists.",
               content: (
                 <EventsPanel
                   city={city}
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
               key: "playlists",
               label: `Playlists (${linkedPlaylists.length})`,
               description:
-                "Spotify playlists tracking suggested shows in your cities.",
+                "Spotify playlists tracking suggested concerts in your cities.",
               content: (
                 <PlaylistsPanel
                   hasCity={city !== null}

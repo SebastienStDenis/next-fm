@@ -90,7 +90,7 @@ async def sync_user_suggestions(
     similar_artist interest rows against the result.
 
     The previous suggestion set is deliberately an input (incumbency drives
-    the exit threshold and show-tied grace), and every existing row is either
+    the exit threshold and concert-tied grace), and every existing row is either
     re-confirmed or deleted - an incumbent absent from the scoring output is
     a zero, not an unknown.
     """
@@ -262,7 +262,7 @@ def select_suggestions(
     graced_ids: set[uuid.UUID],
 ) -> list[Candidate]:
     """Apply thresholds with hysteresis, the known-artist filter with its
-    show-tied grace, exclusions, and the budget. Deterministic: ties break by
+    concert-tied grace, exclusions, and the budget. Deterministic: ties break by
     incumbency, then name_key."""
 
     def incumbent(candidate: Candidate) -> bool:
@@ -369,7 +369,7 @@ async def _canonical_ids_by_key(
 async def _graced_artist_ids(
     session: AsyncSession, user: User, incumbent_ids: set[uuid.UUID]
 ) -> set[uuid.UUID]:
-    """Incumbents with an upcoming show near any of the user's playlist
+    """Incumbents with an upcoming concert near any of the user's playlist
     target cities - the same servable predicate the match join runs on.
     Grace retains, never admits: it only ever excuses known-ness."""
     if not incumbent_ids:
