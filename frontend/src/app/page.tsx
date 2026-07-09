@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { IntroText } from "./intro-text";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -17,9 +18,12 @@ export default async function Home() {
       <h1 className="text-3xl font-semibold tracking-tight">
         Next.fm
       </h1>
-      <p className="max-w-md text-center text-lg text-zinc-600 dark:text-zinc-400">
-        Live-music discovery through listening.
-      </p>
+      <div className="flex flex-col items-center gap-1">
+        <p className="max-w-md text-center text-lg text-zinc-600 dark:text-zinc-400">
+          Live-music discovery through listening.
+        </p>
+        <IntroText className="max-w-md text-center text-xs text-gray-500 italic" />
+      </div>
       <div className="flex gap-4">
         <Link
           className="flex h-12 items-center justify-center rounded-full bg-foreground px-6 font-medium text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
@@ -34,9 +38,6 @@ export default async function Home() {
           Sign up
         </Link>
       </div>
-      <Link href="/about" className="text-sm text-gray-500 hover:underline">
-        How it works
-      </Link>
     </main>
   );
 }

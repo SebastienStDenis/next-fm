@@ -70,18 +70,10 @@ export default async function DashboardPage() {
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:border-foreground hover:text-foreground dark:border-gray-700 dark:text-gray-400"
         >
           {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
-          Account settings
+          Account
           <span aria-hidden>&rarr;</span>
         </Link>
       </div>
-      <p className="mt-1 text-xs text-gray-500 italic">
-        We find upcoming concerts near you by artists that match your taste, and
-        generate Spotify playlists for you to discover them. See{" "}
-        <Link href="/about" className="underline hover:no-underline">
-          About
-        </Link>{" "}
-        for more details.
-      </p>
       <section className="mt-6">
         <Tabs
           tabs={[

@@ -10,6 +10,7 @@ import { SignOutButton } from "../sign-out-button";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
+import { IntroText } from "../../intro-text";
 import { fetchJson, fetchOptional, loadMe, loadNeverSynced } from "../user-api";
 
 function Section({
@@ -80,6 +81,7 @@ export default async function AccountPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <SignOutButton />
       </div>
+      <IntroText className="mt-1 text-xs text-gray-500 italic" />
       <Section
         heading="Sync"
         alert={neverSynced}
