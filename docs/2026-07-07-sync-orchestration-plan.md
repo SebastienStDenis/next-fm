@@ -14,7 +14,8 @@ change.
 
 > **Status: implemented as designed.** Scheduled background re-sync and on-demand
 > rate limiting remain out of scope; the last section sketches how this design
-> accommodates them later.
+> accommodates them later. Scheduled re-sync is now designed in
+> `docs/2026-07-09-background-sync-plan.md`.
 
 ## Why Temporal (and what the alternative was)
 
