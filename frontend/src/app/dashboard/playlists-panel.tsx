@@ -146,7 +146,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
                 key={track.spotify_track_id}
                 className="flex gap-x-2 text-sm"
               >
-                <span className="inline-block min-w-6 tabular-nums text-gray-500">
+                <span className="inline-block min-w-6 text-right tabular-nums text-gray-500">
                   {track.position + 1}.
                 </span>
                 <div className="min-w-0">
