@@ -209,7 +209,7 @@ export function EventsPanel({
                         rel="noreferrer"
                         className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
                       >
-                        Tickets ↗
+                        Tickets
                       </a>
                     )}
                   </div>
