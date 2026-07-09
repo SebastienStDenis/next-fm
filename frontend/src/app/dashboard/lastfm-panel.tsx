@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useSyncExternalStore } from "react";
+import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
 
@@ -15,29 +15,12 @@ export type LastfmAccount = {
   last_synced_at: string | null;
 };
 
-// Client-only flag (false during SSR/hydration, true after) so the local-time
-// swap never causes a hydration mismatch.
-const noopSubscribe = () => () => {};
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     timeZone: "UTC",
-  });
-}
-
-// timeZone omitted => the viewer's local zone. The server render passes "UTC"
-// so it stays deterministic; the client swaps to local after mount.
-function formatDateTime(iso: string, timeZone?: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
   });
 }
 
@@ -85,17 +68,10 @@ function AccountCard({ account }: { account: LastfmAccount }) {
     { error: null },
   );
   const error = unlinkState.error;
-  // Format in the viewer's local zone once mounted; the server and first client
-  // render both report false (UTC) so hydration stays clean.
-  const localTime = useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
 
   return (
     <div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         {account.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -105,49 +81,40 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           />
         )}
         <div>
-          {account.profile_url ? (
-            <a
-              href={account.profile_url}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium hover:underline"
-            >
-              {account.username}
-            </a>
-          ) : (
-            <span className="font-medium">{account.username}</span>
-          )}
-          {account.real_name && (
-            <p className="text-sm text-gray-500">{account.real_name}</p>
-          )}
+          <p className="flex min-h-16 items-center font-medium">
+            {account.real_name ?? account.username}
+          </p>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <dt className="text-gray-500">Username</dt>
+            <dd>
+              {account.profile_url ? (
+                <a
+                  href={account.profile_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:underline"
+                >
+                  {account.username}
+                </a>
+              ) : (
+                account.username
+              )}
+            </dd>
+            {account.country && (
+              <>
+                <dt className="text-gray-500">Country</dt>
+                <dd>{account.country}</dd>
+              </>
+            )}
+            {account.registered_at && (
+              <>
+                <dt className="text-gray-500">Registered</dt>
+                <dd>{formatDate(account.registered_at)}</dd>
+              </>
+            )}
+          </dl>
         </div>
-      </div>
-
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        {account.country && (
-          <>
-            <dt className="text-gray-500">Country</dt>
-            <dd>{account.country}</dd>
-          </>
-        )}
-        {account.registered_at && (
-          <>
-            <dt className="text-gray-500">Registered</dt>
-            <dd>{formatDate(account.registered_at)}</dd>
-          </>
-        )}
-      </dl>
-
-      <div className="mt-4 flex items-center justify-between">
-        <p className="text-xs text-gray-500 italic">
-          {account.last_synced_at
-            ? `Linked ${formatDateTime(
-                account.last_synced_at,
-                localTime ? undefined : "UTC",
-              )}`
-            : "Never linked"}
-        </p>
-        <form action={unlinkAction}>
+        <form action={unlinkAction} className="ml-auto">
           <button
             type="submit"
             disabled={unlinkPending}

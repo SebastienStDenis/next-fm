@@ -3,10 +3,10 @@
 *Written 2026-07-07 by Claude (Fable 5).*
 
 How the four per-user sync steps - artist ingestion
-(`docs/2026-07-05-artist-ingestion-plan.md`), suggestions
-(`docs/2026-07-06-artist-suggestions-plan.md`), event ingestion
-(`docs/2026-07-06-event-ingestion-plan.md`), and playlist generation
-(`docs/2026-07-06-playlist-plan.md`) - become one durable pipeline behind a single
+(`docs/design/2026-07-05-artist-ingestion-plan.md`), suggestions
+(`docs/design/2026-07-06-artist-suggestions-plan.md`), event ingestion
+(`docs/design/2026-07-06-event-ingestion-plan.md`), and playlist generation
+(`docs/design/2026-07-06-playlist-plan.md`) - become one durable pipeline behind a single
 "Sync" button, with live per-step progress in the UI. Orchestration runs on Temporal,
 and the design constraint throughout is dev/prod parity: the workflow, activities,
 worker, and API code are identical in both environments; only connection env vars
@@ -15,7 +15,7 @@ change.
 > **Status: implemented as designed.** Scheduled background re-sync and on-demand
 > rate limiting remain out of scope; the last section sketches how this design
 > accommodates them later. Scheduled re-sync is now designed in
-> `docs/2026-07-09-background-sync-plan.md`.
+> `docs/design/2026-07-09-background-sync-plan.md`.
 
 ## Why Temporal (and what the alternative was)
 

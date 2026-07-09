@@ -86,15 +86,25 @@ function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
-export function TastePanel({ userArtists }: { userArtists: UserArtist[] }) {
+export function TastePanel({
+  userArtists,
+  synced,
+}: {
+  userArtists: UserArtist[];
+  synced: boolean;
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
 
   return (
     <div>
       {userArtists.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          Nothing synced yet. Run a sync above.
+        // Already inside the section's bordered panel, so no dashed box here -
+        // just the centered empty-state text.
+        <p className="px-6 py-8 text-center text-sm text-gray-500">
+          {synced
+            ? "No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history."
+            : "Run a sync above to import listening history."}
         </p>
       ) : (
         <>

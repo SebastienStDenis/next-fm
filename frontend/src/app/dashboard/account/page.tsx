@@ -1,5 +1,5 @@
 import { AttentionDot } from "../attention-dot";
-import { BackButton } from "../../back-button";
+import { HomeLink } from "../../home-link";
 import { CityPanel, type City } from "../city-panel";
 import { DeleteAccountButton } from "../delete-account-button";
 import { DiscoveryToggle } from "../discovery-toggle";
@@ -11,7 +11,14 @@ import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
 import { IntroText } from "../../intro-text";
-import { fetchJson, fetchOptional, loadMe, loadNeverSynced } from "../user-api";
+import {
+  fetchJson,
+  fetchOptional,
+  hasNeverSynced,
+  loadMe,
+  loadSyncStatus,
+  syncStepCompleted,
+} from "../user-api";
 
 function Section({
   heading,
@@ -54,18 +61,18 @@ function Section({
 export default async function AccountPage() {
   const user = await loadMe();
 
-  const [lastfm, city, userArtists, playlists, neverSynced] =
-    await Promise.all([
-      fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
-      fetchOptional<City>("/me/city", "city"),
-      fetchJson<UserArtist[]>("/me/artists", "user artists"),
-      // A playlists outage should only blank the Pinned Cities panel, not take
-      // down the rest of account settings, so degrade to an empty list.
-      fetchJson<Playlist[]>("/me/playlists", "playlists").catch(
-        (): Playlist[] => [],
-      ),
-      loadNeverSynced(user),
-    ]);
+  const [lastfm, city, userArtists, playlists, sync] = await Promise.all([
+    fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
+    fetchOptional<City>("/me/city", "city"),
+    fetchJson<UserArtist[]>("/me/artists", "user artists"),
+    // A playlists outage should only blank the Pinned Cities panel, not take
+    // down the rest of the account page, so degrade to an empty list.
+    fetchJson<Playlist[]>("/me/playlists", "playlists").catch(
+      (): Playlist[] => [],
+    ),
+    loadSyncStatus(),
+  ]);
+  const neverSynced = hasNeverSynced(user, sync);
 
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
@@ -76,7 +83,7 @@ export default async function AccountPage() {
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">
-      <BackButton fallbackHref="/dashboard" />
+      <HomeLink />
       <div className="mt-2 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <SignOutButton />
@@ -86,7 +93,7 @@ export default async function AccountPage() {
         heading="Sync"
         alert={neverSynced}
         alertText="Get started by running a sync"
-        description="Imports listening history, suggests concerts and creates playlists. Re-runs automatically every day."
+        description="Imports listening history, suggests artists, finds concerts and generates playlists. Re-runs automatically every day."
         className="mt-6"
       >
         <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
@@ -104,14 +111,14 @@ export default async function AccountPage() {
         heading="Home City"
         alert={city === null}
         alertText="Set home city to enable sync"
-        description="A playlist is created for concerts in your home city."
+        description="A playlist is generated for concerts in your home city."
         className="mt-8"
       >
         <CityPanel city={city} />
       </Section>
       <Section
         heading="Pinned Cities"
-        description="Extra playlists are created for concerts in other cities you pin."
+        description="Extra playlists are generated for concerts in other cities you pin."
         className="mt-8"
       >
         <PinnedCitiesPanel pinned={pinnedPlaylists} />
@@ -120,11 +127,14 @@ export default async function AccountPage() {
         <DiscoveryToggle includeKnownArtists={user.include_known_artists} />
       </Section>
       <Section
-        heading="My Artists"
-        description="Artists you listen to are used to suggest new artists and concerts."
+        heading="Listening History"
+        description="Your listening history is used to suggest artists and find concerts."
         className="mt-8"
       >
-        <TastePanel userArtists={knownArtists} />
+        <TastePanel
+          userArtists={knownArtists}
+          synced={syncStepCompleted(sync, "artists")}
+        />
       </Section>
       <section className="mt-8">
         <DeleteAccountButton userName={user.name} />

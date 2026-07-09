@@ -6,8 +6,8 @@ Today a user's data refreshes only when they press the Sync button. This doc
 designs the automatic background re-sync: which users get synced, in what
 order, how often, what stops syncing for users who stop showing up, and how the
 same design runs locally and in production (Render + Temporal Cloud). It is
-Phase 3 of `docs/2026-07-08-production-deployment-plan.md` and makes concrete
-the future-work sketch in `docs/2026-07-07-sync-orchestration-plan.md`.
+Phase 3 of `docs/design/2026-07-08-production-deployment-plan.md` and makes concrete
+the future-work sketch in `docs/design/2026-07-07-sync-orchestration-plan.md`.
 
 The guiding constraint is deliberate modesty: the simplest design that is
 production-idiomatic and on the path to the eventual scaled-up version. One
@@ -109,7 +109,7 @@ The 30-day activity window needs a signal for "the user still uses the site".
 **Not** Supabase's `auth.users.last_sign_in_at`, even though it is sitting in
 the same database. It only updates on an explicit credential sign-in, and our
 frontend keeps sessions alive indefinitely by silently rotating refresh tokens
-(`@supabase/ssr` in the proxy, `docs/2026-07-08-auth-plan.md`) - a user who
+(`@supabase/ssr` in the proxy, `docs/design/2026-07-08-auth-plan.md`) - a user who
 visits daily might not "sign in" for months and would read as inactive.
 Reaching into another service's schema is also coupling we do not need.
 
@@ -202,7 +202,7 @@ worker drain them) is the same code minus the `await`; the graduation path is:
    API pressure.
 3. The already-documented dedicated task queue for the playlist step, so the
    MusicBrainz 1 req/s throttle survives multiple worker replicas
-   (`docs/2026-07-07-sync-orchestration-plan.md`, "Activities").
+   (`docs/design/2026-07-07-sync-orchestration-plan.md`, "Activities").
 
 Every other piece of this design - eligibility query, ordering, the columns,
 the schedule, the child-workflow relationship - survives all three steps
@@ -307,7 +307,7 @@ onto what Phase 1 already deployed:
   Render worker on its first boot after this feature deploys.
 - The **dispatcher and every child sync** execute on the existing Background
   Worker - the always-on service we already pay for, which was sized for
-  exactly this (`docs/2026-07-08-production-deployment-plan.md`, "Background
+  exactly this (`docs/design/2026-07-08-production-deployment-plan.md`, "Background
   sync cadence").
 - The **two columns** arrive via the Alembic migration in Render's pre-deploy
   step, like any other migration.
@@ -353,7 +353,7 @@ Each lands as its own PR, app fully working after each.
    with `temporal schedule trigger` end to end.
 4. **Docs.** Root `CLAUDE.md` module descriptions (`sync_workflow.py`,
    `sync_activities.py`, `worker.py`, `auth.py`); update the status note in
-   `docs/2026-07-07-sync-orchestration-plan.md` to point here.
+   `docs/design/2026-07-07-sync-orchestration-plan.md` to point here.
 
 ## Follow-ups (explicitly out of scope)
 

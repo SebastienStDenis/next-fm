@@ -2,7 +2,7 @@
 
 Runs the sync pipeline's workflows and activities, and provisions the
 `nightly-sync` schedule on startup so every environment gets the daily re-sync
-without dashboard setup (docs/2026-07-09-background-sync-plan.md). Builds from
+without dashboard setup (docs/design/2026-07-09-background-sync-plan.md). Builds from
 the same image and settings as the API; the worker owns one long-lived
 instance of each API client, shared across activities for the life of the
 process.

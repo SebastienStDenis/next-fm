@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import type { SyncStatus } from "./sync-card";
 
 export type User = {
   id: string;
@@ -28,25 +29,43 @@ export async function fetchJson<T>(path: string, what: string): Promise<T> {
   return res.json();
 }
 
-// True when the user has never completed a sync: the "get started" nudge.
-// last_synced_at is the durable success record; a retained completed run also
-// counts (it predates the column), and a running first sync isn't nudged.
-// Best-effort: any transport or Temporal error resolves to false so the page
-// never breaks over a dot.
-export async function loadNeverSynced(user: User): Promise<boolean> {
-  if (user.last_synced_at !== null) {
-    return false;
-  }
+// The latest sync run, if any. Best-effort: any transport or Temporal error
+// resolves to null so the page never breaks over status hints.
+export async function loadSyncStatus(): Promise<SyncStatus | null> {
   try {
     const res = await apiFetch("/me/sync", { cache: "no-store" });
     if (!res.ok) {
-      return false;
+      return null;
     }
-    const data: { status: string } = await res.json();
-    return data.status === "none" || data.status === "failed";
+    return res.json();
   } catch {
-    return false;
+    return null;
   }
+}
+
+// True when the user has never completed a sync: the "get started" nudge.
+// last_synced_at is the durable success record; a retained completed run also
+// counts (it predates the column), and a running first sync isn't nudged.
+// A null sync (transport or Temporal error) hides the nudge rather than
+// breaking the page over a dot.
+export function hasNeverSynced(user: User, sync: SyncStatus | null): boolean {
+  return (
+    user.last_synced_at === null &&
+    (sync?.status === "none" || sync?.status === "failed")
+  );
+}
+
+// Whether the latest sync run completed the given step. Empty lists read
+// differently depending on it: "run a sync" vs "the sync found nothing".
+export function syncStepCompleted(
+  sync: SyncStatus | null,
+  key: string,
+): boolean {
+  return (
+    sync?.steps.some(
+      (step) => step.key === key && step.status === "completed",
+    ) ?? false
+  );
 }
 
 export async function fetchOptional<T>(

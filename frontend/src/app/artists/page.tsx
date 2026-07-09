@@ -13,7 +13,7 @@ export default async function ArtistsPage() {
   const artists: Artist[] = await res.json();
 
   return (
-    <main className="mx-auto max-w-xl p-8">
+    <main className="mx-auto w-full max-w-xl p-8">
       <h1 className="mb-4 text-2xl font-semibold">Artists ({artists.length})</h1>
       <p className="mb-4 text-sm text-gray-500">
         Every artist in the registry, across all users and sources.

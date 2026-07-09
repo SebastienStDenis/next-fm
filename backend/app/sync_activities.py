@@ -1,6 +1,6 @@
 """Temporal activities wrapping the four per-user sync entrypoints, plus the
 bookkeeping the nightly dispatch needs (eligibility listing and the
-last-synced stamp; see docs/2026-07-09-background-sync-plan.md).
+last-synced stamp; see docs/design/2026-07-09-background-sync-plan.md).
 
 Each activity is its own transaction: it opens a fresh session, re-fetches the
 user (so retries never see stale ORM state), runs the existing sync module
