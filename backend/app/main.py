@@ -287,14 +287,21 @@ async def search_cities(
         func.word_similarity(q, City.name),
         func.word_similarity(q, City.ascii_name),
     )
+    # The %> operator (unlike a word_similarity() comparison) is served by the
+    # trigram GIN indexes; its threshold is the transaction-local GUC.
+    await session.execute(
+        select(
+            func.set_config("pg_trgm.word_similarity_threshold", str(CITY_FUZZY_THRESHOLD), True)
+        )
+    )
     result = await session.execute(
         select(City)
         .where(
             or_(
                 City.name.icontains(q, autoescape=True),
                 City.ascii_name.icontains(q, autoescape=True),
-                func.word_similarity(q, City.name) >= CITY_FUZZY_THRESHOLD,
-                func.word_similarity(q, City.ascii_name) >= CITY_FUZZY_THRESHOLD,
+                City.name.bool_op("%>")(q),
+                City.ascii_name.bool_op("%>")(q),
             )
         )
         .order_by(
