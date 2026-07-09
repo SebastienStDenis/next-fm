@@ -1,8 +1,10 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { useSearchParams } from "next/navigation";
+
+const TAB_STORAGE_KEY = "dashboard-tab";
 
 export function Tabs({
   tabs,
@@ -21,6 +23,24 @@ export function Tabs({
     tabParam && tabs.some((tab) => tab.key === tabParam)
       ? tabParam
       : tabs[0].key;
+
+  // When arriving without a ?tab= param (a plain link to the dashboard, like
+  // the account page's Home link), restore the last active tab into the URL.
+  // Explicit ?tab= links win. Declared before the persist effect below so the
+  // stored value is read before it can be overwritten with the default.
+  useEffect(() => {
+    if (tabParam !== null) return;
+    const stored = sessionStorage.getItem(TAB_STORAGE_KEY);
+    if (stored !== null && tabs.some((tab) => tab.key === stored)) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("tab", stored);
+      window.history.replaceState(null, "", `?${params.toString()}`);
+    }
+  }, [tabParam, tabs]);
+
+  useEffect(() => {
+    sessionStorage.setItem(TAB_STORAGE_KEY, active);
+  }, [active]);
 
   const selectTab = (key: string) => {
     const params = new URLSearchParams(window.location.search);
