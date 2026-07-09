@@ -146,7 +146,14 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
                 key={track.spotify_track_id}
                 className="flex gap-x-2 text-sm"
               >
-                <span className="text-gray-500">{track.position + 1}.</span>
+                <span
+                  className="inline-block shrink-0 text-right tabular-nums text-gray-500"
+                  style={{
+                    width: `calc(${String(playlist.tracks.length).length}ch + 0.3rem)`,
+                  }}
+                >
+                  {track.position + 1}.
+                </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <span>{track.title ?? "Unknown title"}</span>
