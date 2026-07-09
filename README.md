@@ -6,7 +6,7 @@ A website for live-music discovery that works through listening instead of listi
 
 - **Last.fm** - the taste source. Users enter their username, and it provides their top artists plus similar-artist suggestions for discovery. Free, open API, no login or approval process.
 - **Bandsintown** - the events source. The industry's broadest concert database (~2.3M events/year, aggregating Ticketmaster, AXS, Eventbrite, and artist-listed dates - it's what powers concert listings in Spotify and Apple Music). Used to check which of the user's matched artists have upcoming dates near them.
-- **Spotify via a bot account** - the delivery mechanism. A dedicated account owned by Next.fm creates and maintains one playlist per user; the user just taps "Add to library." No Spotify sign-in required from the user, and because Next.fm owns the playlist, it can refresh it automatically as new shows are announced.
+- **Spotify via a bot account** - the delivery mechanism. A dedicated account owned by Next.fm creates and maintains one playlist per user; the user just taps "Add to library." No Spotify sign-in required from the user, and because Next.fm owns the playlist, it can refresh it automatically every day as new shows are announced.
 
 ## Stack
 

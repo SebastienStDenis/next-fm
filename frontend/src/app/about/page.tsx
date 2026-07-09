@@ -31,8 +31,8 @@ export default function AboutPage() {
             A few top tracks from each suggested artist playing near your city,
             soonest concert first. Every sync rebuilds it against the current
             concert calendar, and you can pin extra cities to follow concerts
-            where you travel. Your taste and playlists are regularly updated to
-            stay up to date.
+            where you travel. Your taste and playlists refresh automatically
+            every day.
           </p>
         </section>
       </div>

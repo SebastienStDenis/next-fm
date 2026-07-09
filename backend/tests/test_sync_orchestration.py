@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -18,6 +19,7 @@ from app.models import LastfmAccount, User
 from app.schemas import (
     ArtistSyncKindResult,
     ArtistSyncResult,
+    DispatchSyncsResult,
     EventSyncResult,
     PlaylistSyncResult,
     SuggestionSyncResult,
@@ -25,8 +27,13 @@ from app.schemas import (
     SyncStepProgress,
 )
 from app.sync_activities import SyncActivities
-from app.sync_workflow import SyncUserWorkflow, pending_steps, user_sync_workflow_id
-from tests.helpers import make_session, request, result_returning
+from app.sync_workflow import (
+    DispatchSyncsWorkflow,
+    SyncUserWorkflow,
+    pending_steps,
+    user_sync_workflow_id,
+)
+from tests.helpers import make_session, request, result_returning, result_with_scalars
 
 USER_ID = uuid.uuid7()
 SYNC_URL = "/me/sync"
@@ -353,7 +360,24 @@ async def fake_sync_playlists(user_id: str) -> PlaylistSyncResult:
     return PLAYLIST_RESULT
 
 
+def record_activity(recorded: list[str]):
+    @activity.defn(name="record_sync_completed")
+    async def record_sync_completed(user_id: str) -> None:
+        recorded.append(user_id)
+
+    return record_sync_completed
+
+
+def list_activity(user_ids: list[uuid.UUID]):
+    @activity.defn(name="list_users_due_for_sync")
+    async def list_users_due_for_sync() -> list[str]:
+        return [str(user_id) for user_id in user_ids]
+
+    return list_users_due_for_sync
+
+
 async def test_workflow_runs_all_steps_in_order() -> None:
+    recorded: list[str] = []
     async with await WorkflowEnvironment.start_time_skipping(
         data_converter=pydantic_data_converter
     ) as env:
@@ -366,6 +390,7 @@ async def test_workflow_runs_all_steps_in_order() -> None:
                 fake_sync_suggestions,
                 fake_sync_events,
                 fake_sync_playlists,
+                record_activity(recorded),
             ],
         ):
             result = await env.client.execute_workflow(
@@ -387,9 +412,11 @@ async def test_workflow_runs_all_steps_in_order() -> None:
         "Synced 0 playlists · 0 tracks added, 0 removed · "
         "6 artists with concerts nearby, 1 not found on Spotify"
     )
+    assert recorded == [str(USER_ID)]
 
 
 async def test_workflow_stops_at_first_failed_step() -> None:
+    recorded: list[str] = []
     async with await WorkflowEnvironment.start_time_skipping(
         data_converter=pydantic_data_converter
     ) as env:
@@ -402,6 +429,7 @@ async def test_workflow_stops_at_first_failed_step() -> None:
                 failing_sync_suggestions,
                 fake_sync_events,
                 fake_sync_playlists,
+                record_activity(recorded),
             ],
         ):
             handle = await env.client.start_workflow(
@@ -418,3 +446,150 @@ async def test_workflow_stops_at_first_failed_step() -> None:
     assert [step.status for step in steps] == ["completed", "failed", "pending", "pending"]
     assert steps[0].summary is not None
     assert steps[1].summary == "Last.fm exploded"
+    assert recorded == []
+
+
+# --- dispatch ---
+
+OTHER_USER_ID = uuid.uuid7()
+
+
+async def test_dispatch_syncs_each_listed_user_in_order() -> None:
+    recorded: list[str] = []
+    synced: list[str] = []
+
+    @activity.defn(name="sync_artists")
+    async def tracking_sync_artists(user_id: str) -> ArtistSyncResult:
+        synced.append(user_id)
+        return ARTIST_RESULT
+
+    async with await WorkflowEnvironment.start_time_skipping(
+        data_converter=pydantic_data_converter
+    ) as env:
+        async with Worker(
+            env.client,
+            task_queue="test-sync",
+            workflows=[DispatchSyncsWorkflow, SyncUserWorkflow],
+            activities=[
+                list_activity([USER_ID, OTHER_USER_ID]),
+                tracking_sync_artists,
+                fake_sync_suggestions,
+                fake_sync_events,
+                fake_sync_playlists,
+                record_activity(recorded),
+            ],
+        ):
+            result = await env.client.execute_workflow(
+                DispatchSyncsWorkflow.run,
+                id="dispatch-syncs",
+                task_queue="test-sync",
+            )
+
+    assert synced == [str(USER_ID), str(OTHER_USER_ID)]
+    assert recorded == synced
+    assert result == DispatchSyncsResult(dispatched=2, succeeded=2, failed=0, skipped=0)
+
+
+async def test_dispatch_isolates_child_failures() -> None:
+    recorded: list[str] = []
+
+    @activity.defn(name="sync_suggestions")
+    async def failing_for_first_user(user_id: str) -> SuggestionSyncResult:
+        if user_id == str(USER_ID):
+            raise ApplicationError("Last.fm exploded", non_retryable=True)
+        return SUGGESTION_RESULT
+
+    async with await WorkflowEnvironment.start_time_skipping(
+        data_converter=pydantic_data_converter
+    ) as env:
+        async with Worker(
+            env.client,
+            task_queue="test-sync",
+            workflows=[DispatchSyncsWorkflow, SyncUserWorkflow],
+            activities=[
+                list_activity([USER_ID, OTHER_USER_ID]),
+                fake_sync_artists,
+                failing_for_first_user,
+                fake_sync_events,
+                fake_sync_playlists,
+                record_activity(recorded),
+            ],
+        ):
+            result = await env.client.execute_workflow(
+                DispatchSyncsWorkflow.run,
+                id="dispatch-syncs",
+                task_queue="test-sync",
+            )
+
+    assert result == DispatchSyncsResult(dispatched=2, succeeded=1, failed=1, skipped=0)
+    assert recorded == [str(OTHER_USER_ID)]
+
+
+async def test_dispatch_skips_user_whose_sync_is_already_running() -> None:
+    recorded: list[str] = []
+    release = asyncio.Event()
+
+    @activity.defn(name="sync_artists")
+    async def blocking_sync_artists(user_id: str) -> ArtistSyncResult:
+        if user_id == str(USER_ID):
+            await release.wait()
+        return ARTIST_RESULT
+
+    async with await WorkflowEnvironment.start_time_skipping(
+        data_converter=pydantic_data_converter
+    ) as env:
+        async with Worker(
+            env.client,
+            task_queue="test-sync",
+            workflows=[DispatchSyncsWorkflow, SyncUserWorkflow],
+            activities=[
+                list_activity([USER_ID, OTHER_USER_ID]),
+                blocking_sync_artists,
+                fake_sync_suggestions,
+                fake_sync_events,
+                fake_sync_playlists,
+                record_activity(recorded),
+            ],
+        ):
+            manual = await env.client.start_workflow(
+                SyncUserWorkflow.run,
+                str(USER_ID),
+                id=user_sync_workflow_id(USER_ID),
+                task_queue="test-sync",
+            )
+            result = await env.client.execute_workflow(
+                DispatchSyncsWorkflow.run,
+                id="dispatch-syncs",
+                task_queue="test-sync",
+            )
+            release.set()
+            await manual.result()
+
+    assert result == DispatchSyncsResult(dispatched=2, succeeded=1, failed=0, skipped=1)
+    assert recorded == [str(OTHER_USER_ID), str(USER_ID)]
+
+
+async def test_record_sync_completed_activity_stamps_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = make_session()
+    user = make_user()
+    session.get.return_value = user
+    patch_session_factory(monkeypatch, session)
+
+    await make_activities().record_sync_completed(str(USER_ID))
+
+    assert user.last_synced_at is not None
+    session.commit.assert_awaited_once()
+
+
+async def test_list_users_due_for_sync_activity_returns_ordered_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars([USER_ID, OTHER_USER_ID])
+    patch_session_factory(monkeypatch, session)
+
+    result = await make_activities().list_users_due_for_sync()
+
+    assert result == [str(USER_ID), str(OTHER_USER_ID)]

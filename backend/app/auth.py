@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Annotated
 
@@ -15,6 +16,11 @@ from app.db import get_session
 from app.models import User
 
 ALLOWED_ALGORITHMS = ("HS256", "ES256", "RS256")
+
+# last_seen_at feeds the nightly sync's 30-day activity window
+# (docs/2026-07-09-background-sync-plan.md); hourly precision is plenty, and
+# the throttle keeps it to at most one extra UPDATE per user per hour.
+LAST_SEEN_REFRESH = timedelta(hours=1)
 
 
 class Claims(BaseModel):
@@ -79,11 +85,12 @@ async def get_current_user(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> User:
     """Resolve the token to our User row, creating it on first login."""
+    now = datetime.now(UTC)
     result = await session.execute(select(User).where(User.supabase_user_id == claims.sub))
     user = result.scalar_one_or_none()
     if user is None:
         name = claims.display_name or (claims.email or "").split("@")[0] or "Music lover"
-        user = User(supabase_user_id=claims.sub, name=name)
+        user = User(supabase_user_id=claims.sub, name=name, last_seen_at=now)
         session.add(user)
         try:
             await session.commit()
@@ -92,6 +99,9 @@ async def get_current_user(
             await session.rollback()
             result = await session.execute(select(User).where(User.supabase_user_id == claims.sub))
             user = result.scalar_one()
+    if user.last_seen_at is None or now - user.last_seen_at >= LAST_SEEN_REFRESH:
+        user.last_seen_at = now
+        await session.commit()
     return user
 
 

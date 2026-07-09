@@ -1,15 +1,29 @@
 """Temporal worker entrypoint (`python -m app.worker`).
 
-Runs the sync pipeline's workflow and activities. Builds from the same image
-and settings as the API; the worker owns one long-lived instance of each API
-client, shared across activities for the life of the process.
+Runs the sync pipeline's workflows and activities, and provisions the
+`nightly-sync` schedule on startup so every environment gets the daily re-sync
+without dashboard setup (docs/2026-07-09-background-sync-plan.md). Builds from
+the same image and settings as the API; the worker owns one long-lived
+instance of each API client, shared across activities for the life of the
+process.
 """
 
 import asyncio
 import logging
+from datetime import timedelta
 
 from temporalio.api.workflowservice.v1 import DescribeNamespaceRequest
-from temporalio.client import Client
+from temporalio.client import (
+    Client,
+    Schedule,
+    ScheduleActionStartWorkflow,
+    ScheduleAlreadyRunningError,
+    ScheduleCalendarSpec,
+    ScheduleOverlapPolicy,
+    SchedulePolicy,
+    ScheduleRange,
+    ScheduleSpec,
+)
 from temporalio.service import RPCError
 from temporalio.worker import Worker
 
@@ -19,7 +33,7 @@ from app.lastfm import LastfmClient
 from app.musicbrainz import MusicBrainzClient
 from app.spotify import SpotifyClient
 from app.sync_activities import SyncActivities
-from app.sync_workflow import SyncUserWorkflow
+from app.sync_workflow import DispatchSyncsWorkflow, SyncUserWorkflow
 from app.temporal import connect_temporal
 
 logger = logging.getLogger(__name__)
@@ -35,6 +49,39 @@ REQUIRED_SETTINGS = (
     "spotify_client_secret",
     "spotify_refresh_token",
 )
+
+SCHEDULE_ID = "nightly-sync"
+# Overnight for the initial (Eastern) audience and off-peak for the third-party
+# APIs; playlists are fresh by morning.
+SCHEDULE_HOUR_UTC = 6
+# A missed night is a skipped refresh, not a debt to repay: without this, a
+# locally stopped stack would fire every missed dispatch on the next start.
+SCHEDULE_CATCHUP_WINDOW = timedelta(hours=1)
+
+
+async def _ensure_nightly_schedule(client: Client, settings: Settings) -> None:
+    # Create-if-missing: editing the spec below does not update an existing
+    # schedule; delete it (or `temporal schedule update`) and let the worker
+    # recreate it.
+    schedule = Schedule(
+        action=ScheduleActionStartWorkflow(
+            DispatchSyncsWorkflow.run,
+            id="dispatch-syncs",
+            task_queue=settings.temporal_task_queue,
+        ),
+        spec=ScheduleSpec(
+            calendars=[ScheduleCalendarSpec(hour=(ScheduleRange(SCHEDULE_HOUR_UTC),))]
+        ),
+        policy=SchedulePolicy(
+            overlap=ScheduleOverlapPolicy.SKIP,
+            catchup_window=SCHEDULE_CATCHUP_WINDOW,
+        ),
+    )
+    try:
+        await client.create_schedule(SCHEDULE_ID, schedule)
+        logger.info("Created schedule %r", SCHEDULE_ID)
+    except ScheduleAlreadyRunningError:
+        logger.info("Schedule %r already exists", SCHEDULE_ID)
 
 
 async def _connect_with_retry(settings: Settings) -> Client:
@@ -65,15 +112,18 @@ async def _connect_with_retry(settings: Settings) -> Client:
 
 async def _run_worker(settings: Settings, activities: SyncActivities) -> None:
     client = await _connect_with_retry(settings)
+    await _ensure_nightly_schedule(client, settings)
     worker = Worker(
         client,
         task_queue=settings.temporal_task_queue,
-        workflows=[SyncUserWorkflow],
+        workflows=[SyncUserWorkflow, DispatchSyncsWorkflow],
         activities=[
             activities.sync_artists,
             activities.sync_suggestions,
             activities.sync_events,
             activities.sync_playlists,
+            activities.record_sync_completed,
+            activities.list_users_due_for_sync,
         ],
     )
     logger.info("Worker polling task queue %r", settings.temporal_task_queue)

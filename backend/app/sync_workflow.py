@@ -1,4 +1,4 @@
-"""The per-user sync pipeline as a Temporal workflow.
+"""The sync pipeline as Temporal workflows.
 
 `SyncUserWorkflow` chains the four sync activities in dependency order
 (artists -> suggestions -> events -> playlists) and keeps a per-step progress
@@ -6,7 +6,12 @@ list that the API reads through the `progress` query. Activities are referenced
 by name so the workflow sandbox never imports the ORM or the API clients; the
 result models pass through the pydantic data converter.
 
-See docs/2026-07-07-sync-orchestration-plan.md.
+`DispatchSyncsWorkflow` is the nightly re-sync: fired by the `nightly-sync`
+schedule (created at worker startup), it lists the users due for a sync and
+runs each as a child `SyncUserWorkflow`, one at a time.
+
+See docs/2026-07-07-sync-orchestration-plan.md and
+docs/2026-07-09-background-sync-plan.md.
 """
 
 import uuid
@@ -17,11 +22,17 @@ from typing import Any
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
-from temporalio.exceptions import ActivityError, FailureError
+from temporalio.exceptions import (
+    ActivityError,
+    ChildWorkflowError,
+    FailureError,
+    WorkflowAlreadyStartedError,
+)
 
 with workflow.unsafe.imports_passed_through():
     from app.schemas import (
         ArtistSyncResult,
+        DispatchSyncsResult,
         EventSyncResult,
         PlaylistSyncResult,
         SuggestionSyncResult,
@@ -177,8 +188,48 @@ class SyncUserWorkflow:
                 raise
             step.status = "completed"
             step.summary = spec.summarize(result)
+        # Bookkeeping, not a UI step: the stamp is what lets the nightly
+        # dispatch skip users who synced recently, and it only lands when
+        # every step succeeded so failing users stay first in line.
+        await workflow.execute_activity(
+            "record_sync_completed",
+            user_id,
+            schedule_to_close_timeout=timedelta(minutes=1),
+            retry_policy=RETRY_POLICY,
+        )
         return SyncRunResult(steps=self._steps)
 
     @workflow.query
     def progress(self) -> list[SyncStepProgress]:
         return self._steps
+
+
+@workflow.defn
+class DispatchSyncsWorkflow:
+    @workflow.run
+    async def run(self) -> DispatchSyncsResult:
+        user_ids: list[str] = await workflow.execute_activity(
+            "list_users_due_for_sync",
+            result_type=list[str],
+            schedule_to_close_timeout=timedelta(minutes=1),
+            retry_policy=RETRY_POLICY,
+        )
+        succeeded = failed = skipped = 0
+        for user_id in user_ids:
+            try:
+                await workflow.execute_child_workflow(
+                    SyncUserWorkflow.run,
+                    user_id,
+                    id=user_sync_workflow_id(uuid.UUID(user_id)),
+                )
+            except WorkflowAlreadyStartedError:
+                # A manual sync is in flight for this user; it does the job.
+                skipped += 1
+            except ChildWorkflowError:
+                # One user's broken sync must not stall the rest of the fleet.
+                failed += 1
+            else:
+                succeeded += 1
+        return DispatchSyncsResult(
+            dispatched=len(user_ids), succeeded=succeeded, failed=failed, skipped=skipped
+        )

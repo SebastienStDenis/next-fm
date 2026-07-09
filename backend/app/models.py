@@ -59,6 +59,8 @@ class User(Base):
         ForeignKey("cities.geonameid", ondelete="SET NULL"), index=True
     )
     include_known_artists: Mapped[bool] = mapped_column(default=False, server_default=false())
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class LastfmAccount(Base):

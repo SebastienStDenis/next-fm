@@ -86,7 +86,7 @@ export default async function AccountPage() {
         heading="Sync"
         alert={neverSynced}
         alertText="Get started by running a sync"
-        description="Imports listening history, suggests concerts and creates playlists. Re-runs automatically on a cadence."
+        description="Imports listening history, suggests concerts and creates playlists. Re-runs automatically every day."
         className="mt-6"
       >
         <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />

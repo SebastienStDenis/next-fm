@@ -200,3 +200,10 @@ class SyncStatusResult(BaseModel):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     steps: list[SyncStepProgress]
+
+
+class DispatchSyncsResult(BaseModel):
+    dispatched: int
+    succeeded: int
+    failed: int
+    skipped: int
