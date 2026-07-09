@@ -132,7 +132,8 @@ export function EventsPanel({
     <div>
       {!city && !viewCity ? (
         <div>
-          <EmptyState>
+          {cityControls}
+          <EmptyState className="mt-4">
             Set your home city in{" "}
             <Link
               href="/dashboard/account"
@@ -142,7 +143,6 @@ export function EventsPanel({
             </Link>{" "}
             to see local concerts.
           </EmptyState>
-          {cityControls}
         </div>
       ) : (
         <>
