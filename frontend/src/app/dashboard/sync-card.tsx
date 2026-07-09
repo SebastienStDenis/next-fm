@@ -213,7 +213,7 @@ export function SyncCard({
               type="button"
               onClick={onSync}
               disabled={starting || busy || !canSync}
-              className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:cursor-not-allowed disabled:opacity-50"
+              className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
             >
               {/* Kept in the layout (just hidden) while busy so the button holds
                   the same width as when it reads "Sync". */}
