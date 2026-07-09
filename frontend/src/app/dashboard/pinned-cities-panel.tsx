@@ -24,7 +24,6 @@ export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
   );
 }
 
-// One pinned city; links out to Spotify once a sync has created its playlist.
 function PinnedCityRow({ playlist }: { playlist: Playlist }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -46,22 +45,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
 
   return (
     <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
-      <span>
-        {playlist.city && cityLabel(playlist.city)}
-        {playlist.spotify_url && (
-          <>
-            {" · "}
-            <a
-              href={playlist.spotify_url}
-              target="_blank"
-              rel="noreferrer"
-              className="underline hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              Open in Spotify ↗
-            </a>
-          </>
-        )}
-      </span>
+      <span>{playlist.city && cityLabel(playlist.city)}</span>
       <span className="flex items-baseline gap-2">
         {error && <span className="text-xs text-red-600">{error}</span>}
         <button
