@@ -1,11 +1,9 @@
-import Link from "next/link";
+import { BackButton } from "../back-button";
 
 export default function AboutPage() {
   return (
     <main className="mx-auto max-w-xl p-8">
-      <Link href="/" className="text-sm text-gray-500 hover:underline">
-        &larr; Home
-      </Link>
+      <BackButton fallbackHref="/dashboard" />
       <h1 className="mt-2 mb-4 text-2xl font-semibold">About</h1>
       <div className="space-y-5">
         <section>
