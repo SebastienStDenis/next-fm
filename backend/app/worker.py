@@ -67,10 +67,12 @@ async def _reconcile_nightly_schedule(client: Client, settings: Settings) -> Non
         # earlier starts.
         try:
             await client.get_schedule_handle(SCHEDULE_ID).delete()
-            logger.info("Deleted schedule %r (nightly sync disabled)", SCHEDULE_ID)
+            logger.warning("Deleted schedule %r (nightly sync disabled)", SCHEDULE_ID)
         except RPCError as exc:
             if exc.status != RPCStatusCode.NOT_FOUND:
-                raise
+                # A leftover schedule is not worth taking down task-queue
+                # polling; the next worker start retries the delete.
+                logger.exception("Failed to delete schedule %r", SCHEDULE_ID)
         return
     # Create-if-missing: editing the spec below does not update an existing
     # schedule; delete it (or `temporal schedule update`) and let the worker

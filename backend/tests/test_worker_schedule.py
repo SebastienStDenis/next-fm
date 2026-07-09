@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -9,9 +10,10 @@ from app.worker import SCHEDULE_ID, _reconcile_nightly_schedule
 
 
 def make_settings(**overrides: object) -> Settings:
-    defaults: dict = {"_env_file": None}
-    defaults.update(overrides)
-    return Settings(**defaults)
+    # The untyped dict keeps ty from rejecting `_env_file` (absent from
+    # Settings' typed signature) and the object-typed overrides.
+    values: dict = {"_env_file": None, **overrides}
+    return Settings(**values)
 
 
 def make_client() -> MagicMock:
@@ -21,7 +23,8 @@ def make_client() -> MagicMock:
     return client
 
 
-def test_nightly_sync_defaults_off() -> None:
+def test_nightly_sync_defaults_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("NIGHTLY_SYNC_ENABLED", raising=False)
     assert make_settings().nightly_sync_enabled is False
 
 
@@ -61,11 +64,15 @@ async def test_disabled_tolerates_missing_schedule() -> None:
     await _reconcile_nightly_schedule(client, make_settings(nightly_sync_enabled=False))
 
 
-async def test_disabled_raises_on_unexpected_delete_error() -> None:
+async def test_disabled_survives_unexpected_delete_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     client = make_client()
     client.get_schedule_handle.return_value.delete.side_effect = RPCError(
         "unavailable", RPCStatusCode.UNAVAILABLE, b""
     )
 
-    with pytest.raises(RPCError):
+    with caplog.at_level(logging.ERROR):
         await _reconcile_nightly_schedule(client, make_settings(nightly_sync_enabled=False))
+
+    assert "Failed to delete schedule" in caplog.text
