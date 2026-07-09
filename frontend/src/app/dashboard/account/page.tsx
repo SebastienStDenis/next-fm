@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import { AttentionDot } from "../attention-dot";
+import { BackButton } from "../back-button";
 import { CityPanel, type City } from "../city-panel";
 import { DeleteAccountButton } from "../delete-account-button";
 import { DiscoveryToggle } from "../discovery-toggle";
@@ -75,9 +74,7 @@ export default async function AccountPage() {
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">
-      <Link href="/dashboard" className="text-sm text-gray-500 hover:underline">
-        &larr; Back
-      </Link>
+      <BackButton />
       <h1 className="mt-2 text-2xl font-semibold">Hey, {user.name}</h1>
       <p className="mt-1 mb-6 text-xs text-gray-500 italic">
         After making updates on this page, run a sync to generate new
