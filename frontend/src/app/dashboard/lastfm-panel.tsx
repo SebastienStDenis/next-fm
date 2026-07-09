@@ -92,7 +92,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
                   href={account.profile_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:underline"
+                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
                 >
                   {account.username}
                 </a>

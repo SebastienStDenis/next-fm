@@ -120,7 +120,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
             rel="noreferrer"
             className="underline hover:text-gray-700 dark:hover:text-gray-300"
           >
-            Open in Spotify ↗
+            Open in Spotify
           </a>
         ) : (
           "Not on Spotify yet - sync to generate it."
@@ -171,7 +171,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
                           className="underline hover:text-gray-700 dark:hover:text-gray-300"
                         >
                           {track.event.venue_name} on{" "}
-                          {showDateFormat.format(new Date(track.event.starts_at))} ↗
+                          {showDateFormat.format(new Date(track.event.starts_at))}
                         </a>
                       ) : (
                         <>
