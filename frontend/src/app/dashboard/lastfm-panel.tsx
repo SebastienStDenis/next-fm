@@ -71,7 +71,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
 
   return (
     <div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         {account.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -96,6 +96,20 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           {account.real_name && (
             <p className="text-sm text-gray-500">{account.real_name}</p>
           )}
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            {account.country && (
+              <>
+                <dt className="text-gray-500">Country</dt>
+                <dd>{account.country}</dd>
+              </>
+            )}
+            {account.registered_at && (
+              <>
+                <dt className="text-gray-500">Registered</dt>
+                <dd>{formatDate(account.registered_at)}</dd>
+              </>
+            )}
+          </dl>
         </div>
         <form action={unlinkAction} className="ml-auto">
           <button
@@ -107,21 +121,6 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           </button>
         </form>
       </div>
-
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        {account.country && (
-          <>
-            <dt className="text-gray-500">Country</dt>
-            <dd>{account.country}</dd>
-          </>
-        )}
-        {account.registered_at && (
-          <>
-            <dt className="text-gray-500">Registered</dt>
-            <dd>{formatDate(account.registered_at)}</dd>
-          </>
-        )}
-      </dl>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>
   );
