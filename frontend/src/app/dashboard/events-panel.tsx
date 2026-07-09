@@ -153,13 +153,15 @@ export function EventsPanel({
               selected={showKnown}
               onToggle={() => setShowKnown(!showKnown)}
             >
-              My artists
+              Artists you listen to
             </FilterPill>
           </div>
           {visibleEvents.length === 0 ? (
             hiddenCount === 0 && (
               <p className="mt-4 text-sm text-gray-500">
-                No concerts found. Try a different city.
+                {viewCity
+                  ? "No concerts found. Try a different city."
+                  : `No concerts found near ${city?.name}.`}
               </p>
             )
           ) : (

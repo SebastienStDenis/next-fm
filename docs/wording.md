@@ -41,7 +41,7 @@ step ran and found nothing". The step statuses come from `GET /me/sync`
 | --- | --- | --- |
 | Listening History (account) | Run a sync above to import listening history. | No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. |
 | Artists tab | Run a sync in [Account] to suggest artists. | No artists suggested. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. |
-| Concerts tab | Run a sync in [Account] to find concerts. | No concerts found. Try a different city. |
+| Concerts tab | Run a sync in [Account] to find concerts. | Home view: "No concerts found near {city}." Browsing another city: "No concerts found. Try a different city." |
 | Playlists tab | Run a sync in [Account] to generate playlists. | No playlists generated. Set your home city in [Account]. |
 
 `[Account]` links to the account page. An empty tracklist inside a playlist
@@ -60,7 +60,7 @@ Keep these exactly as written:
 
 - Tagline: "Live-music discovery through listening."
 - Intro: "We find upcoming concerts near you by artists that match your
-  taste, and generate Spotify playlists for you to discover them."
+  listening history, and generate Spotify playlists for you to discover them."
 - Sync section: "Imports listening history, suggests artists, finds concerts
   and generates playlists. Re-runs automatically on a cadence."
 - Concerts tab: "Upcoming concerts near you by suggested artists."
