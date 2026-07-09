@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { AttentionDot } from "../attention-dot";
 import { BackButton } from "../../back-button";
 import { CityPanel, type City } from "../city-panel";
@@ -12,6 +10,7 @@ import { SignOutButton } from "../sign-out-button";
 import { SyncCard } from "../sync-card";
 import { TastePanel, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
+import { IntroText } from "../../intro-text";
 import { fetchJson, fetchOptional, loadMe, loadNeverSynced } from "../user-api";
 
 function Section({
@@ -82,12 +81,7 @@ export default async function AccountPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <SignOutButton />
       </div>
-      <Link
-        href="/about"
-        className="mt-1 inline-block text-sm text-gray-500 hover:underline"
-      >
-        About
-      </Link>
+      <IntroText className="mt-1 text-xs text-gray-500 italic" />
       <Section
         heading="Sync"
         alert={neverSynced}
