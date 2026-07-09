@@ -17,7 +17,7 @@ SIMILAR_ARTIST_KIND = "similar_artist"
 # Known: kinds asserting the user demonstrably listens to the artist.
 # Suggested: kinds written by the suggestion engine. Suggestion sync keeps the
 # two effectively disjoint - it prunes a suggestion whose artist becomes known,
-# though only once out of the show-grace window, so an artist can briefly hold
+# though only once out of the concert-grace window, so an artist can briefly hold
 # both row types. Queries classify purely by which rows exist and never
 # re-derive known-ness (weight floors, grace) themselves.
 KNOWN_ARTIST_KINDS = frozenset({TOP_ARTIST_KIND, LOVED_TRACKS_KIND})
@@ -25,7 +25,7 @@ SUGGESTED_ARTIST_KINDS = frozenset({SIMILAR_ARTIST_KIND})
 
 
 class ArtistMatch(BaseModel):
-    """A playlist-relevant artist with their soonest matched show."""
+    """A playlist-relevant artist with their soonest matched concert."""
 
     artist_id: uuid.UUID
     event_id: uuid.UUID
@@ -48,7 +48,7 @@ def distance_km(latitude: float, longitude: float) -> ColumnElement[float]:
 def upcoming_event_near(cities: Sequence[City]) -> ColumnElement[bool]:
     """Event is upcoming and within EVENT_MATCH_RADIUS_KM of any of the given
     cities - the servable predicate shared by the match join and the
-    suggestion engine's show-tied grace."""
+    suggestion engine's concert-tied grace."""
     nearby = or_(
         *(distance_km(city.latitude, city.longitude) <= EVENT_MATCH_RADIUS_KM for city in cities)
     )
@@ -60,7 +60,7 @@ def artist_qualifies(
     artist_id: InstrumentedAttribute[uuid.UUID],
     include_known_artists: bool,
 ) -> ColumnElement[bool]:
-    """Whether an artist's shows are servable to the user: has an interest of
+    """Whether an artist's concerts are servable to the user: has an interest of
     a qualifying kind and is not excluded. The known/suggested classification
     is trusted from the rows themselves, never re-derived here."""
     kinds = SUGGESTED_ARTIST_KINDS
@@ -86,13 +86,13 @@ def artist_qualifies(
     return interest & ~excluded
 
 
-async def match_artist_shows(
+async def match_artist_concerts(
     session: AsyncSession,
     user_id: uuid.UUID,
     city: City,
     include_known_artists: bool,
 ) -> list[ArtistMatch]:
-    """The match join reduced to one soonest upcoming show per servable
+    """The match join reduced to one soonest upcoming concert per servable
     artist near the city, ordered soonest-first."""
     result = await session.execute(
         select(EventArtist.artist_id, Event.id, Event.starts_at)

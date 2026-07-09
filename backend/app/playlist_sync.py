@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import name_key
 from app.lastfm import LastfmApiError, LastfmArtistNotFoundError, LastfmClient
-from app.matching import ArtistMatch, match_artist_shows
+from app.matching import ArtistMatch, match_artist_concerts
 from app.models import (
     Artist,
     ArtistTopTrack,
@@ -25,14 +25,14 @@ from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.schemas import PlaylistSyncItem, PlaylistSyncResult
 from app.spotify import SpotifyApiError, SpotifyArtistData, SpotifyClient, track_uri
 
-CITY_SHOWS_KIND = "city_shows"
+CITY_CONCERTS_KIND = "city_concerts"
 PINNED_PLAYLIST_CAP = 2  # pinned cities per user; the home-city playlist is always kept
 
 MATCH_EXACT = "exact"
 MATCH_FUZZY = "fuzzy"
 
 TOP_TRACKS_TTL = timedelta(days=30)
-TOP_TRACKS_PER_ARTIST = 3  # breadth over depth: ~33 artists' shows fit the cap
+TOP_TRACKS_PER_ARTIST = 3  # breadth over depth: ~33 artists' concerts fit the cap
 TOP_TRACKS_FETCH_LIMIT = 10
 FETCH_CONCURRENCY = 4  # conservative: dev-mode rate limits are unpublished and low
 PLAYLIST_MAX_TRACKS = 100  # one 100-URI replace request per sync
@@ -46,8 +46,8 @@ class DesiredTrack(BaseModel):
 
 def playlist_title(user_name: str, city_name: str | None) -> str:
     if city_name is None:
-        return f"{user_name}'s shows"
-    return f"{user_name}'s shows in {city_name}"
+        return f"{user_name}'s concerts"
+    return f"{user_name}'s concerts in {city_name}"
 
 
 def playlist_description(city_name: str, now: datetime) -> str:
@@ -84,7 +84,7 @@ async def sync_user_playlists(
                 PlaylistSyncItem(playlist_id=playlist.id, name=playlist.name, status="no_city")
             )
             continue
-        matches = await match_artist_shows(session, user.id, city, include_known_artists)
+        matches = await match_artist_concerts(session, user.id, city, include_known_artists)
         to_sync.append((playlist, city, matches))
         matched_ids |= {match.artist_id for match in matches}
 
@@ -113,12 +113,12 @@ async def sync_user_playlists(
 
 async def _ensure_default_playlist(session: AsyncSession, user: User) -> list[Playlist]:
     """All of the user's playlists, creating the follow-the-user default row
-    (kind city_shows, city_id null) if it doesn't exist yet."""
+    (kind city_concerts, city_id null) if it doesn't exist yet."""
     result = await session.execute(
         select(Playlist).where(Playlist.user_id == user.id).order_by(Playlist.id)
     )
     playlists = list(result.scalars())
-    if not any(p.kind == CITY_SHOWS_KIND and p.city_id is None for p in playlists):
+    if not any(p.kind == CITY_CONCERTS_KIND and p.city_id is None for p in playlists):
         city = await session.get(City, user.city_id) if user.city_id is not None else None
         # Insert-then-select so a concurrent sync creating the same default
         # row is adopted instead of raising on the unique constraint.
@@ -126,7 +126,7 @@ async def _ensure_default_playlist(session: AsyncSession, user: User) -> list[Pl
             pg_insert(Playlist)
             .values(
                 user_id=user.id,
-                kind=CITY_SHOWS_KIND,
+                kind=CITY_CONCERTS_KIND,
                 city_id=None,
                 name=playlist_title(user.name, city.name if city else None),
             )
@@ -135,7 +135,7 @@ async def _ensure_default_playlist(session: AsyncSession, user: User) -> list[Pl
         result = await session.execute(
             select(Playlist).where(
                 Playlist.user_id == user.id,
-                Playlist.kind == CITY_SHOWS_KIND,
+                Playlist.kind == CITY_CONCERTS_KIND,
                 Playlist.city_id.is_(None),
             )
         )
@@ -346,7 +346,7 @@ def desired_tracks(
     matches: list[ArtistMatch],
     top_tracks: dict[uuid.UUID, list[ArtistTopTrack]],
 ) -> list[DesiredTrack]:
-    """Soonest show first, then track rank; URIs deduped (first artist wins);
+    """Soonest concert first, then track rank; URIs deduped (first artist wins);
     capped so the tracklist always fits one 100-URI replace request."""
     desired: list[DesiredTrack] = []
     seen: set[str] = set()
@@ -409,7 +409,7 @@ async def _sync_playlist(
     # One replace per sync: atomic, idempotent, and self-healing against any
     # manual edits on the Spotify side. Surviving tracks keep their added_at
     # (verified, app.spotify_verify), so "Date added" still reads as "newly
-    # announced shows first". Skipped only when a just-created playlist has
+    # announced concerts first". Skipped only when a just-created playlist has
     # nothing to write.
     if not (created and not desired):
         snapshot = await spotify.replace_playlist_items(

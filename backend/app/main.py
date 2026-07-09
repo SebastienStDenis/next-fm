@@ -51,7 +51,7 @@ from app.models import (
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.playlist_sync import (
-    CITY_SHOWS_KIND,
+    CITY_CONCERTS_KIND,
     PINNED_PLAYLIST_CAP,
     playlist_title,
     sync_user_playlists,
@@ -544,7 +544,7 @@ async def _require_playlist(
 
 @app.get("/me/playlists", response_model=list[PlaylistRead])
 async def list_user_playlists(user: CurrentUserDep, session: SessionDep) -> list[PlaylistRead]:
-    """List the user's playlists with tracks and provenance (artist + show per track)."""
+    """List the user's playlists with tracks and provenance (artist + concert per track)."""
     result = await session.execute(
         select(Playlist, City)
         .outerjoin(City, City.geonameid == Playlist.city_id)
@@ -605,7 +605,7 @@ async def create_pinned_playlist(
     result = await session.execute(
         select(Playlist).where(
             Playlist.user_id == user.id,
-            Playlist.kind == CITY_SHOWS_KIND,
+            Playlist.kind == CITY_CONCERTS_KIND,
             Playlist.city_id.is_not(None),
         )
     )
@@ -619,7 +619,7 @@ async def create_pinned_playlist(
 
     playlist = Playlist(
         user_id=user.id,
-        kind=CITY_SHOWS_KIND,
+        kind=CITY_CONCERTS_KIND,
         city_id=city.geonameid,
         name=playlist_title(user.name, city.name),
     )
@@ -653,7 +653,7 @@ async def sync_playlists_for_user(
     musicbrainz: MusicBrainzClientDep,
 ) -> PlaylistSyncResult:
     """Reconcile all of the user's playlists on Spotify against their current
-    matched shows, refreshing artist resolutions and top-track caches as needed."""
+    matched concerts, refreshing artist resolutions and top-track caches as needed."""
     result = await sync_user_playlists(session, spotify, lastfm, musicbrainz, user)
     await session.commit()
     return result

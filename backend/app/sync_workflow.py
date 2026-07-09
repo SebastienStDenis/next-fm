@@ -93,7 +93,7 @@ def _summarize_playlists(result: PlaylistSyncResult) -> str:
     return (
         f"Synced {_plural(len(synced), 'playlist')} · "
         f"{added} tracks added, {removed} removed · "
-        f"{result.artists_matched} artists with shows nearby{unresolved}"
+        f"{result.artists_matched} artists with concerts nearby{unresolved}"
     )
 
 

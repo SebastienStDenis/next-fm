@@ -282,7 +282,7 @@ async def test_create_playlist_maps_fields() -> None:
         ]
     )
 
-    playlist = await client.create_playlist("Live in Montreal", "Upcoming shows")
+    playlist = await client.create_playlist("Live in Montreal", "Upcoming concerts")
 
     assert playlist.id == "p1"
     assert playlist.url == "https://open.spotify.com/playlist/p1"
@@ -292,7 +292,7 @@ async def test_create_playlist_maps_fields() -> None:
     assert api_request.url.path == "/v1/me/playlists"
     assert json.loads(api_request.content) == {
         "name": "Live in Montreal",
-        "description": "Upcoming shows",
+        "description": "Upcoming concerts",
         "public": True,
     }
 

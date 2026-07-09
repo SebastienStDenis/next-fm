@@ -44,12 +44,12 @@ from app.spotify import (
 )
 from tests.helpers import added_objects, make_session, result_returning, result_with_scalars
 
-FIRST_SHOW = datetime(2026, 8, 1, 20, 0, tzinfo=UTC)
+FIRST_CONCERT = datetime(2026, 8, 1, 20, 0, tzinfo=UTC)
 
 
 def make_match(artist_id: uuid.UUID, days: int = 0) -> ArtistMatch:
     return ArtistMatch(
-        artist_id=artist_id, event_id=uuid.uuid7(), starts_at=FIRST_SHOW + timedelta(days=days)
+        artist_id=artist_id, event_id=uuid.uuid7(), starts_at=FIRST_CONCERT + timedelta(days=days)
     )
 
 
@@ -59,7 +59,7 @@ def cached_track(artist_id: uuid.UUID, track_id: str, rank: int) -> ArtistTopTra
     )
 
 
-def test_desired_tracks_orders_by_soonest_show_then_rank() -> None:
+def test_desired_tracks_orders_by_soonest_concert_then_rank() -> None:
     soon, later = uuid.uuid7(), uuid.uuid7()
     matches = [make_match(soon, days=0), make_match(later, days=3)]
     top_tracks = {
@@ -130,8 +130,8 @@ def test_desired_tracks_empty_when_no_matches() -> None:
 
 
 def test_playlist_title_with_and_without_city() -> None:
-    assert playlist_title("Alice", "Montréal") == "Alice's shows in Montréal"
-    assert playlist_title("Alice", None) == "Alice's shows"
+    assert playlist_title("Alice", "Montréal") == "Alice's concerts in Montréal"
+    assert playlist_title("Alice", None) == "Alice's concerts"
 
 
 def test_playlist_description_chooses_copy_by_setting() -> None:
@@ -416,7 +416,7 @@ def make_playlist(spotify_playlist_id: str | None = "pl-1") -> Playlist:
     return Playlist(
         id=uuid.uuid7(),
         user_id=uuid.uuid7(),
-        kind="city_shows",
+        kind="city_concerts",
         name=playlist_title("Alice", "Montréal"),
         description=playlist_description("Montréal", SYNC_NOW),
         spotify_playlist_id=spotify_playlist_id,
