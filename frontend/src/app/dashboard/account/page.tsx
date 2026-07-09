@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AttentionDot } from "../attention-dot";
 import { BackButton } from "../../back-button";
 import { CityPanel, type City } from "../city-panel";
@@ -80,6 +82,12 @@ export default async function AccountPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <SignOutButton />
       </div>
+      <Link
+        href="/about"
+        className="mt-1 inline-block text-sm text-gray-500 hover:underline"
+      >
+        About
+      </Link>
       <Section
         heading="Sync"
         alert={neverSynced}

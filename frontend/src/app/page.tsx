@@ -34,9 +34,14 @@ export default async function Home() {
           Sign up
         </Link>
       </div>
-      <Link href="/about" className="text-sm text-gray-500 hover:underline">
-        How it works
-      </Link>
+      <p className="max-w-md text-center text-xs text-gray-500 italic">
+        We find upcoming concerts near you by artists that match your taste,
+        and generate Spotify playlists for you to discover them. See{" "}
+        <Link href="/about" className="underline hover:no-underline">
+          About
+        </Link>{" "}
+        for more details.
+      </p>
     </main>
   );
 }
