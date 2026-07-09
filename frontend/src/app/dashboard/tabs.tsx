@@ -55,7 +55,7 @@ export function Tabs({
       {/* Inactive tabs stay mounted so their in-progress state (sync
           summaries, search inputs) survives switching. */}
       {tabs.map((tab) => (
-        <div key={tab.key} hidden={active !== tab.key} className="mt-4">
+        <div key={tab.key} hidden={active !== tab.key} className="mt-2">
           {tab.description && (
             <p key="description" className="mb-4 text-xs text-gray-500 italic">
               {tab.description}
