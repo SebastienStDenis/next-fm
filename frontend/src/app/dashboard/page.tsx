@@ -9,19 +9,25 @@ import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
 import { Tabs } from "./tabs";
 import { type UserArtist } from "./taste-panel";
-import { fetchJson, fetchOptional, loadMe, loadNeverSynced } from "./user-api";
+import {
+  fetchJson,
+  fetchOptional,
+  loadMe,
+  loadSyncStatus,
+  syncStepCompleted,
+} from "./user-api";
 
 export default async function DashboardPage() {
   const user = await loadMe();
 
-  const [lastfm, city, userArtists, playlists, neverSynced] =
-    await Promise.all([
-      fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
-      fetchOptional<City>("/me/city", "city"),
-      fetchJson<UserArtist[]>("/me/artists", "user artists"),
-      fetchJson<Playlist[]>("/me/playlists", "playlists"),
-      loadNeverSynced(),
-    ]);
+  const [lastfm, city, userArtists, playlists, sync] = await Promise.all([
+    fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
+    fetchOptional<City>("/me/city", "city"),
+    fetchJson<UserArtist[]>("/me/artists", "user artists"),
+    fetchJson<Playlist[]>("/me/playlists", "playlists"),
+    loadSyncStatus(),
+  ]);
+  const neverSynced = sync?.status === "none";
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
@@ -61,7 +67,7 @@ export default async function DashboardPage() {
   ).length;
 
   return (
-    <main className="mx-auto max-w-xl p-8">
+    <main className="mx-auto w-full max-w-xl p-8">
       <span className="text-sm text-gray-500">Next.fm</span>
       <div className="mt-2 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
@@ -79,11 +85,14 @@ export default async function DashboardPage() {
           tabs={[
             {
               key: "suggested",
-              label: `Suggested artists (${suggestedArtists.length})`,
+              label: `Artists (${suggestedArtists.length})`,
               description:
                 "Artists we think you'll like based on your listening history.",
               content: (
-                <SuggestedArtistsPanel suggestedArtists={suggestedArtists} />
+                <SuggestedArtistsPanel
+                  suggestedArtists={suggestedArtists}
+                  synced={syncStepCompleted(sync, "suggestions")}
+                />
               ),
             },
             {
@@ -93,8 +102,7 @@ export default async function DashboardPage() {
               content: (
                 <EventsPanel
                   city={city}
-                  hasArtists={userArtists.length > 0}
-                  hasSuggestions={suggestedArtists.length > 0}
+                  synced={syncStepCompleted(sync, "events")}
                   artistRelations={artistRelations}
                   events={events}
                 />
@@ -104,11 +112,10 @@ export default async function DashboardPage() {
               key: "playlists",
               label: `Playlists (${linkedPlaylists.length})`,
               description:
-                "Spotify playlists tracking suggested concerts in your cities.",
+                "Spotify playlists tracking suggested concerts in your cities. Tracklists are automatically updated as your listening history and upcoming concerts change.",
               content: (
                 <PlaylistsPanel
-                  hasCity={city !== null}
-                  hasArtists={userArtists.length > 0}
+                  synced={syncStepCompleted(sync, "playlists")}
                   playlists={linkedPlaylists}
                 />
               ),

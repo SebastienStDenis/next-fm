@@ -69,13 +69,13 @@ Small layered FastAPI app; keep the separation when adding features:
 - `schemas.py` - Pydantic v2 API schemas. ORM models and Pydantic schemas are deliberately separate (no SQLModel); response models use `ConfigDict(from_attributes=True)`.
 - `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`, `get_top_artists`, `get_loved_tracks`, `get_artist_top_tracks`), injected via the `get_lastfm_client` dependency in `main.py`.
 - `bandsintown.py` - async Bandsintown API client for artists' upcoming events.
-- `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/2026-07-06-playlist-plan.md`.
+- `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/design/2026-07-06-playlist-plan.md`.
 - `musicbrainz.py` - async MusicBrainz client (MBID -> Spotify artist link), throttled to 1 req/s.
-- `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/2026-07-05-artist-ingestion-plan.md`).
-- `suggestion_sync.py` - recomputes each user's suggested artists from Last.fm similar-artist edges: seed affinity, scoring, selection with hysteresis, known-artist floors, show-tied grace (see `docs/2026-07-06-artist-suggestions-plan.md`).
-- `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/2026-07-06-event-ingestion-plan.md`).
-- `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/2026-07-06-playlist-plan.md`).
-- `sync_workflow.py` - `SyncUserWorkflow`, the durable Temporal workflow chaining the four sync steps per user with queryable per-step progress (see `docs/2026-07-07-sync-orchestration-plan.md`).
+- `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/design/2026-07-05-artist-ingestion-plan.md`).
+- `suggestion_sync.py` - recomputes each user's suggested artists from Last.fm similar-artist edges: seed affinity, scoring, selection with hysteresis, known-artist floors, show-tied grace (see `docs/design/2026-07-06-artist-suggestions-plan.md`).
+- `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/design/2026-07-06-event-ingestion-plan.md`).
+- `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist (see `docs/design/2026-07-06-playlist-plan.md`).
+- `sync_workflow.py` - `SyncUserWorkflow`, the durable Temporal workflow chaining the four sync steps per user with queryable per-step progress (see `docs/design/2026-07-07-sync-orchestration-plan.md`).
 - `sync_activities.py` - Temporal activities wrapping the four sync entrypoints; each attempt opens its own session and commits.
 - `temporal.py` - Temporal client connection helper shared by API and worker; local server by default, Temporal Cloud when `TEMPORAL_API_KEY` is set.
 - `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service.

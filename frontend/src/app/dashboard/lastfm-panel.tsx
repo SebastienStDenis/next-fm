@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useSyncExternalStore } from "react";
+import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
 
@@ -15,29 +15,12 @@ export type LastfmAccount = {
   last_synced_at: string | null;
 };
 
-// Client-only flag (false during SSR/hydration, true after) so the local-time
-// swap never causes a hydration mismatch.
-const noopSubscribe = () => () => {};
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     timeZone: "UTC",
-  });
-}
-
-// timeZone omitted => the viewer's local zone. The server render passes "UTC"
-// so it stays deterministic; the client swaps to local after mount.
-function formatDateTime(iso: string, timeZone?: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
   });
 }
 
@@ -85,13 +68,6 @@ function AccountCard({ account }: { account: LastfmAccount }) {
     { error: null },
   );
   const error = unlinkState.error;
-  // Format in the viewer's local zone once mounted; the server and first client
-  // render both report false (UTC) so hydration stays clean.
-  const localTime = useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
 
   return (
     <div>
@@ -138,15 +114,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
         )}
       </dl>
 
-      <div className="mt-4 flex items-center justify-between">
-        <p className="text-xs text-gray-500 italic">
-          {account.last_synced_at
-            ? `Linked ${formatDateTime(
-                account.last_synced_at,
-                localTime ? undefined : "UTC",
-              )}`
-            : "Never linked"}
-        </p>
+      <div className="mt-4 flex justify-end">
         <form action={unlinkAction}>
           <button
             type="submit"

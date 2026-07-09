@@ -6,7 +6,7 @@ list that the API reads through the `progress` query. Activities are referenced
 by name so the workflow sandbox never imports the ORM or the API clients; the
 result models pass through the pydantic data converter.
 
-See docs/2026-07-07-sync-orchestration-plan.md.
+See docs/design/2026-07-07-sync-orchestration-plan.md.
 """
 
 import uuid
@@ -54,7 +54,7 @@ def _summarize_artists(result: ArtistSyncResult) -> str:
     updated = sum(kind.interests_updated for kind in result.results)
     removed = sum(kind.interests_removed for kind in result.results)
     return (
-        f"Synced {_plural(artists, 'artist')} · "
+        f"Imported {_plural(artists, 'artist')} · "
         f"{created} added, {updated} updated, {removed} removed"
     )
 
@@ -64,7 +64,7 @@ def _summarize_suggestions(result: SuggestionSyncResult) -> str:
     seeds = f"{_plural(result.seeds_total, 'seed')} ({result.seeds_skipped} fresh{failed})"
     return (
         f"Scored {result.candidates_scored} candidates from {seeds} · "
-        f"{result.suggestions_created} suggestions added, "
+        f"{result.suggestions_created} artists suggested, "
         f"{result.suggestions_kept} kept, {result.suggestions_removed} removed"
     )
 
@@ -76,7 +76,7 @@ def _summarize_events(result: EventSyncResult) -> str:
         f"({result.artists_skipped} fresh, {result.artists_unknown} not on Bandsintown{failed})"
     )
     return (
-        f"{checked} · {result.events_created} events added, "
+        f"{checked} · {result.events_created} concerts found, "
         f"{result.events_updated} updated, {result.events_removed} removed"
     )
 
@@ -91,7 +91,7 @@ def _summarize_playlists(result: PlaylistSyncResult) -> str:
         else ""
     )
     return (
-        f"Synced {_plural(len(synced), 'playlist')} · "
+        f"Generated {_plural(len(synced), 'playlist')} · "
         f"{added} tracks added, {removed} removed · "
         f"{result.artists_matched} artists with concerts nearby{unresolved}"
     )
@@ -110,7 +110,7 @@ class _StepSpec:
 STEP_SPECS = (
     _StepSpec(
         key="artists",
-        label="Sync taste from Last.fm",
+        label="Import listening history from Last.fm",
         activity="sync_artists",
         result_type=ArtistSyncResult,
         timeout=timedelta(minutes=2),
@@ -118,7 +118,7 @@ STEP_SPECS = (
     ),
     _StepSpec(
         key="suggestions",
-        label="Refresh suggested artists",
+        label="Suggest artists",
         activity="sync_suggestions",
         result_type=SuggestionSyncResult,
         timeout=timedelta(minutes=15),
@@ -126,7 +126,7 @@ STEP_SPECS = (
     ),
     _StepSpec(
         key="events",
-        label="Find upcoming concerts",
+        label="Find concerts",
         activity="sync_events",
         result_type=EventSyncResult,
         timeout=timedelta(minutes=15),
@@ -134,7 +134,7 @@ STEP_SPECS = (
     ),
     _StepSpec(
         key="playlists",
-        label="Update Spotify playlists",
+        label="Generate Spotify playlists",
         activity="sync_playlists",
         result_type=PlaylistSyncResult,
         timeout=timedelta(minutes=30),

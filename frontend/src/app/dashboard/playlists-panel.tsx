@@ -4,6 +4,8 @@ import { useSyncExternalStore } from "react";
 import Link from "next/link";
 
 import type { City } from "./city-panel";
+import { EmptyState } from "./empty-state";
+import { RunSyncMessage } from "./run-sync-message";
 
 export type Playlist = {
   id: string;
@@ -59,36 +61,28 @@ function SyncedAtLabel({ iso }: { iso: string }) {
 }
 
 export function PlaylistsPanel({
-  hasCity,
-  hasArtists,
+  synced,
   playlists,
 }: {
-  hasCity: boolean;
-  hasArtists: boolean;
+  synced: boolean;
   playlists: Playlist[];
 }) {
-  if (!hasArtists) {
-    return (
-      <p className="text-sm text-gray-500">
-        Nothing synced yet. Run a sync from{" "}
-        <Link
-          href="/dashboard/account"
-          className="underline hover:text-foreground"
-        >
-          Account settings
-        </Link>
-        .
-      </p>
-    );
+  if (!synced) {
+    return <RunSyncMessage action="generate playlists" />;
   }
 
   if (playlists.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
-        {hasCity
-          ? "No playlists yet. Sync to create your playlists on Spotify."
-          : "Set a home city or pin a city in the Account section, then sync to create playlists."}
-      </p>
+      <EmptyState>
+        No playlists generated. Set your home city in{" "}
+        <Link
+          href="/dashboard/account"
+          className="underline hover:text-foreground"
+        >
+          Account
+        </Link>
+        .
+      </EmptyState>
     );
   }
 
@@ -129,13 +123,18 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
             Open in Spotify ↗
           </a>
         ) : (
-          "Not on Spotify yet - sync to create it."
+          "Not on Spotify yet - sync to generate it."
         )}
         {playlist.last_synced_at && (
           <SyncedAtLabel iso={playlist.last_synced_at} />
         )}
       </p>
-      {playlist.tracks.length > 0 && (
+      {playlist.tracks.length === 0 ? (
+        <p className="mt-2 text-sm text-gray-500">
+          No songs found. We&apos;ll add new ones as your listening history and
+          upcoming concerts change.
+        </p>
+      ) : (
         <details className="mt-2">
           <summary className="cursor-pointer text-sm text-gray-500">
             Tracks ({playlist.tracks.length})

@@ -201,7 +201,7 @@ async def test_sync_status_running_reports_step_progress() -> None:
     session = make_session()
     steps = pending_steps()
     steps[0].status = "completed"
-    steps[0].summary = "Synced 4 artists · 3 added, 1 updated, 0 removed"
+    steps[0].summary = "Imported 4 artists · 3 added, 1 updated, 0 removed"
     steps[1].status = "running"
     handle = make_handle(WorkflowExecutionStatus.RUNNING, steps)
     temporal = make_temporal(handle)
@@ -382,9 +382,9 @@ async def test_workflow_runs_all_steps_in_order() -> None:
         "playlists",
     ]
     assert all(step.status == "completed" for step in result.steps)
-    assert result.steps[0].summary == "Synced 4 artists · 3 added, 1 updated, 0 removed"
+    assert result.steps[0].summary == "Imported 4 artists · 3 added, 1 updated, 0 removed"
     assert result.steps[3].summary == (
-        "Synced 0 playlists · 0 tracks added, 0 removed · "
+        "Generated 0 playlists · 0 tracks added, 0 removed · "
         "6 artists with concerts nearby, 1 not found on Spotify"
     )
 
