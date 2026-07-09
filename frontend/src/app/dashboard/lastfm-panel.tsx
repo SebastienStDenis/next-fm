@@ -81,10 +81,10 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           />
         )}
         <div>
-          <p className="font-medium">
+          <p className="flex min-h-16 items-center font-medium">
             {account.real_name ?? account.username}
           </p>
-          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
             <dt className="text-gray-500">Username</dt>
             <dd>
               {account.profile_url ? (
