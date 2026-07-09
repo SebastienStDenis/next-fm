@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,5 +43,8 @@ export async function signUp(
   // With email confirmation on, signUp returns no session until the user clicks
   // the emailed link; send them to a holding page instead of the dashboard
   // (the proxy would bounce an unauthenticated /dashboard visit to /login).
-  redirect(data.session ? "/dashboard" : "/signup/check-email");
+  redirect(
+    data.session ? "/dashboard" : "/signup/check-email",
+    RedirectType.replace,
+  );
 }

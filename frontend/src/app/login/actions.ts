@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,5 +28,7 @@ export async function logIn(
   if (error) {
     return { error: error.message };
   }
-  redirect("/dashboard");
+  // Server Action redirects default to push; replace so Back from the
+  // dashboard doesn't land on /login, which the proxy bounces forward again.
+  redirect("/dashboard", RedirectType.replace);
 }

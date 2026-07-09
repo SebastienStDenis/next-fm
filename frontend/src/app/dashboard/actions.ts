@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect, unstable_rethrow } from "next/navigation";
+import { redirect, RedirectType, unstable_rethrow } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
@@ -157,7 +157,9 @@ export async function deletePlaylist(playlistId: string): Promise<ActionState> {
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  // Server Action redirects default to push; replace so Back from the home
+  // page doesn't land on /dashboard, which the proxy bounces forward again.
+  redirect("/", RedirectType.replace);
 }
 
 export async function deleteAccount(): Promise<ActionState> {
@@ -173,5 +175,5 @@ export async function deleteAccount(): Promise<ActionState> {
   }
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  redirect("/", RedirectType.replace);
 }
