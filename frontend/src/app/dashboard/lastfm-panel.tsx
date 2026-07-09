@@ -114,7 +114,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
             )}
           </dl>
         </div>
-        <form action={unlinkAction} className="ml-auto">
+        <form action={unlinkAction} className="ml-auto flex min-h-16 items-center">
           <button
             type="submit"
             disabled={unlinkPending}
