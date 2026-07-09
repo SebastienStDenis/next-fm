@@ -30,7 +30,7 @@ export function DiscoveryToggle({
         Include artists I know in my playlists
       </label>
       <p className="mt-1 text-xs text-gray-500 italic">
-        When off, playlists feature only suggested artists&apos; shows -
+        When off, playlists feature only suggested artists&apos; concerts -
         discovery mode.
       </p>
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
