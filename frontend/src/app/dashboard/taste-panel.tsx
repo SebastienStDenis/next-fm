@@ -234,7 +234,7 @@ export function TastePanel({
               <ArtistRow key={userArtist.artist.id} userArtist={userArtist} />
             ))}
           </ul>
-          <p className="mt-4 text-xs text-gray-500 italic">
+          <p className="mt-2 text-xs text-gray-500 italic">
             Hidden artists are skipped when suggesting artists and finding
             concerts.
           </p>
