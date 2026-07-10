@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 from sqlalchemy.dialects import postgresql
 
 from app.lastfm import (
@@ -19,21 +20,29 @@ from app.models import (
     Playlist,
     PlaylistTrack,
     SpotifyArtist,
+    SpotifyPlaylistTombstone,
     User,
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.playlist_sync import (
+    AUDIT_CONFIRMATION_AGE,
     MATCH_EXACT,
     MATCH_FUZZY,
     PLAYLIST_MAX_TRACKS,
+    TOMBSTONE_SOURCE_AUDIT,
+    TOMBSTONE_SOURCE_DELETE,
     TOP_TRACKS_FETCH_LIMIT,
     TOP_TRACKS_PER_ARTIST,
+    _empty_playlist,
     _refresh_top_tracks,
     _resolve_artist,
     _sync_playlist,
+    audit_bot_playlists,
     desired_tracks,
+    drain_playlist_tombstones,
     playlist_description,
     playlist_title,
+    settle_tombstone,
 )
 from app.spotify import (
     SpotifyApiError,
@@ -303,7 +312,11 @@ async def test_refresh_stamps_empty_cache_when_lastfm_artist_unknown() -> None:
 
 
 def insert_values(session: AsyncMock) -> dict:
-    statement = session.execute.await_args_list[0].args[0]
+    return executed_params(session, 0)
+
+
+def executed_params(session: AsyncMock, index: int) -> dict:
+    statement = session.execute.await_args_list[index].args[0]
     return statement.compile(dialect=postgresql.dialect()).params
 
 
@@ -571,7 +584,10 @@ async def test_sync_playlist_rewrites_local_rows_without_replace_when_only_event
 async def test_sync_playlist_skips_replace_for_fresh_empty_playlist() -> None:
     playlist = make_playlist(spotify_playlist_id=None)
     session = make_session()
-    session.execute.side_effect = [result_with_scalars([])]
+    session.execute.side_effect = [
+        result_returning(playlist.id),  # the claim on the new remote id
+        result_with_scalars([]),
+    ]
     spotify = AsyncMock(spec=SpotifyClient)
     spotify.create_playlist.return_value = SpotifyPlaylistData(
         id="pl-new", url="https://open.spotify.com/playlist/pl-new", snapshot_id="snap-new"
@@ -585,8 +601,9 @@ async def test_sync_playlist_skips_replace_for_fresh_empty_playlist() -> None:
     )
     spotify.replace_playlist_items.assert_not_awaited()
     session.commit.assert_awaited_once()  # the remote id is persisted right after creation
-    assert playlist.spotify_playlist_id == "pl-new"
-    assert playlist.snapshot_id == "snap-new"
+    claim = executed_params(session, 0)
+    assert claim["spotify_playlist_id"] == "pl-new"
+    assert claim["snapshot_id"] == "snap-new"
     session.add.assert_not_called()
     assert item.created_remotely is True
     assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (0, 0, 0)
@@ -598,6 +615,7 @@ async def test_sync_playlist_creates_then_replaces_when_fresh_with_tracks() -> N
     session = make_session()
     session.execute.side_effect = [
         result_with_scalars([cached_track(match.artist_id, "t1", 1)]),
+        result_returning(playlist.id),  # the claim on the new remote id
         result_with_scalars([]),
         MagicMock(),
     ]
@@ -616,3 +634,229 @@ async def test_sync_playlist_creates_then_replaces_when_fresh_with_tracks() -> N
     assert [row.spotify_track_id for row in added_objects(session, PlaylistTrack)] == ["t1"]
     assert item.created_remotely is True
     assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (1, 0, 1)
+
+
+async def test_sync_playlist_lost_create_race_adopts_the_winner() -> None:
+    playlist = make_playlist(spotify_playlist_id=None)
+    winner = make_playlist(spotify_playlist_id="pl-winner")
+    winner.id = playlist.id
+    match = make_match(uuid.uuid7())
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([cached_track(match.artist_id, "t1", 1)]),
+        result_returning(None),  # claim lost: a concurrent sync attached its own id
+        result_returning(winner),  # re-read shows the winner's row
+        result_with_scalars([]),
+        MagicMock(),
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.create_playlist.return_value = SpotifyPlaylistData(
+        id="pl-new", url=None, snapshot_id="snap-new"
+    )
+    spotify.replace_playlist_items.return_value = "snap-1"
+
+    item = await run_sync_playlist(session, spotify, playlist, [match])
+
+    spotify.unfollow_playlist.assert_awaited_once_with("pl-new")  # own creation discarded
+    spotify.replace_playlist_items.assert_awaited_once_with("pl-winner", ["spotify:track:t1"])
+    assert item.status == "synced"
+    assert item.created_remotely is False
+
+
+async def test_sync_playlist_lost_race_to_deletion_discards_creation() -> None:
+    playlist = make_playlist(spotify_playlist_id=None)
+    session = make_session()
+    session.execute.side_effect = [
+        result_returning(None),  # claim lost: the row was deleted mid-sync
+        MagicMock(),  # tombstone insert after the failed unfollow
+        result_returning(None),  # re-read confirms the row is gone
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.create_playlist.return_value = SpotifyPlaylistData(
+        id="pl-new", url=None, snapshot_id="snap-new"
+    )
+    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+
+    item = await run_sync_playlist(session, spotify, playlist, [])
+
+    assert item.status == "deleted"
+    spotify.replace_playlist_items.assert_not_awaited()
+    tombstone = executed_params(session, 1)
+    assert tombstone["spotify_playlist_id"] == "pl-new"
+    assert tombstone["source"] == TOMBSTONE_SOURCE_DELETE
+
+
+async def test_empty_playlist_clears_remote_and_local_rows() -> None:
+    playlist = make_playlist()
+    row = local_row(playlist, cached_track(uuid.uuid7(), "t1", 1), uuid.uuid7())
+    session = make_session()
+    session.execute.side_effect = [result_with_scalars([row]), MagicMock()]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.replace_playlist_items.return_value = "snap-empty"
+
+    item = await _empty_playlist(session, spotify, playlist, SYNC_NOW)
+
+    spotify.replace_playlist_items.assert_awaited_once_with("pl-1", [])
+    assert playlist.snapshot_id == "snap-empty"
+    assert playlist.last_synced_at == SYNC_NOW
+    assert item.status == "no_city"
+    assert item.tracks_removed == 1
+
+
+async def test_empty_playlist_without_remote_playlist_touches_nothing() -> None:
+    playlist = make_playlist(spotify_playlist_id=None)
+    session = make_session()
+    session.execute.side_effect = [result_with_scalars([])]
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    item = await _empty_playlist(session, spotify, playlist, SYNC_NOW)
+
+    spotify.replace_playlist_items.assert_not_awaited()
+    assert item.status == "no_city"
+    assert item.tracks_removed == 0
+
+
+def make_tombstone(
+    spotify_playlist_id: str = "pl-dead",
+    source: str = TOMBSTONE_SOURCE_DELETE,
+    age: timedelta = timedelta(0),
+) -> SpotifyPlaylistTombstone:
+    return SpotifyPlaylistTombstone(
+        id=uuid.uuid7(),
+        spotify_playlist_id=spotify_playlist_id,
+        source=source,
+        created_at=datetime.now(UTC) - age,
+    )
+
+
+async def test_settle_tombstone_unfollows_and_clears() -> None:
+    session = make_session()
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    assert await settle_tombstone(session, spotify, "pl-dead") is True
+
+    spotify.unfollow_playlist.assert_awaited_once_with("pl-dead")
+    session.execute.assert_awaited_once()
+
+
+async def test_settle_tombstone_treats_gone_playlist_as_settled() -> None:
+    session = make_session()
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.unfollow_playlist.side_effect = SpotifyApiError(404, "not found")
+
+    assert await settle_tombstone(session, spotify, "pl-dead") is True
+
+    session.execute.assert_awaited_once()
+
+
+async def test_settle_tombstone_keeps_tombstone_on_failure() -> None:
+    session = make_session()
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.unfollow_playlist.side_effect = httpx.ConnectError("down")
+
+    assert await settle_tombstone(session, spotify, "pl-dead") is False
+
+    session.execute.assert_not_awaited()
+
+
+async def test_drain_settles_delete_tombstones() -> None:
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([make_tombstone()]),
+        MagicMock(),  # tombstone cleared
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    result = await drain_playlist_tombstones(session, spotify)
+
+    spotify.unfollow_playlist.assert_awaited_once_with("pl-dead")
+    assert (result.drained, result.pending) == (1, 0)
+
+
+async def test_drain_reports_failed_unfollows_as_pending() -> None:
+    session = make_session()
+    session.execute.side_effect = [result_with_scalars([make_tombstone()])]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+
+    result = await drain_playlist_tombstones(session, spotify)
+
+    assert (result.drained, result.pending) == (0, 1)
+
+
+async def test_drain_leaves_young_audit_tombstones_alone() -> None:
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([make_tombstone(source=TOMBSTONE_SOURCE_AUDIT)])
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    result = await drain_playlist_tombstones(session, spotify)
+
+    spotify.unfollow_playlist.assert_not_awaited()
+    assert (result.drained, result.pending) == (0, 1)
+
+
+async def test_drain_unfollows_confirmed_audit_tombstones() -> None:
+    aged = make_tombstone(source=TOMBSTONE_SOURCE_AUDIT, age=AUDIT_CONFIRMATION_AGE * 2)
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([aged]),
+        result_returning(None),  # still unclaimed by any playlists row
+        MagicMock(),  # tombstone cleared
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    result = await drain_playlist_tombstones(session, spotify)
+
+    spotify.unfollow_playlist.assert_awaited_once_with("pl-dead")
+    assert (result.drained, result.pending) == (1, 0)
+
+
+async def test_drain_drops_audit_tombstone_claimed_since_the_audit() -> None:
+    aged = make_tombstone(source=TOMBSTONE_SOURCE_AUDIT, age=AUDIT_CONFIRMATION_AGE * 2)
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([aged]),
+        result_returning(uuid.uuid7()),  # a playlists row claimed the id: not an orphan
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    result = await drain_playlist_tombstones(session, spotify)
+
+    spotify.unfollow_playlist.assert_not_awaited()
+    session.delete.assert_awaited_once_with(aged)
+    assert (result.drained, result.pending) == (1, 0)
+
+
+async def test_audit_records_unknown_remote_ids() -> None:
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars(["pl-known"]),  # claimed by playlists rows
+        result_with_scalars(["pl-tombstoned"]),  # already awaiting unfollow
+        MagicMock(),  # the audit tombstone insert
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.list_own_playlist_ids.return_value = ["pl-known", "pl-tombstoned", "pl-orphan"]
+
+    found = await audit_bot_playlists(session, spotify)
+
+    assert found == 1
+    tombstone = executed_params(session, 2)
+    assert tombstone["spotify_playlist_id"] == "pl-orphan"
+    assert tombstone["source"] == TOMBSTONE_SOURCE_AUDIT
+
+
+async def test_audit_with_clean_account_touches_nothing() -> None:
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars(["pl-known"]),
+        result_with_scalars([]),
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.list_own_playlist_ids.return_value = ["pl-known"]
+
+    found = await audit_bot_playlists(session, spotify)
+
+    assert found == 0
+    assert session.execute.await_count == 2

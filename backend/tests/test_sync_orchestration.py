@@ -25,6 +25,7 @@ from app.schemas import (
     SuggestionSyncResult,
     SyncRunResult,
     SyncStepProgress,
+    TombstoneDrainResult,
 )
 from app.sync_activities import SyncActivities
 from app.sync_workflow import (
@@ -403,6 +404,19 @@ def list_activity(user_ids: list[uuid.UUID]):
     return list_users_due_for_sync
 
 
+@activity.defn(name="audit_bot_playlists")
+async def fake_audit_bot_playlists() -> int:
+    return 0
+
+
+@activity.defn(name="drain_playlist_tombstones")
+async def fake_drain_playlist_tombstones() -> TombstoneDrainResult:
+    return TombstoneDrainResult(drained=0, pending=0)
+
+
+CLEANUP_ACTIVITIES = [fake_audit_bot_playlists, fake_drain_playlist_tombstones]
+
+
 async def test_workflow_runs_all_steps_in_order() -> None:
     recorded: list[str] = []
     async with await WorkflowEnvironment.start_time_skipping(
@@ -504,6 +518,7 @@ async def test_dispatch_syncs_each_listed_user_in_order() -> None:
                 fake_sync_events,
                 fake_sync_playlists,
                 record_activity(recorded),
+                *CLEANUP_ACTIVITIES,
             ],
         ):
             result = await env.client.execute_workflow(
@@ -535,6 +550,7 @@ async def test_dispatch_isolates_child_failures() -> None:
             workflows=[DispatchSyncsWorkflow, SyncUserWorkflow],
             activities=[
                 list_activity([USER_ID, OTHER_USER_ID]),
+                *CLEANUP_ACTIVITIES,
                 fake_sync_artists,
                 failing_for_first_user,
                 fake_sync_events,
@@ -576,6 +592,7 @@ async def test_dispatch_skips_user_whose_sync_is_already_running() -> None:
                 fake_sync_events,
                 fake_sync_playlists,
                 record_activity(recorded),
+                *CLEANUP_ACTIVITIES,
             ],
         ):
             manual = await env.client.start_workflow(
@@ -594,6 +611,87 @@ async def test_dispatch_skips_user_whose_sync_is_already_running() -> None:
 
     assert result == DispatchSyncsResult(dispatched=2, succeeded=1, failed=0, skipped=1)
     assert recorded == [str(OTHER_USER_ID), str(USER_ID)]
+
+
+async def test_dispatch_reports_cleanup_counts() -> None:
+    @activity.defn(name="audit_bot_playlists")
+    async def finding_audit() -> int:
+        return 2
+
+    @activity.defn(name="drain_playlist_tombstones")
+    async def busy_drain() -> TombstoneDrainResult:
+        return TombstoneDrainResult(drained=3, pending=1)
+
+    async with await WorkflowEnvironment.start_time_skipping(
+        data_converter=pydantic_data_converter
+    ) as env:
+        async with Worker(
+            env.client,
+            task_queue="test-sync",
+            workflows=[DispatchSyncsWorkflow, SyncUserWorkflow],
+            activities=[list_activity([]), finding_audit, busy_drain],
+        ):
+            result = await env.client.execute_workflow(
+                DispatchSyncsWorkflow.run,
+                id="dispatch-syncs",
+                task_queue="test-sync",
+            )
+
+    assert result.orphans_found == 2
+    assert result.tombstones_drained == 3
+    assert result.tombstones_pending == 1
+
+
+async def test_dispatch_survives_cleanup_failure() -> None:
+    @activity.defn(name="audit_bot_playlists")
+    async def failing_audit() -> int:
+        raise ApplicationError("Spotify exploded", non_retryable=True)
+
+    async with await WorkflowEnvironment.start_time_skipping(
+        data_converter=pydantic_data_converter
+    ) as env:
+        async with Worker(
+            env.client,
+            task_queue="test-sync",
+            workflows=[DispatchSyncsWorkflow, SyncUserWorkflow],
+            activities=[list_activity([]), failing_audit, fake_drain_playlist_tombstones],
+        ):
+            result = await env.client.execute_workflow(
+                DispatchSyncsWorkflow.run,
+                id="dispatch-syncs",
+                task_queue="test-sync",
+            )
+
+    # The night's syncs stand; the tombstones wait for tomorrow's dispatch.
+    assert result == DispatchSyncsResult(dispatched=0, succeeded=0, failed=0, skipped=0)
+
+
+async def test_audit_bot_playlists_activity_commits(monkeypatch: pytest.MonkeyPatch) -> None:
+    session = make_session()
+    patch_session_factory(monkeypatch, session)
+    audit = AsyncMock(return_value=2)
+    monkeypatch.setattr("app.sync_activities.audit_bot_playlists", audit)
+
+    result = await make_activities().audit_bot_playlists()
+
+    assert result == 2
+    audit.assert_awaited_once()
+    session.commit.assert_awaited_once()
+
+
+async def test_drain_playlist_tombstones_activity_commits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = make_session()
+    patch_session_factory(monkeypatch, session)
+    drain = AsyncMock(return_value=TombstoneDrainResult(drained=1, pending=0))
+    monkeypatch.setattr("app.sync_activities.drain_playlist_tombstones", drain)
+
+    result = await make_activities().drain_playlist_tombstones()
+
+    assert result == TombstoneDrainResult(drained=1, pending=0)
+    drain.assert_awaited_once()
+    session.commit.assert_awaited_once()
 
 
 async def test_record_sync_completed_activity_stamps_user(

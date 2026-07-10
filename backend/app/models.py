@@ -308,6 +308,12 @@ class ArtistTopTrack(Base):
 
 
 class Playlist(Base):
+    """A BEFORE DELETE trigger (playlists_tombstone, created in the
+    add_spotify_playlist_tombstones migration) records spotify_playlist_id in
+    spotify_playlist_tombstones whenever a row is deleted - including FK
+    cascades the ORM never sees - so the remote playlist is always unfollowed
+    eventually (docs/design/2026-07-10-playlist-deletion-plan.md)."""
+
     __tablename__ = "playlists"
     __table_args__ = (
         UniqueConstraint("user_id", "kind", "city_id", postgresql_nulls_not_distinct=True),
@@ -320,7 +326,7 @@ class Playlist(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     kind: Mapped[str]
-    city_id: Mapped[int | None] = mapped_column(ForeignKey("cities.geonameid", ondelete="SET NULL"))
+    city_id: Mapped[int | None] = mapped_column(ForeignKey("cities.geonameid", ondelete="CASCADE"))
     name: Mapped[str]
     description: Mapped[str | None]
     spotify_playlist_id: Mapped[str | None] = mapped_column(unique=True)
@@ -331,6 +337,23 @@ class Playlist(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class SpotifyPlaylistTombstone(Base):
+    """A remote playlist id owed an unfollow on the bot account; rows are
+    deleted once the unfollow lands. "delete" rows come from the playlists
+    BEFORE DELETE trigger (or a lost create race); "audit" rows are ids the
+    bot-account audit found unclaimed, unfollowed only after a confirmation
+    age (docs/design/2026-07-10-playlist-deletion-plan.md)."""
+
+    __tablename__ = "spotify_playlist_tombstones"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    spotify_playlist_id: Mapped[str] = mapped_column(unique=True)
+    source: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PlaylistTrack(Base):

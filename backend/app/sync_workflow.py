@@ -8,7 +8,9 @@ result models pass through the pydantic data converter.
 
 `DispatchSyncsWorkflow` is the nightly re-sync: fired by the `nightly-sync`
 schedule (created at worker startup), it lists the users due for a sync and
-runs each as a child `SyncUserWorkflow`, one at a time.
+runs each as a child `SyncUserWorkflow`, one at a time; afterwards it audits
+the bot account for orphaned Spotify playlists and drains the unfollow
+tombstones (docs/design/2026-07-10-playlist-deletion-plan.md).
 
 See docs/design/2026-07-07-sync-orchestration-plan.md and
 docs/design/2026-07-09-background-sync-plan.md.
@@ -39,6 +41,7 @@ with workflow.unsafe.imports_passed_through():
         SyncRunResult,
         SyncStepKey,
         SyncStepProgress,
+        TombstoneDrainResult,
     )
 
 RETRY_POLICY = RetryPolicy(
@@ -230,6 +233,31 @@ class DispatchSyncsWorkflow:
                 failed += 1
             else:
                 succeeded += 1
+        orphans_found = 0
+        drain = TombstoneDrainResult(drained=0, pending=0)
+        try:
+            orphans_found = await workflow.execute_activity(
+                "audit_bot_playlists",
+                result_type=int,
+                schedule_to_close_timeout=timedelta(minutes=10),
+                retry_policy=RETRY_POLICY,
+            )
+            drain = await workflow.execute_activity(
+                "drain_playlist_tombstones",
+                result_type=TombstoneDrainResult,
+                schedule_to_close_timeout=timedelta(minutes=10),
+                retry_policy=RETRY_POLICY,
+            )
+        except ActivityError:
+            # Cleanup must not fail the night's syncs; anything pending waits
+            # for tomorrow's run.
+            workflow.logger.exception("Playlist cleanup failed; retrying next dispatch")
         return DispatchSyncsResult(
-            dispatched=len(user_ids), succeeded=succeeded, failed=failed, skipped=skipped
+            dispatched=len(user_ids),
+            succeeded=succeeded,
+            failed=failed,
+            skipped=skipped,
+            orphans_found=orphans_found,
+            tombstones_drained=drain.drained,
+            tombstones_pending=drain.pending,
         )

@@ -54,6 +54,7 @@ from app.playlist_sync import (
     CITY_CONCERTS_KIND,
     PINNED_PLAYLIST_CAP,
     playlist_title,
+    settle_tombstone,
     sync_user_playlists,
 )
 from app.schemas import (
@@ -137,6 +138,32 @@ async def get_spotify_client() -> AsyncIterator[SpotifyClient]:
 
 
 SpotifyClientDep = Annotated[SpotifyClient, Depends(get_spotify_client)]
+
+
+async def get_optional_spotify_client() -> AsyncIterator[SpotifyClient | None]:
+    """The deleting endpoints' variant: local deletion must go through even
+    when Spotify is unconfigured - the trigger-written tombstones wait for
+    the nightly drainer."""
+    settings = get_settings()
+    if not (
+        settings.spotify_client_id
+        and settings.spotify_client_secret
+        and settings.spotify_refresh_token
+    ):
+        yield None
+        return
+    client = SpotifyClient(
+        settings.spotify_client_id,
+        settings.spotify_client_secret,
+        settings.spotify_refresh_token,
+    )
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+OptionalSpotifyClientDep = Annotated[SpotifyClient | None, Depends(get_optional_spotify_client)]
 
 
 async def get_musicbrainz_client() -> AsyncIterator[MusicBrainzClient]:
@@ -256,17 +283,38 @@ async def update_me(user: CurrentUserDep, payload: UserUpdate, session: SessionD
 
 
 @app.delete("/me", status_code=204)
-async def delete_me(user: CurrentUserDep, session: SessionDep, admin: SupabaseAdminDep) -> None:
+async def delete_me(
+    user: CurrentUserDep,
+    session: SessionDep,
+    admin: SupabaseAdminDep,
+    spotify: OptionalSpotifyClientDep,
+) -> None:
     """Delete the account: the Supabase auth user first (so a re-login can't
     re-provision it mid-delete), then the app row and everything cascading. The
     admin client - and thus SUPABASE_SECRET_KEY - is only required when the
-    account is actually linked to a Supabase auth user."""
+    account is actually linked to a Supabase auth user.
+
+    The cascade removes the user's playlists; the playlists trigger tombstones
+    their Spotify ids, unfollowed best-effort below (the nightly drainer
+    retries anything that fails here)."""
     if user.supabase_user_id is not None:
         if admin is None:
             raise HTTPException(status_code=503, detail="SUPABASE_SECRET_KEY is not configured")
         await admin.delete_user(user.supabase_user_id)
+    result = await session.execute(
+        select(Playlist.spotify_playlist_id).where(
+            Playlist.user_id == user.id, Playlist.spotify_playlist_id.is_not(None)
+        )
+    )
+    remote_ids = [remote_id for remote_id in result.scalars() if remote_id is not None]
     await session.delete(user)
     await session.commit()
+    if spotify is not None:
+        settled = False
+        for remote_id in remote_ids:
+            settled = await settle_tombstone(session, spotify, remote_id) or settled
+        if settled:
+            await session.commit()
 
 
 CITY_FUZZY_THRESHOLD = 0.45
@@ -671,18 +719,19 @@ async def delete_playlist(
     user: CurrentUserDep,
     playlist_id: uuid.UUID,
     session: SessionDep,
-    spotify: SpotifyClientDep,
+    spotify: OptionalSpotifyClientDep,
 ) -> None:
-    """Unfollow the playlist on Spotify (its only notion of delete), then drop it locally."""
+    """Drop the playlist locally (the playlists trigger tombstones its Spotify
+    id in the same transaction), then unfollow on Spotify best-effort: the
+    deletion is done either way, and the nightly drainer retries any unfollow
+    that fails here."""
     playlist = await _require_playlist(session, user.id, playlist_id)
-    if playlist.spotify_playlist_id is not None:
-        try:
-            await spotify.unfollow_playlist(playlist.spotify_playlist_id)
-        except SpotifyApiError as exc:
-            if exc.status_code != 404:
-                raise
+    remote_id = playlist.spotify_playlist_id
     await session.delete(playlist)
     await session.commit()
+    if remote_id is not None and spotify is not None:
+        if await settle_tombstone(session, spotify, remote_id):
+            await session.commit()
 
 
 @app.delete("/me/lastfm", status_code=204)
