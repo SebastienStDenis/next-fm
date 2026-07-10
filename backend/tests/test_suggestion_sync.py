@@ -331,6 +331,7 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
         result_with_rows([]),  # canonical ids for candidate keys
         result_with_scalars([]),  # upsert: no existing lastfm rows
         result_with_rows([]),  # upsert: insert conflicts
+        result_with_scalars([]),  # exclusions re-read before the write
         result_with_scalars([]),  # reconcile: no existing suggestion interests
     ]
     lastfm = AsyncMock(spec=LastfmClient)
@@ -358,6 +359,34 @@ async def test_sync_creates_suggestions_from_cached_edges() -> None:
     assert suggestion.evidence["paths"] == [
         {"seed_artist_id": str(seed.artist_id), "seed_name": "Autechre", "match": 0.9}
     ]
+
+
+async def test_sync_drops_suggestion_excluded_while_fetching() -> None:
+    """An ignore committed during the sync's network phase postdates the
+    exclusion snapshot; the pre-write re-read must still drop the artist."""
+    seed = make_seed("Autechre", synced_at=datetime.now(UTC))
+    seed_interest = interest(TOP_ARTIST_KIND, 100.0, artist_id=seed.artist_id)
+    boc = make_seed("Boards of Canada")
+    session = make_session()
+    session.execute.side_effect = [
+        result_returning(make_account()),
+        result_with_scalars([seed_interest]),  # interests
+        result_with_scalars([]),  # exclusions snapshot: nothing yet
+        result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
+        result_with_scalars([edge(seed.artist_id, "Boards of Canada", 0.9)]),  # edges
+        result_with_rows([("boards of canada", boc.artist_id)]),  # canonical ids
+        result_with_scalars([boc]),  # upsert: existing lastfm row
+        result_with_scalars([boc.artist_id]),  # exclusions re-read: ignored mid-sync
+        result_with_scalars([]),  # reconcile: no existing suggestion interests
+    ]
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_top_artists.return_value = []
+
+    response = await request("POST", SYNC_URL, session, lastfm, user=user())
+
+    assert response.status_code == 200
+    assert response.json()["suggestions_created"] == 0
+    assert added_objects(session, UserArtistInterest) == []
 
 
 async def test_sync_when_not_linked() -> None:

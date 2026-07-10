@@ -73,6 +73,7 @@ class ArtistInterestRead(BaseModel):
 class UserArtistRead(BaseModel):
     artist: ArtistRead
     interests: list[ArtistInterestRead]
+    excluded: bool
 
 
 class EventRead(BaseModel):

@@ -45,10 +45,14 @@ export default async function DashboardPage() {
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
   );
-  const suggestedArtists = userArtists.filter((userArtist) =>
-    userArtist.interests.some(
-      (interest) => interest.kind === SIMILAR_ARTIST_KIND,
-    ),
+  // A suggestion interest can briefly survive its artist's exclusion (a
+  // hide landing mid-sync); never render those as suggestions.
+  const suggestedArtists = userArtists.filter(
+    (userArtist) =>
+      !userArtist.excluded &&
+      userArtist.interests.some(
+        (interest) => interest.kind === SIMILAR_ARTIST_KIND,
+      ),
   );
   const artistRelations: Record<string, "known" | "suggested"> =
     Object.fromEntries([

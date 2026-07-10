@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
+import { setArtistHidden } from "./actions";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 
 export type Artist = {
@@ -28,6 +29,7 @@ export type Interest = {
 export type UserArtist = {
   artist: Artist;
   interests: Interest[];
+  excluded: boolean;
 };
 
 const numberFormat = new Intl.NumberFormat("en-US");
@@ -86,6 +88,107 @@ function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
+function HideIcon({ hidden }: { hidden: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      {hidden ? (
+        <>
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+        </>
+      ) : (
+        <>
+          <circle cx="12" cy="12" r="10" />
+          <path d="m4.9 4.9 14.2 14.2" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+// Must match the animate-fade-in-out duration: the animation ends at
+// opacity 0 and this timeout unmounts the message.
+const ERROR_DISMISS_MS = 4000;
+
+function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
+  const { artist, interests, excluded } = userArtist;
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    const timer = setTimeout(() => setError(null), ERROR_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  function toggleHidden() {
+    setError(null);
+    startTransition(async () => {
+      const result = await setArtistHidden(artist.id, !excluded);
+      setError(result.error);
+    });
+  }
+
+  return (
+    <li className="group flex flex-wrap items-center gap-2 text-sm">
+      <span
+        className={
+          excluded ? "text-gray-400 line-through dark:text-gray-600" : undefined
+        }
+      >
+        {artist.name}
+      </span>
+      {interests
+        .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
+        .map((interest) => (
+          <span
+            key={`${interest.kind}-${interest.source}`}
+            className={`rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700 ${
+              excluded ? "opacity-60" : ""
+            }`}
+          >
+            {interestLabel(interest)}
+          </span>
+        ))}
+      <span className="ml-auto flex items-center gap-2">
+        {error && (
+          <span className="animate-fade-in-out text-xs text-red-600">
+            {error}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={toggleHidden}
+          disabled={pending}
+          title={excluded ? "Unhide" : "Hide artist"}
+          aria-label={
+            excluded ? `Unhide ${artist.name}` : `Hide ${artist.name}`
+          }
+          className={`rounded p-1 text-gray-400 transition-opacity hover:text-foreground focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-40 ${
+            // Hidden-until-hover only where hovering exists; touch devices
+            // (no group-hover: Tailwind gates it behind hover: hover) always
+            // show the button.
+            excluded ? "" : "pointer-fine:opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          <HideIcon hidden={excluded} />
+        </button>
+      </span>
+    </li>
+  );
+}
+
 export function TastePanel({
   userArtists,
   synced,
@@ -127,25 +230,14 @@ export function TastePanel({
             </label>
           </div>
           <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600">
-            {sortedArtists.map(({ artist, interests }) => (
-              <li
-                key={artist.id}
-                className="flex flex-wrap items-center gap-2 text-sm"
-              >
-                <span>{artist.name}</span>
-                {interests
-                  .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
-                  .map((interest) => (
-                    <span
-                      key={`${interest.kind}-${interest.source}`}
-                      className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
-                    >
-                      {interestLabel(interest)}
-                    </span>
-                  ))}
-              </li>
+            {sortedArtists.map((userArtist) => (
+              <ArtistRow key={userArtist.artist.id} userArtist={userArtist} />
             ))}
           </ul>
+          <p className="mt-2 text-xs text-gray-500 italic">
+            Hidden artists are skipped when suggesting artists and finding
+            concerts.
+          </p>
         </>
       )}
     </div>

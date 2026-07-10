@@ -12,6 +12,7 @@
 
 @theme {
   --animate-fade-in: fade-in 250ms ease-out;
+  --animate-fade-in-out: fade-in-out 4s ease-in-out forwards;
   --animate-slide-in-up: slide-in-up 250ms ease-out;
   --animate-slide-out-up: slide-out-up 250ms ease-out forwards;
 
@@ -20,6 +21,20 @@
       opacity: 0;
     }
     to {
+      opacity: 1;
+    }
+  }
+
+  /* One-shot lifetime for transient messages: fade in, hold, fade out.
+     The 4s duration is the message's whole display window; removal is
+     timed to it (taste-panel's ERROR_DISMISS_MS). */
+  @keyframes fade-in-out {
+    0%,
+    100% {
+      opacity: 0;
+    }
+    5%,
+    95% {
       opacity: 1;
     }
   }

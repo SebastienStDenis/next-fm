@@ -158,7 +158,18 @@ async def sync_user_suggestions(
         for c in kept
     ]
     artist_ids = await upsert_lastfm_artists(session, signals)
-    signal_by_artist = {artist_ids[name_key(signal.name)]: signal for signal in signals}
+    # An exclusion committed while the fetches above ran is missing from the
+    # snapshot the selection used; re-read so the reconcile drops the artist
+    # instead of resurrecting the interest the exclusion write just deleted.
+    result = await session.execute(
+        select(UserArtistExclusion.artist_id).where(UserArtistExclusion.user_id == user.id)
+    )
+    excluded_ids = set(result.scalars())
+    signal_by_artist = {
+        artist_id: signal
+        for signal in signals
+        if (artist_id := artist_ids[name_key(signal.name)]) not in excluded_ids
+    }
     written = await sync_interests(
         session, user.id, SIMILAR_ARTIST_KIND, signal_by_artist, source=Source.INTERNAL, prune=True
     )

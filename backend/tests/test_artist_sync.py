@@ -346,25 +346,28 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
     autechre = Artist(id=uuid.uuid7(), name="Autechre")
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
     session = make_session()
-    session.execute.return_value = result_with_rows(
-        [
-            (interest(autechre, "lastfm_loved_tracks", {"track_count": 3}), autechre),
-            (
-                interest(
+    session.execute.side_effect = [
+        result_with_scalars([boc]),
+        result_with_rows(
+            [
+                (interest(autechre, "lastfm_loved_tracks", {"track_count": 3}), autechre),
+                (
+                    interest(
+                        autechre,
+                        "lastfm_top_artist",
+                        {"rank": 1, "playcount": 321, "period": "12month"},
+                    ),
                     autechre,
-                    "lastfm_top_artist",
-                    {"rank": 1, "playcount": 321, "period": "12month"},
                 ),
-                autechre,
-            ),
-            (
-                interest(
-                    boc, "lastfm_top_artist", {"rank": 2, "playcount": 210, "period": "12month"}
+                (
+                    interest(
+                        boc, "lastfm_top_artist", {"rank": 2, "playcount": 210, "period": "12month"}
+                    ),
+                    boc,
                 ),
-                boc,
-            ),
-        ]
-    )
+            ]
+        ),
+    ]
 
     response = await request("GET", "/me/artists", session, user=user())
 
@@ -378,8 +381,49 @@ async def test_list_user_artists_groups_interests_by_artist() -> None:
     ]
     assert body[0]["interests"][0]["evidence"] == {"track_count": 3}
     assert body[0]["interests"][0]["source"] == "lastfm"
+    assert body[0]["excluded"] is False
     assert body[1]["artist"] == {"id": str(boc.id), "name": "Boards of Canada"}
     assert len(body[1]["interests"]) == 1
+    assert body[1]["excluded"] is True
+
+
+async def test_list_user_artists_keeps_exclusion_without_interests_visible() -> None:
+    """An exclusion can outlive every interest row (ignoring a suggestion
+    deletes its interest immediately); the artist must stay listed, sorted
+    in place, so the exclusion can be seen and undone."""
+    now = datetime(2026, 7, 1, tzinfo=UTC)
+    autechre = Artist(id=uuid.uuid7(), name="Autechre")
+    boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([boc]),
+        result_with_rows(
+            [
+                (
+                    UserArtistInterest(
+                        user_id=USER_ID,
+                        artist_id=autechre.id,
+                        kind="lastfm_top_artist",
+                        source="lastfm",
+                        evidence={"rank": 1, "playcount": 321, "period": "12month"},
+                        created_at=now,
+                        updated_at=now,
+                    ),
+                    autechre,
+                )
+            ]
+        ),
+    ]
+
+    response = await request("GET", "/me/artists", session, user=user())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [(entry["artist"]["name"], entry["excluded"]) for entry in body] == [
+        ("Autechre", False),
+        ("Boards of Canada", True),
+    ]
+    assert body[1]["interests"] == []
 
 
 async def test_list_user_artists_requires_authentication() -> None:

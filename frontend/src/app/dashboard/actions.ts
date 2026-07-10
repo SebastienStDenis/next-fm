@@ -130,6 +130,33 @@ export async function setIncludeKnownArtists(
   );
 }
 
+export async function setArtistHidden(
+  artistId: string,
+  hidden: boolean,
+): Promise<ActionState> {
+  // Unlike callApi, never surface the response's detail: the row has no room
+  // for prose, and a stale backend answers with an unhelpful route-miss
+  // "Not Found".
+  const failure = {
+    error: hidden ? "Failed to hide" : "Failed to unhide",
+  };
+  let res: Response;
+  try {
+    res = await apiFetch(`/me/artists/${artistId}/exclusion`, {
+      method: hidden ? "PUT" : "DELETE",
+    });
+  } catch (e) {
+    unstable_rethrow(e);
+    return failure;
+  }
+  if (!res.ok) {
+    return failure;
+  }
+
+  revalidatePath(`/dashboard`, "layout");
+  return { error: null };
+}
+
 export async function createCityPlaylist(
   geonameid: number,
 ): Promise<ActionState> {

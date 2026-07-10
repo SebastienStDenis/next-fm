@@ -27,6 +27,9 @@ labels and summaries.
   not "suggested artists" ("suggesting suggested artists" is redundant).
 - Concerts are **found** / **finding**.
 - Playlists are **generated** / **generating**.
+- Artists are **hidden** / **unhidden** (never ignored, excluded, muted or
+  blocked; "exclusion" is the stored policy's name, per
+  `docs/design/2026-07-07-ignoring-plan.md`, not user-facing copy).
 
 The one-line pitch for a sync chains all four: "Imports listening history,
 suggests artists, finds concerts and generates playlists."
@@ -70,5 +73,7 @@ Keep these exactly as written:
 - Playlists tab: "Spotify playlists tracking suggested concerts in your
   cities. Tracklists are automatically updated every day as your listening
   history and upcoming concerts change."
+- Listening History footnote: "Hidden artists are skipped when suggesting
+  artists and finding concerts."
 - Confirmation email: "... and start discovering live music through
   listening."
