@@ -186,7 +186,11 @@ export function CitySearchBox({
           No matching cities
         </div>
       )}
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {/* A live status, not a one-shot action error: it clears itself on the
+          next keystroke, so it fades in but never auto-dismisses. */}
+      {error && (
+        <p className="mt-2 animate-fade-in text-xs text-red-600">{error}</p>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
 import { Spinner } from "./spinner";
+import { useTransientError } from "./use-transient-error";
 
 export type LastfmAccount = {
   id: string;
@@ -40,6 +41,7 @@ function LinkForm() {
   const [state, formAction, pending] = useActionState(linkLastfm, {
     error: null,
   });
+  const error = useTransientError(state);
 
   return (
     <form action={formAction} className="space-y-2">
@@ -65,7 +67,9 @@ function LinkForm() {
           )}
         </button>
       </div>
-      {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+      {error && (
+        <p className="animate-fade-in-out text-xs text-red-600">{error}</p>
+      )}
     </form>
   );
 }
@@ -75,7 +79,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
     unlinkLastfm,
     { error: null },
   );
-  const error = unlinkState.error;
+  const error = useTransientError(unlinkState);
 
   return (
     <div>
@@ -139,7 +143,9 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           </button>
         </form>
       </div>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-2 animate-fade-in-out text-xs text-red-600">{error}</p>
+      )}
     </div>
   );
 }
