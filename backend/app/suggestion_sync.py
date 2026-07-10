@@ -180,7 +180,9 @@ async def sync_user_suggestions(
     )
 
     enrich_ids = {interest.artist_id for interest in interests} | set(signal_by_artist)
-    enriched, enrich_failed = await _enrich_artist_info(session, lastfm, enrich_ids, now)
+    enriched, enrich_failed = await _enrich_artist_info(
+        session, lastfm, enrich_ids, now, priority_ids=frozenset(signal_by_artist)
+    )
 
     return SuggestionSyncResult(
         synced_at=now,
@@ -374,6 +376,8 @@ async def _enrich_artist_info(
     lastfm: LastfmClient,
     artist_ids: set[uuid.UUID],
     now: datetime,
+    *,
+    priority_ids: frozenset[uuid.UUID] = frozenset(),
 ) -> tuple[int, int]:
     """Fill url, listening stats, and tags for interest artists whose info is
     missing or stale. The registry is global, so one user's sync serves every
@@ -388,6 +392,9 @@ async def _enrich_artist_info(
     ]
     # A cold registry can make this the sync's biggest fan-out; the cap bounds
     # one run, and the rows left stale complete over the following syncs.
+    # Priority rows (the current suggestions, whose panel shows the tags) go
+    # ahead of the rest.
+    stale.sort(key=lambda row: row.artist_id not in priority_ids)
     rows = stale[:INFO_FETCH_LIMIT]
     semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
     outcomes = await asyncio.gather(*(_fetch_info(lastfm, row.name, semaphore) for row in rows))

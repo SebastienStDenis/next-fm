@@ -375,7 +375,7 @@ async def test_enrich_treats_unknown_artist_as_durable_empty() -> None:
     assert row.url == "https://www.last.fm/music/Obscure"  # absent fields never erase
 
 
-async def test_enrich_caps_fetches_per_sync() -> None:
+async def test_enrich_caps_fetches_per_sync_with_priority_rows_first() -> None:
     rows = [make_seed(f"Artist {i:03}") for i in range(INFO_FETCH_LIMIT + 5)]
     session = make_session()
     session.execute.return_value = result_with_scalars(rows)
@@ -383,11 +383,16 @@ async def test_enrich_caps_fetches_per_sync() -> None:
     lastfm.get_artist_info.side_effect = lambda name: artist_info(name)
 
     enriched, failed = await _enrich_artist_info(
-        session, lastfm, {row.artist_id for row in rows}, NOW
+        session,
+        lastfm,
+        {row.artist_id for row in rows},
+        NOW,
+        priority_ids=frozenset({rows[-1].artist_id}),
     )
 
     assert (enriched, failed) == (INFO_FETCH_LIMIT, 0)
     assert lastfm.get_artist_info.await_count == INFO_FETCH_LIMIT
+    assert rows[-1].info_synced_at == NOW  # priority row beats the cap
     assert sum(1 for row in rows if row.info_synced_at is None) == 5
 
 
