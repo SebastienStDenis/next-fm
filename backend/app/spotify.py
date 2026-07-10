@@ -8,6 +8,7 @@ ACCOUNTS_URL = "https://accounts.spotify.com/api/token"
 API_URL = "https://api.spotify.com/v1"
 
 SEARCH_LIMIT = 10  # development-mode hard cap
+LIST_PLAYLISTS_LIMIT = 50  # /me/playlists page size cap
 TOKEN_EXPIRY_MARGIN = 60.0
 MAX_RATE_LIMIT_RETRIES = 3
 MAX_RETRY_AFTER = 60.0
@@ -121,6 +122,23 @@ class SpotifyClient:
 
     async def unfollow_playlist(self, playlist_id: str) -> None:
         await self._request("DELETE", f"/playlists/{playlist_id}/followers")
+
+    async def list_own_playlist_ids(self) -> list[str]:
+        """Every playlist id on the bot account, paged - the ground truth the
+        orphan audit diffs local state against."""
+        ids: list[str] = []
+        offset = 0
+        while True:
+            payload = await self._request(
+                "GET",
+                "/me/playlists",
+                params={"limit": LIST_PLAYLISTS_LIMIT, "offset": offset},
+            )
+            items = payload.get("items") or []
+            ids.extend(item["id"] for item in items if item)
+            offset += len(items)
+            if not items or payload.get("next") is None:
+                return ids
 
     async def _request(
         self, method: str, path: str, params: dict | None = None, json: dict | None = None

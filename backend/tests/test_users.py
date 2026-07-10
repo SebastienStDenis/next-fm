@@ -6,7 +6,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.auth import Claims
 from app.models import User
-from tests.helpers import added_objects, request, result_returning
+from app.spotify import SpotifyApiError, SpotifyClient
+from tests.helpers import added_objects, request, result_returning, result_with_scalars
 
 USER_ID = uuid.uuid7()
 
@@ -135,6 +136,7 @@ async def test_update_user_with_empty_payload_changes_nothing() -> None:
 
 async def test_delete_me() -> None:
     session = make_session()
+    session.execute.return_value = result_with_scalars([])
     supabase_user_id = uuid.uuid4()
     user = User(id=USER_ID, name="Alice", supabase_user_id=supabase_user_id)
     admin = AsyncMock()
@@ -144,6 +146,40 @@ async def test_delete_me() -> None:
     assert response.status_code == 204
     session.delete.assert_awaited_once()
     admin.delete_user.assert_awaited_once_with(supabase_user_id)
+
+
+async def test_delete_me_unfollows_the_cascaded_playlists() -> None:
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars(["pl1", "pl2"]),  # the remote ids captured before the delete
+        MagicMock(),  # tombstone cleared for pl1
+        MagicMock(),  # tombstone cleared for pl2
+    ]
+    user = User(id=USER_ID, name="Alice", supabase_user_id=None)
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    response = await request("DELETE", "/me", session, user=user, spotify=spotify)
+
+    assert response.status_code == 204
+    session.delete.assert_awaited_once()
+    assert [args.args for args in spotify.unfollow_playlist.await_args_list] == [
+        ("pl1",),
+        ("pl2",),
+    ]
+
+
+async def test_delete_me_leaves_tombstones_when_spotify_fails() -> None:
+    session = make_session()
+    session.execute.side_effect = [result_with_scalars(["pl1"])]
+    user = User(id=USER_ID, name="Alice", supabase_user_id=None)
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.unfollow_playlist.side_effect = SpotifyApiError(500, "boom")
+
+    response = await request("DELETE", "/me", session, user=user, spotify=spotify)
+
+    assert response.status_code == 204
+    session.delete.assert_awaited_once()  # the account is gone either way
+    assert session.execute.await_count == 1  # no tombstone cleared; the drainer retries
 
 
 async def test_delete_me_requires_authentication() -> None:
@@ -157,6 +193,7 @@ async def test_delete_me_requires_authentication() -> None:
 
 async def test_delete_me_unlinked_user_needs_no_admin() -> None:
     session = make_session()
+    session.execute.return_value = result_with_scalars([])
     user = User(id=USER_ID, name="Alice", supabase_user_id=None)
 
     response = await request("DELETE", "/me", session, user=user)

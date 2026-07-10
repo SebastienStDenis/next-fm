@@ -162,7 +162,9 @@ class PlaylistCreate(BaseModel):
 class PlaylistSyncItem(BaseModel):
     playlist_id: uuid.UUID
     name: str
-    status: Literal["synced", "no_city"]
+    # "deleted": the playlist row vanished mid-sync (the user removed it);
+    # nothing was written and the remote side is already handled.
+    status: Literal["synced", "no_city", "deleted"]
     created_remotely: bool = False
     tracks_added: int = 0
     tracks_removed: int = 0
@@ -204,8 +206,16 @@ class SyncStatusResult(BaseModel):
     steps: list[SyncStepProgress]
 
 
+class TombstoneDrainResult(BaseModel):
+    drained: int
+    pending: int
+
+
 class DispatchSyncsResult(BaseModel):
     dispatched: int
     succeeded: int
     failed: int
     skipped: int
+    orphans_found: int = 0
+    tombstones_drained: int = 0
+    tombstones_pending: int = 0

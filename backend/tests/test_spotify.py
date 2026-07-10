@@ -309,6 +309,30 @@ async def test_replace_playlist_items_sends_uris() -> None:
     assert json.loads(api_request.content) == {"uris": ["spotify:track:t1", "spotify:track:t2"]}
 
 
+async def test_list_own_playlist_ids_follows_pages() -> None:
+    client, requests = make_client(
+        [
+            ok({"items": [{"id": "p1"}, {"id": "p2"}], "next": "https://api/next"}),
+            ok({"items": [{"id": "p3"}], "next": None}),
+        ]
+    )
+
+    ids = await client.list_own_playlist_ids()
+
+    assert ids == ["p1", "p2", "p3"]
+    first, second = api_requests(requests)
+    assert first.url.path == "/v1/me/playlists"
+    assert parse_qs(first.url.query.decode()) == {"limit": ["50"], "offset": ["0"]}
+    assert parse_qs(second.url.query.decode()) == {"limit": ["50"], "offset": ["2"]}
+
+
+async def test_list_own_playlist_ids_empty_account() -> None:
+    client, requests = make_client([ok({"items": [], "next": None})])
+
+    assert await client.list_own_playlist_ids() == []
+    assert len(api_requests(requests)) == 1
+
+
 async def test_api_error_uses_api_error_message() -> None:
     client, _ = make_client(
         [httpx.Response(404, json={"error": {"status": 404, "message": "Invalid playlist Id"}})]

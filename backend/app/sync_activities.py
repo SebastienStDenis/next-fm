@@ -1,6 +1,8 @@
 """Temporal activities wrapping the four per-user sync entrypoints, plus the
 bookkeeping the nightly dispatch needs (eligibility listing and the
-last-synced stamp; see docs/design/2026-07-09-background-sync-plan.md).
+last-synced stamp; see docs/design/2026-07-09-background-sync-plan.md) and
+the playlist cleanup pair (orphan audit and tombstone drain;
+docs/design/2026-07-10-playlist-deletion-plan.md).
 
 Each activity is its own transaction: it opens a fresh session, re-fetches the
 user (so retries never see stale ORM state), runs the existing sync module
@@ -25,12 +27,17 @@ from app.event_sync import sync_user_events
 from app.lastfm import LastfmClient
 from app.models import LastfmAccount, LastfmConnection, User
 from app.musicbrainz import MusicBrainzClient
-from app.playlist_sync import sync_user_playlists
+from app.playlist_sync import (
+    audit_bot_playlists,
+    drain_playlist_tombstones,
+    sync_user_playlists,
+)
 from app.schemas import (
     ArtistSyncResult,
     EventSyncResult,
     PlaylistSyncResult,
     SuggestionSyncResult,
+    TombstoneDrainResult,
 )
 from app.spotify import SpotifyClient
 from app.suggestion_sync import sync_user_suggestions
@@ -120,6 +127,20 @@ class SyncActivities:
             user = await _require_user(session, user_id)
             user.last_synced_at = datetime.now(UTC)
             await session.commit()
+
+    @activity.defn
+    async def audit_bot_playlists(self) -> int:
+        async with session_factory() as session:
+            found = await audit_bot_playlists(session, self._spotify)
+            await session.commit()
+            return found
+
+    @activity.defn
+    async def drain_playlist_tombstones(self) -> TombstoneDrainResult:
+        async with session_factory() as session:
+            result = await drain_playlist_tombstones(session, self._spotify)
+            await session.commit()
+            return result
 
     @activity.defn
     async def list_users_due_for_sync(self) -> list[str]:

@@ -12,6 +12,7 @@ from app.main import (
     get_bandsintown_client,
     get_lastfm_client,
     get_musicbrainz_client,
+    get_optional_spotify_client,
     get_spotify_client,
     get_supabase_admin,
     get_temporal_client,
@@ -73,6 +74,9 @@ async def request(
     json: dict | None = None,
 ) -> Response:
     app.dependency_overrides[get_session] = lambda: session
+    # Always overridden (to None when absent) so no test constructs a real
+    # client from whatever the local .env holds.
+    app.dependency_overrides[get_optional_spotify_client] = lambda: spotify
     if user is not None:
         app.dependency_overrides[get_current_user] = lambda: user
     if claims is not None:

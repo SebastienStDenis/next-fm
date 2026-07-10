@@ -254,7 +254,7 @@ async def test_create_pinned_playlist_at_cap() -> None:
     session.add.assert_not_called()
 
 
-async def test_delete_playlist_unfollows_on_spotify() -> None:
+async def test_delete_playlist_unfollows_and_settles_tombstone() -> None:
     playlist = make_playlist()
     session = make_session()
     session.get.return_value = playlist
@@ -265,9 +265,10 @@ async def test_delete_playlist_unfollows_on_spotify() -> None:
     )
 
     assert response.status_code == 204
-    spotify.unfollow_playlist.assert_awaited_once_with("pl1")
     session.delete.assert_awaited_once_with(playlist)
-    session.commit.assert_awaited_once()
+    spotify.unfollow_playlist.assert_awaited_once_with("pl1")
+    session.execute.assert_awaited_once()  # tombstone cleared after the unfollow landed
+    assert session.commit.await_count == 2  # the deletion, then the settled tombstone
 
 
 async def test_delete_playlist_skips_unfollow_without_spotify_id() -> None:
@@ -283,6 +284,7 @@ async def test_delete_playlist_skips_unfollow_without_spotify_id() -> None:
     assert response.status_code == 204
     spotify.unfollow_playlist.assert_not_awaited()
     session.delete.assert_awaited_once_with(playlist)
+    session.commit.assert_awaited_once()
 
 
 async def test_delete_playlist_tolerates_spotify_not_found() -> None:
@@ -298,10 +300,10 @@ async def test_delete_playlist_tolerates_spotify_not_found() -> None:
 
     assert response.status_code == 204
     session.delete.assert_awaited_once_with(playlist)
-    session.commit.assert_awaited_once()
+    assert session.commit.await_count == 2  # already gone remotely counts as settled
 
 
-async def test_delete_playlist_propagates_spotify_failure() -> None:
+async def test_delete_playlist_survives_spotify_failure() -> None:
     playlist = make_playlist()
     session = make_session()
     session.get.return_value = playlist
@@ -312,10 +314,37 @@ async def test_delete_playlist_propagates_spotify_failure() -> None:
         "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
     )
 
-    assert response.status_code == 502
-    assert response.json()["detail"] == "Spotify error 500: boom"
-    session.delete.assert_not_awaited()
-    session.commit.assert_not_awaited()
+    assert response.status_code == 204
+    session.delete.assert_awaited_once_with(playlist)
+    session.execute.assert_not_awaited()  # tombstone left for the nightly drainer
+    session.commit.assert_awaited_once()
+
+
+async def test_delete_playlist_survives_post_commit_db_failure() -> None:
+    playlist = make_playlist()
+    session = make_session()
+    session.get.return_value = playlist
+    session.execute.side_effect = Exception("connection lost")  # the tombstone cleanup
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    response = await request(
+        "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
+    )
+
+    assert response.status_code == 204  # the deletion committed; 204 is the truth
+    session.delete.assert_awaited_once_with(playlist)
+
+
+async def test_delete_playlist_without_spotify_configured() -> None:
+    playlist = make_playlist()
+    session = make_session()
+    session.get.return_value = playlist
+
+    response = await request("DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, user=make_user())
+
+    assert response.status_code == 204
+    session.delete.assert_awaited_once_with(playlist)
+    session.commit.assert_awaited_once()
 
 
 async def test_delete_playlist_of_another_user() -> None:
@@ -359,6 +388,7 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
         result_with_rows([(artist_id, event_id, datetime(2026, 8, 1, 20, 0, tzinfo=UTC))]),
         result_with_scalars([resolved]),
         result_with_scalars([cached]),
+        result_returning(default.id),  # the claim on the freshly created remote id
         result_with_scalars([]),
         MagicMock(),
     ]
@@ -392,7 +422,6 @@ async def test_sync_creates_playlist_and_adds_cached_tracks() -> None:
     assert item["tracks_total"] == 1
     spotify.create_playlist.assert_awaited_once()
     spotify.replace_playlist_items.assert_awaited_once_with("pl1", ["spotify:track:t1"])
-    assert default.spotify_playlist_id == "pl1"
     assert default.snapshot_id == "s2"
     tracks = added_objects(session, PlaylistTrack)
     assert [(t.spotify_track_id, t.artist_id, t.event_id) for t in tracks] == [

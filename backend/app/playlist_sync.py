@@ -1,10 +1,11 @@
 import asyncio
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
 import httpx
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,11 +20,20 @@ from app.models import (
     Playlist,
     PlaylistTrack,
     SpotifyArtist,
+    SpotifyPlaylistTombstone,
     User,
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
-from app.schemas import PlaylistSyncItem, PlaylistSyncResult
-from app.spotify import SpotifyApiError, SpotifyArtistData, SpotifyClient, track_uri
+from app.schemas import PlaylistSyncItem, PlaylistSyncResult, TombstoneDrainResult
+from app.spotify import (
+    SpotifyApiError,
+    SpotifyArtistData,
+    SpotifyAuthError,
+    SpotifyClient,
+    track_uri,
+)
+
+logger = logging.getLogger(__name__)
 
 CITY_CONCERTS_KIND = "city_concerts"
 PINNED_PLAYLIST_CAP = 2  # pinned cities per user; the home-city playlist is always kept
@@ -36,6 +46,13 @@ TOP_TRACKS_PER_ARTIST = 3  # breadth over depth: ~33 artists' concerts fit the c
 TOP_TRACKS_FETCH_LIMIT = 10
 FETCH_CONCURRENCY = 4  # conservative: dev-mode rate limits are unpublished and low
 PLAYLIST_MAX_TRACKS = 100  # one 100-URI replace request per sync
+
+TOMBSTONE_SOURCE_DELETE = "delete"
+TOMBSTONE_SOURCE_AUDIT = "audit"
+# Audit tombstones age this long before the drainer acts, so an id created by
+# an in-flight sync (committed seconds after the audit listed it) is never
+# unfollowed; the drainer re-checks it is still unclaimed at drain time too.
+AUDIT_CONFIRMATION_AGE = timedelta(hours=24)
 
 
 class DesiredTrack(BaseModel):
@@ -52,6 +69,115 @@ def playlist_title(user_name: str, city_name: str | None) -> str:
 
 def playlist_description(city_name: str, now: datetime) -> str:
     return f"Artists you might like playing near {city_name}. Updated {now:%B %Y}."
+
+
+async def settle_tombstone(
+    session: AsyncSession, spotify: SpotifyClient, spotify_playlist_id: str
+) -> bool:
+    """Unfollow one remote playlist and drop its tombstone, best effort: any
+    Spotify failure returns False and leaves the tombstone for the nightly
+    drainer. A 404/400 means the playlist is already gone - settled. The
+    caller owns the commit."""
+    try:
+        await spotify.unfollow_playlist(spotify_playlist_id)
+    except SpotifyApiError as exc:
+        if exc.status_code not in (400, 404):
+            logger.warning(
+                "Unfollow of playlist %s failed, tombstone kept: %s", spotify_playlist_id, exc
+            )
+            return False
+        if exc.status_code == 400:
+            # Tombstoned ids came from Spotify itself, so a malformed-id
+            # rejection is an anomaly worth a trace even though we settle it.
+            logger.warning(
+                "Unfollow of playlist %s rejected with 400; treating as gone", spotify_playlist_id
+            )
+    except (SpotifyAuthError, httpx.HTTPError) as exc:
+        logger.warning(
+            "Unfollow of playlist %s failed, tombstone kept: %s", spotify_playlist_id, exc
+        )
+        return False
+    await session.execute(
+        delete(SpotifyPlaylistTombstone).where(
+            SpotifyPlaylistTombstone.spotify_playlist_id == spotify_playlist_id
+        )
+    )
+    return True
+
+
+async def _discard_remote_playlist(
+    session: AsyncSession, spotify: SpotifyClient, spotify_playlist_id: str
+) -> None:
+    """Unfollow a remote playlist no row claims (a lost create race):
+    tombstone it first, then settle - if the unfollow fails, the tombstone
+    stays for the drainer, the same policy every other path follows."""
+    await session.execute(
+        pg_insert(SpotifyPlaylistTombstone)
+        .values(spotify_playlist_id=spotify_playlist_id, source=TOMBSTONE_SOURCE_DELETE)
+        .on_conflict_do_nothing()
+    )
+    await settle_tombstone(session, spotify, spotify_playlist_id)
+
+
+async def drain_playlist_tombstones(
+    session: AsyncSession, spotify: SpotifyClient
+) -> TombstoneDrainResult:
+    """Retry every pending unfollow. Delete tombstones drain unconditionally;
+    audit tombstones only after AUDIT_CONFIRMATION_AGE, and only if no
+    playlists row has claimed the id since the audit recorded it (a claimed
+    id was an in-flight creation, not an orphan). The caller owns the commit."""
+    now = datetime.now(UTC)
+    result = await session.execute(select(SpotifyPlaylistTombstone))
+    tombstones = list(result.scalars())
+    drained = 0
+    for tombstone in tombstones:
+        if tombstone.source == TOMBSTONE_SOURCE_AUDIT:
+            if now - tombstone.created_at < AUDIT_CONFIRMATION_AGE:
+                continue
+            claimed = await session.execute(
+                select(Playlist.id).where(
+                    Playlist.spotify_playlist_id == tombstone.spotify_playlist_id
+                )
+            )
+            if claimed.scalar_one_or_none() is not None:
+                await session.delete(tombstone)
+                drained += 1
+                continue
+        if await settle_tombstone(session, spotify, tombstone.spotify_playlist_id):
+            drained += 1
+    return TombstoneDrainResult(drained=drained, pending=len(tombstones) - drained)
+
+
+async def audit_bot_playlists(session: AsyncSession, spotify: SpotifyClient) -> int:
+    """The safety net for remote playlists no committed row ever referenced
+    (a crash between the Spotify create and the claim landing): list the bot
+    account's playlists and record every unknown id as an audit tombstone.
+    The drainer unfollows them after the confirmation age. Finding anything
+    here means a bug elsewhere, hence the loud log. The caller owns the
+    commit."""
+    remote_ids = await spotify.list_own_playlist_ids()
+    if not remote_ids:
+        return 0
+    result = await session.execute(
+        select(Playlist.spotify_playlist_id).where(Playlist.spotify_playlist_id.is_not(None))
+    )
+    known = set(result.scalars())
+    result = await session.execute(select(SpotifyPlaylistTombstone.spotify_playlist_id))
+    known |= set(result.scalars())
+    unknown = [remote_id for remote_id in remote_ids if remote_id not in known]
+    for remote_id in unknown:
+        await session.execute(
+            pg_insert(SpotifyPlaylistTombstone)
+            .values(spotify_playlist_id=remote_id, source=TOMBSTONE_SOURCE_AUDIT)
+            .on_conflict_do_nothing()
+        )
+    if unknown:
+        logger.warning(
+            "Bot-account audit found %d orphaned playlist(s) on Spotify: %s",
+            len(unknown),
+            ", ".join(unknown),
+        )
+    return len(unknown)
 
 
 async def sync_user_playlists(
@@ -80,9 +206,7 @@ async def sync_user_playlists(
     for playlist in playlists:
         city = await _target_city(session, playlist, user)
         if city is None:
-            items.append(
-                PlaylistSyncItem(playlist_id=playlist.id, name=playlist.name, status="no_city")
-            )
+            items.append(await _empty_playlist(session, spotify, playlist, now))
             continue
         matches = await match_artist_concerts(session, user.id, city, include_known_artists)
         to_sync.append((playlist, city, matches))
@@ -96,9 +220,7 @@ async def sync_user_playlists(
     await session.commit()
 
     for playlist, city, matches in to_sync:
-        items.append(
-            await _sync_playlist(session, spotify, playlist, user, city, matches, now)
-        )
+        items.append(await _sync_playlist(session, spotify, playlist, user, city, matches, now))
 
     contributing = sum(1 for row in resolved if row.match_confidence != MATCH_FUZZY)
     return PlaylistSyncResult(
@@ -141,6 +263,37 @@ async def _ensure_default_playlist(session: AsyncSession, user: User) -> list[Pl
         )
         playlists.insert(0, result.scalar_one())
     return playlists
+
+
+async def _empty_playlist(
+    session: AsyncSession, spotify: SpotifyClient, playlist: Playlist, now: datetime
+) -> PlaylistSyncItem:
+    """A playlist with no target city reconciles to the empty tracklist: the
+    remote playlist stays (it is the user's durable home-city surface) but
+    must not keep advertising concerts near a city the user told us to
+    forget. Setting a city again refills it on the next sync."""
+    result = await session.execute(
+        select(PlaylistTrack).where(PlaylistTrack.playlist_id == playlist.id)
+    )
+    current = list(result.scalars())
+    if playlist.spotify_playlist_id is not None and current:
+        try:
+            snapshot = await spotify.replace_playlist_items(playlist.spotify_playlist_id, [])
+            playlist.snapshot_id = snapshot or playlist.snapshot_id
+        except SpotifyApiError as exc:
+            # A vanished remote playlist has nothing left to empty; anything
+            # else is transient and must fail the sync so it retries.
+            if exc.status_code != 404:
+                raise
+        playlist.last_synced_at = now
+    if current:
+        await session.execute(delete(PlaylistTrack).where(PlaylistTrack.playlist_id == playlist.id))
+    return PlaylistSyncItem(
+        playlist_id=playlist.id,
+        name=playlist.name,
+        status="no_city",
+        tracks_removed=len(current),
+    )
 
 
 async def _target_city(session: AsyncSession, playlist: Playlist, user: User) -> City | None:
@@ -383,17 +536,45 @@ async def _sync_playlist(
     spotify_playlist_id = playlist.spotify_playlist_id
     if spotify_playlist_id is None:
         data = await spotify.create_playlist(name, description)
-        spotify_playlist_id = data.id
-        playlist.spotify_playlist_id = data.id
-        playlist.spotify_url = data.url
-        playlist.snapshot_id = data.snapshot_id
-        playlist.name = name
-        playlist.description = description
-        created = True
+        # Claim, don't assign: a concurrent sync may have attached its own
+        # remote playlist to this row, or the row may have been deleted
+        # mid-sync. Losing the claim means our creation is unwanted - the
+        # loser unfollows it instead of orphaning it (or the winner's).
+        result = await session.execute(
+            update(Playlist)
+            .where(Playlist.id == playlist.id, Playlist.spotify_playlist_id.is_(None))
+            .values(
+                spotify_playlist_id=data.id,
+                spotify_url=data.url,
+                snapshot_id=data.snapshot_id,
+                name=name,
+                description=description,
+            )
+            .returning(Playlist.id)
+        )
+        claimed = result.scalar_one_or_none() is not None
         # Commit the remote id immediately: losing it to a later failure would
         # make the next sync create a second playlist, orphaning this one on
         # the bot account.
         await session.commit()
+        if claimed:
+            spotify_playlist_id = data.id
+            created = True
+        else:
+            await _discard_remote_playlist(session, spotify, data.id)
+            await session.commit()
+            result = await session.execute(
+                select(Playlist)
+                .where(Playlist.id == playlist.id)
+                .execution_options(populate_existing=True)
+            )
+            survivor = result.scalar_one_or_none()
+            if survivor is None or survivor.spotify_playlist_id is None:
+                return PlaylistSyncItem(playlist_id=playlist.id, name=name, status="deleted")
+            # Adopt the concurrent sync's remote playlist; re-writing it with
+            # the same desired state is idempotent.
+            playlist = survivor
+            spotify_playlist_id = survivor.spotify_playlist_id
     elif (playlist.name, playlist.description) != (name, description):
         await spotify.update_playlist_details(spotify_playlist_id, name, description)
         playlist.name = name

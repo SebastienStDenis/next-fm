@@ -97,6 +97,11 @@ async def run_checks(client: SpotifyClient) -> None:
     )
     check("create playlist", bool(playlist.id), playlist.url or "")
     try:
+        # The orphan audit (docs/design/2026-07-10-playlist-deletion-plan.md)
+        # rests on this listing surviving development mode.
+        own = await client.list_own_playlist_ids()
+        check("GET /me/playlists lists the bot's playlists", playlist.id in own)
+
         snapshot = await client.replace_playlist_items(playlist.id, [track_uri(t) for t in seeds])
         check("replace into empty playlist returns snapshot_id", snapshot is not None)
         before = await read_items(client, playlist.id)
