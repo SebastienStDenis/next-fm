@@ -30,6 +30,10 @@ async def test_exclude_artist_inserts_exclusion_and_drops_suggestion() -> None:
     assert params["user_id"] == USER_ID
     assert params["artist_id"] == artist.id
     assert delete_stmt.table.name == "user_artist_interests"
+    # The delete must stay scoped to the pair's suggestion row: dropping any
+    # predicate would wipe imported listening history on every ignore.
+    delete_params = delete_stmt.compile(dialect=postgresql.dialect()).params
+    assert set(delete_params.values()) == {USER_ID, artist.id, "similar_artist"}
     session.commit.assert_awaited_once()
 
 
@@ -59,6 +63,8 @@ async def test_unexclude_artist_deletes_exclusion() -> None:
     assert response.status_code == 204
     (delete_stmt,) = [call.args[0] for call in session.execute.await_args_list]
     assert delete_stmt.table.name == "user_artist_exclusions"
+    delete_params = delete_stmt.compile(dialect=postgresql.dialect()).params
+    assert set(delete_params.values()) == {USER_ID, artist_id}
     session.commit.assert_awaited_once()
 
 

@@ -442,11 +442,15 @@ async def sync_lastfm_artists_for_user(
 async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[UserArtistRead]:
     """List the user's artists of interest, grouped by artist with all reasons.
     Excluded (ignored) artists stay in the listing, flagged, so the UI can
-    show and undo the exclusion."""
+    show and undo the exclusion - even when the exclusion outlived every
+    interest row (an ignored suggestion loses its interest immediately)."""
     result = await session.execute(
-        select(UserArtistExclusion.artist_id).where(UserArtistExclusion.user_id == user.id)
+        select(Artist)
+        .join(UserArtistExclusion, UserArtistExclusion.artist_id == Artist.id)
+        .where(UserArtistExclusion.user_id == user.id)
     )
-    excluded_ids = set(result.scalars())
+    excluded_artists = list(result.scalars())
+    excluded_ids = {artist.id for artist in excluded_artists}
 
     result = await session.execute(
         select(UserArtistInterest, Artist)
@@ -465,7 +469,12 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
             )
             grouped[artist.id] = entry
         entry.interests.append(ArtistInterestRead.model_validate(interest))
-    return list(grouped.values())
+    for artist in excluded_artists:
+        if artist.id not in grouped:
+            grouped[artist.id] = UserArtistRead(
+                artist=ArtistRead.model_validate(artist), interests=[], excluded=True
+            )
+    return sorted(grouped.values(), key=lambda entry: entry.artist.name.casefold())
 
 
 @app.put("/me/artists/{artist_id}/exclusion", status_code=204)
@@ -480,7 +489,9 @@ async def exclude_artist(user: CurrentUserDep, artist_id: uuid.UUID, session: Se
     await session.execute(
         pg_insert(UserArtistExclusion)
         .values(user_id=user.id, artist_id=artist_id)
-        .on_conflict_do_nothing(index_elements=["user_id", "artist_id"])
+        .on_conflict_do_nothing(
+            index_elements=[UserArtistExclusion.user_id, UserArtistExclusion.artist_id]
+        )
     )
     await session.execute(
         delete(UserArtistInterest).where(

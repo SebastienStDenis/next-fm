@@ -117,6 +117,63 @@ function IgnoreIcon({ ignored }: { ignored: boolean }) {
   );
 }
 
+function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
+  const { artist, interests, excluded } = userArtist;
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function toggleIgnored() {
+    startTransition(async () => {
+      const result = await setArtistIgnored(artist.id, !excluded);
+      setError(result.error);
+    });
+  }
+
+  return (
+    <li className="group flex flex-wrap items-center gap-2 text-sm">
+      <span
+        className={
+          excluded ? "text-gray-400 line-through dark:text-gray-600" : undefined
+        }
+      >
+        {artist.name}
+      </span>
+      {interests
+        .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
+        .map((interest) => (
+          <span
+            key={`${interest.kind}-${interest.source}`}
+            className={`rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700 ${
+              excluded ? "opacity-60" : ""
+            }`}
+          >
+            {interestLabel(interest)}
+          </span>
+        ))}
+      <span className="ml-auto flex items-center gap-2">
+        {error && <span className="text-xs text-red-600">{error}</span>}
+        <button
+          type="button"
+          onClick={toggleIgnored}
+          disabled={pending}
+          title={excluded ? "Stop ignoring" : "Ignore artist"}
+          aria-label={
+            excluded ? `Stop ignoring ${artist.name}` : `Ignore ${artist.name}`
+          }
+          className={`rounded p-1 text-gray-400 transition-opacity hover:text-foreground focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-40 ${
+            // Hidden-until-hover only where hovering exists; touch devices
+            // (no group-hover: Tailwind gates it behind hover: hover) always
+            // show the button.
+            excluded ? "" : "pointer-fine:opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          <IgnoreIcon ignored={excluded} />
+        </button>
+      </span>
+    </li>
+  );
+}
+
 export function TastePanel({
   userArtists,
   synced,
@@ -125,19 +182,7 @@ export function TastePanel({
   synced: boolean;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
-  const [error, setError] = useState<string | null>(null);
-  const [pendingArtistId, setPendingArtistId] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
-
-  function toggleIgnored(artistId: string, ignored: boolean) {
-    setPendingArtistId(artistId);
-    startTransition(async () => {
-      const result = await setArtistIgnored(artistId, ignored);
-      setError(result.error);
-      setPendingArtistId(null);
-    });
-  }
 
   return (
     <div>
@@ -170,55 +215,13 @@ export function TastePanel({
             </label>
           </div>
           <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600">
-            {sortedArtists.map(({ artist, interests, excluded }) => (
-              <li
-                key={artist.id}
-                className="group flex flex-wrap items-center gap-2 text-sm"
-              >
-                <span
-                  className={
-                    excluded
-                      ? "text-gray-400 line-through dark:text-gray-600"
-                      : undefined
-                  }
-                >
-                  {artist.name}
-                </span>
-                {interests
-                  .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
-                  .map((interest) => (
-                    <span
-                      key={`${interest.kind}-${interest.source}`}
-                      className={`rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700 ${
-                        excluded ? "opacity-60" : ""
-                      }`}
-                    >
-                      {interestLabel(interest)}
-                    </span>
-                  ))}
-                <button
-                  type="button"
-                  onClick={() => toggleIgnored(artist.id, !excluded)}
-                  disabled={pendingArtistId === artist.id}
-                  title={excluded ? "Stop ignoring" : "Ignore artist"}
-                  aria-label={
-                    excluded
-                      ? `Stop ignoring ${artist.name}`
-                      : `Ignore ${artist.name}`
-                  }
-                  className={`ml-auto rounded p-1 text-gray-400 transition-opacity hover:text-foreground focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-40 ${
-                    excluded ? "" : "opacity-0 group-hover:opacity-100"
-                  }`}
-                >
-                  <IgnoreIcon ignored={excluded} />
-                </button>
-              </li>
+            {sortedArtists.map((userArtist) => (
+              <ArtistRow key={userArtist.artist.id} userArtist={userArtist} />
             ))}
           </ul>
           <p className="mt-2 text-xs text-gray-500 italic">
             Ignored artists are not used to suggest artists or find concerts.
           </p>
-          {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
         </>
       )}
     </div>
