@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
+import { Spinner } from "./spinner";
 
 export type LastfmAccount = {
   id: string;
@@ -52,9 +53,16 @@ function LinkForm() {
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+          className="relative rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
         >
-          {pending ? "Linking..." : "Link"}
+          {/* Kept in the layout (just hidden) while pending so the button
+              holds the same width as when it reads "Link". */}
+          <span className={pending ? "invisible" : undefined}>Link</span>
+          {pending && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Spinner />
+            </span>
+          )}
         </button>
       </div>
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
