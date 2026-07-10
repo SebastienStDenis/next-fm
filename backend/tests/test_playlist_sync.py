@@ -484,7 +484,7 @@ async def test_sync_playlist_replaces_remote_and_rewrites_changed_local_rows() -
     assert playlist.last_synced_at == SYNC_NOW
 
 
-async def test_sync_playlist_replaces_remote_but_keeps_matching_local_rows() -> None:
+async def test_sync_playlist_skips_replace_when_tracklist_unchanged() -> None:
     playlist = make_playlist()
     match = make_match(uuid.uuid7())
     cached = cached_track(match.artist_id, "t1", 1)
@@ -494,14 +494,33 @@ async def test_sync_playlist_replaces_remote_but_keeps_matching_local_rows() -> 
         result_with_scalars([local_row(playlist, cached, match.event_id)]),
     ]
     spotify = AsyncMock(spec=SpotifyClient)
-    spotify.replace_playlist_items.return_value = None
 
     item = await run_sync_playlist(session, spotify, playlist, [match])
 
-    spotify.replace_playlist_items.assert_awaited_once_with("pl-1", ["spotify:track:t1"])
-    assert playlist.snapshot_id == "snap-0"  # kept when Spotify omits the new snapshot
+    spotify.replace_playlist_items.assert_not_awaited()
+    assert playlist.snapshot_id == "snap-0"
     assert session.execute.await_count == 2  # no delete: local rows already match
     session.add.assert_not_called()
+    assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (0, 0, 1)
+    assert playlist.last_synced_at == SYNC_NOW
+
+
+async def test_sync_playlist_rewrites_local_rows_without_replace_when_only_event_changed() -> None:
+    playlist = make_playlist()
+    match = make_match(uuid.uuid7())
+    cached = cached_track(match.artist_id, "t1", 1)
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([cached]),
+        result_with_scalars([local_row(playlist, cached, uuid.uuid7())]),
+        MagicMock(),  # delete of the stale playlist_tracks rows
+    ]
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    item = await run_sync_playlist(session, spotify, playlist, [match])
+
+    spotify.replace_playlist_items.assert_not_awaited()
+    assert [row.event_id for row in added_objects(session, PlaylistTrack)] == [match.event_id]
     assert (item.tracks_added, item.tracks_removed, item.tracks_total) == (0, 0, 1)
 
 
