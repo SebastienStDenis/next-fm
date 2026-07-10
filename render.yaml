@@ -1,9 +1,9 @@
 # Render Blueprint: the FastAPI api and the Temporal worker, both built from
-# backend/Dockerfile. Shared configuration lives in the `live-playlists` env
+# backend/Dockerfile. Shared configuration lives in the `next-fm` env
 # group (created in the Render dashboard); see docs/2026-07-08-production-deployment-plan.md.
 services:
   - type: web
-    name: live-playlists-api
+    name: next-fm-api
     runtime: docker
     plan: starter
     region: ohio
@@ -15,10 +15,10 @@ services:
     # never races the migration.
     preDeployCommand: sh predeploy.sh
     envVars:
-      - fromGroup: live-playlists
+      - fromGroup: next-fm
 
   - type: worker
-    name: live-playlists-worker
+    name: next-fm-worker
     runtime: docker
     plan: starter
     region: ohio
@@ -28,4 +28,4 @@ services:
     # watchfiles wrapper here - that only exists to hot-reload local edits.
     dockerCommand: uv run python -m app.worker
     envVars:
-      - fromGroup: live-playlists
+      - fromGroup: next-fm

@@ -3,7 +3,7 @@ import asyncio
 import httpx
 
 API_URL = "https://musicbrainz.org/ws/2"
-USER_AGENT = "live-playlists/0.1 (https://github.com/sebastien/live-playlists)"
+USER_AGENT = "next-fm/0.1 (https://github.com/sebastien/next-fm)"
 SPOTIFY_ARTIST_URL_PREFIX = "https://open.spotify.com/artist/"
 REQUEST_INTERVAL = 1.0  # MusicBrainz allows 1 request/second per client
 

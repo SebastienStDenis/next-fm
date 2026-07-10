@@ -92,7 +92,7 @@ async def run_checks(client: SpotifyClient) -> None:
 
     print("Playlist lifecycle (throwaway playlist on the bot account):")
     playlist = await client.create_playlist(
-        "live-playlists API verification (safe to delete)",
+        "next-fm API verification (safe to delete)",
         "Throwaway playlist created by app.spotify_verify.",
     )
     check("create playlist", bool(playlist.id), playlist.url or "")
@@ -122,7 +122,7 @@ async def run_checks(client: SpotifyClient) -> None:
         )
 
         await client.update_playlist_details(
-            playlist.id, "live-playlists verification (renamed)", "Renamed by app.spotify_verify."
+            playlist.id, "next-fm verification (renamed)", "Renamed by app.spotify_verify."
         )
         check("update playlist details", True)
     finally:
