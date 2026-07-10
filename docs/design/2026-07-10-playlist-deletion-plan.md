@@ -161,6 +161,13 @@ The **drainer** is a new Temporal activity, `drain_playlist_tombstones`, appende
 on success, leave on failure for tomorrow. It needs no new scheduler, no new
 infrastructure, and its natural volume is zero rows.
 
+Deployment caveat: the drainer fires with the nightly dispatch, so "unfollowed
+eventually" holds only where `NIGHTLY_SYNC_ENABLED` is on - which production is, and
+which local stacks (the flag defaults off) typically are not. Accepted: a dev
+environment accumulating tombstones against a dev bot account is cosmetic, the inline
+unfollow still handles the common case there, and the queue drains on the next
+enabled run.
+
 ### 4. Closing the create races: claim by compare-and-set
 
 The lazy create in `_sync_playlist` changes from "assign and commit" to a claim:
@@ -219,6 +226,13 @@ creation timestamp to age-gate on.
 
 The audit finding anything is a bug signal, not routine operation - log it loudly.
 Expected volume: zero rows, forever, which is exactly what a safety net should cost.
+
+One sharp edge, accepted: `GET /v1/me/playlists` returns playlists the account
+*follows* as well as owns. The bot is app-owned and follows nothing by design, so a
+followed playlist showing up is operator error, and the audit "cleaning" it merely
+removes the bot's follow (the playlist itself is unharmed). Filtering by owner would
+need another unverified endpoint for the bot's user id; not worth it for that blast
+radius.
 
 **Phase 0 caveat, same discipline as the playlist plan**: `GET /v1/me/playlists` was
 not among the endpoints `app.spotify_verify` exercised. It reads the bot's own

@@ -320,6 +320,21 @@ async def test_delete_playlist_survives_spotify_failure() -> None:
     session.commit.assert_awaited_once()
 
 
+async def test_delete_playlist_survives_post_commit_db_failure() -> None:
+    playlist = make_playlist()
+    session = make_session()
+    session.get.return_value = playlist
+    session.execute.side_effect = Exception("connection lost")  # the tombstone cleanup
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    response = await request(
+        "DELETE", f"{PLAYLISTS_URL}/{PLAYLIST_ID}", session, spotify=spotify, user=make_user()
+    )
+
+    assert response.status_code == 204  # the deletion committed; 204 is the truth
+    session.delete.assert_awaited_once_with(playlist)
+
+
 async def test_delete_playlist_without_spotify_configured() -> None:
     playlist = make_playlist()
     session = make_session()

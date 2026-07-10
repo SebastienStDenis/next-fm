@@ -82,8 +82,20 @@ async def settle_tombstone(
         await spotify.unfollow_playlist(spotify_playlist_id)
     except SpotifyApiError as exc:
         if exc.status_code not in (400, 404):
+            logger.warning(
+                "Unfollow of playlist %s failed, tombstone kept: %s", spotify_playlist_id, exc
+            )
             return False
-    except SpotifyAuthError, httpx.HTTPError:
+        if exc.status_code == 400:
+            # Tombstoned ids came from Spotify itself, so a malformed-id
+            # rejection is an anomaly worth a trace even though we settle it.
+            logger.warning(
+                "Unfollow of playlist %s rejected with 400; treating as gone", spotify_playlist_id
+            )
+    except (SpotifyAuthError, httpx.HTTPError) as exc:
+        logger.warning(
+            "Unfollow of playlist %s failed, tombstone kept: %s", spotify_playlist_id, exc
+        )
         return False
     await session.execute(
         delete(SpotifyPlaylistTombstone).where(
@@ -96,16 +108,15 @@ async def settle_tombstone(
 async def _discard_remote_playlist(
     session: AsyncSession, spotify: SpotifyClient, spotify_playlist_id: str
 ) -> None:
-    """Unfollow a remote playlist no row claims (a lost create race); if the
-    unfollow fails, record a tombstone so the drainer finishes the job."""
-    try:
-        await spotify.unfollow_playlist(spotify_playlist_id)
-    except SpotifyApiError, SpotifyAuthError, httpx.HTTPError:
-        await session.execute(
-            pg_insert(SpotifyPlaylistTombstone)
-            .values(spotify_playlist_id=spotify_playlist_id, source=TOMBSTONE_SOURCE_DELETE)
-            .on_conflict_do_nothing()
-        )
+    """Unfollow a remote playlist no row claims (a lost create race):
+    tombstone it first, then settle - if the unfollow fails, the tombstone
+    stays for the drainer, the same policy every other path follows."""
+    await session.execute(
+        pg_insert(SpotifyPlaylistTombstone)
+        .values(spotify_playlist_id=spotify_playlist_id, source=TOMBSTONE_SOURCE_DELETE)
+        .on_conflict_do_nothing()
+    )
+    await settle_tombstone(session, spotify, spotify_playlist_id)
 
 
 async def drain_playlist_tombstones(
@@ -265,9 +276,15 @@ async def _empty_playlist(
         select(PlaylistTrack).where(PlaylistTrack.playlist_id == playlist.id)
     )
     current = list(result.scalars())
-    if playlist.spotify_playlist_id is not None:
-        snapshot = await spotify.replace_playlist_items(playlist.spotify_playlist_id, [])
-        playlist.snapshot_id = snapshot or playlist.snapshot_id
+    if playlist.spotify_playlist_id is not None and current:
+        try:
+            snapshot = await spotify.replace_playlist_items(playlist.spotify_playlist_id, [])
+            playlist.snapshot_id = snapshot or playlist.snapshot_id
+        except SpotifyApiError as exc:
+            # A vanished remote playlist has nothing left to empty; anything
+            # else is transient and must fail the sync so it retries.
+            if exc.status_code != 404:
+                raise
         playlist.last_synced_at = now
     if current:
         await session.execute(delete(PlaylistTrack).where(PlaylistTrack.playlist_id == playlist.id))

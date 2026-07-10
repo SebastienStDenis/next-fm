@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
@@ -86,6 +87,8 @@ from app.supabase_admin import SupabaseAdminClient, SupabaseAdminError
 from app.sync_workflow import SyncUserWorkflow, pending_steps, user_sync_workflow_id
 from app.temporal import connect_temporal
 
+logger = logging.getLogger(__name__)
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
@@ -117,39 +120,15 @@ async def get_bandsintown_client() -> AsyncIterator[BandsintownClient]:
 BandsintownClientDep = Annotated[BandsintownClient, Depends(get_bandsintown_client)]
 
 
-async def get_spotify_client() -> AsyncIterator[SpotifyClient]:
-    settings = get_settings()
-    missing = [
-        key.upper()
-        for key in ("spotify_client_id", "spotify_client_secret", "spotify_refresh_token")
-        if not getattr(settings, key)
-    ]
-    if missing:
-        raise HTTPException(status_code=503, detail=f"{', '.join(missing)} is not configured")
-    client = SpotifyClient(
-        settings.spotify_client_id,
-        settings.spotify_client_secret,
-        settings.spotify_refresh_token,
-    )
-    try:
-        yield client
-    finally:
-        await client.aclose()
-
-
-SpotifyClientDep = Annotated[SpotifyClient, Depends(get_spotify_client)]
+SPOTIFY_SETTINGS = ("spotify_client_id", "spotify_client_secret", "spotify_refresh_token")
 
 
 async def get_optional_spotify_client() -> AsyncIterator[SpotifyClient | None]:
-    """The deleting endpoints' variant: local deletion must go through even
-    when Spotify is unconfigured - the trigger-written tombstones wait for
-    the nightly drainer."""
+    """None when Spotify is unconfigured - for the deleting endpoints, whose
+    local deletion must go through regardless (the trigger-written tombstones
+    wait for the nightly drainer)."""
     settings = get_settings()
-    if not (
-        settings.spotify_client_id
-        and settings.spotify_client_secret
-        and settings.spotify_refresh_token
-    ):
+    if any(not getattr(settings, key) for key in SPOTIFY_SETTINGS):
         yield None
         return
     client = SpotifyClient(
@@ -164,6 +143,17 @@ async def get_optional_spotify_client() -> AsyncIterator[SpotifyClient | None]:
 
 
 OptionalSpotifyClientDep = Annotated[SpotifyClient | None, Depends(get_optional_spotify_client)]
+
+
+async def get_spotify_client(spotify: OptionalSpotifyClientDep) -> SpotifyClient:
+    if spotify is None:
+        settings = get_settings()
+        missing = [key.upper() for key in SPOTIFY_SETTINGS if not getattr(settings, key)]
+        raise HTTPException(status_code=503, detail=f"{', '.join(missing)} is not configured")
+    return spotify
+
+
+SpotifyClientDep = Annotated[SpotifyClient, Depends(get_spotify_client)]
 
 
 async def get_musicbrainz_client() -> AsyncIterator[MusicBrainzClient]:
@@ -309,12 +299,17 @@ async def delete_me(
     remote_ids = [remote_id for remote_id in result.scalars() if remote_id is not None]
     await session.delete(user)
     await session.commit()
+    # Past the commit the account is gone and 204 is the only truthful answer;
+    # this cleanup is best-effort and the nightly drainer retries the rest.
     if spotify is not None:
-        settled = False
-        for remote_id in remote_ids:
-            settled = await settle_tombstone(session, spotify, remote_id) or settled
-        if settled:
-            await session.commit()
+        try:
+            settled = False
+            for remote_id in remote_ids:
+                settled = await settle_tombstone(session, spotify, remote_id) or settled
+            if settled:
+                await session.commit()
+        except Exception:
+            logger.exception("Post-delete playlist cleanup failed; tombstones remain")
 
 
 CITY_FUZZY_THRESHOLD = 0.45
@@ -729,9 +724,14 @@ async def delete_playlist(
     remote_id = playlist.spotify_playlist_id
     await session.delete(playlist)
     await session.commit()
+    # Past the commit the playlist is gone and 204 is the only truthful
+    # answer; this cleanup is best-effort and the nightly drainer retries.
     if remote_id is not None and spotify is not None:
-        if await settle_tombstone(session, spotify, remote_id):
-            await session.commit()
+        try:
+            if await settle_tombstone(session, spotify, remote_id):
+                await session.commit()
+        except Exception:
+            logger.exception("Post-delete playlist cleanup failed; tombstone remains")
 
 
 @app.delete("/me/lastfm", status_code=204)

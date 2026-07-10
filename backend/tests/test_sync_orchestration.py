@@ -642,10 +642,14 @@ async def test_dispatch_reports_cleanup_counts() -> None:
     assert result.tombstones_pending == 1
 
 
-async def test_dispatch_survives_cleanup_failure() -> None:
+async def test_dispatch_survives_cleanup_failure_and_still_drains() -> None:
     @activity.defn(name="audit_bot_playlists")
     async def failing_audit() -> int:
         raise ApplicationError("Spotify exploded", non_retryable=True)
+
+    @activity.defn(name="drain_playlist_tombstones")
+    async def busy_drain() -> TombstoneDrainResult:
+        return TombstoneDrainResult(drained=3, pending=1)
 
     async with await WorkflowEnvironment.start_time_skipping(
         data_converter=pydantic_data_converter
@@ -654,7 +658,7 @@ async def test_dispatch_survives_cleanup_failure() -> None:
             env.client,
             task_queue="test-sync",
             workflows=[DispatchSyncsWorkflow, SyncUserWorkflow],
-            activities=[list_activity([]), failing_audit, fake_drain_playlist_tombstones],
+            activities=[list_activity([]), failing_audit, busy_drain],
         ):
             result = await env.client.execute_workflow(
                 DispatchSyncsWorkflow.run,
@@ -662,8 +666,10 @@ async def test_dispatch_survives_cleanup_failure() -> None:
                 task_queue="test-sync",
             )
 
-    # The night's syncs stand; the tombstones wait for tomorrow's dispatch.
-    assert result == DispatchSyncsResult(dispatched=0, succeeded=0, failed=0, skipped=0)
+    # The night's syncs stand, and a broken audit never gates the drainer.
+    assert result.orphans_found == 0
+    assert result.tombstones_drained == 3
+    assert result.tombstones_pending == 1
 
 
 async def test_audit_bot_playlists_activity_commits(monkeypatch: pytest.MonkeyPatch) -> None:

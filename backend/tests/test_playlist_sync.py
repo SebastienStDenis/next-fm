@@ -645,6 +645,8 @@ async def test_sync_playlist_lost_create_race_adopts_the_winner() -> None:
     session.execute.side_effect = [
         result_with_scalars([cached_track(match.artist_id, "t1", 1)]),
         result_returning(None),  # claim lost: a concurrent sync attached its own id
+        MagicMock(),  # tombstone insert for our own creation
+        MagicMock(),  # tombstone cleared once the unfollow lands
         result_returning(winner),  # re-read shows the winner's row
         result_with_scalars([]),
         MagicMock(),
@@ -714,6 +716,32 @@ async def test_empty_playlist_without_remote_playlist_touches_nothing() -> None:
     spotify.replace_playlist_items.assert_not_awaited()
     assert item.status == "no_city"
     assert item.tracks_removed == 0
+
+
+async def test_empty_playlist_already_empty_skips_the_remote_write() -> None:
+    playlist = make_playlist()
+    session = make_session()
+    session.execute.side_effect = [result_with_scalars([])]
+    spotify = AsyncMock(spec=SpotifyClient)
+
+    item = await _empty_playlist(session, spotify, playlist, SYNC_NOW)
+
+    spotify.replace_playlist_items.assert_not_awaited()
+    assert item.tracks_removed == 0
+
+
+async def test_empty_playlist_tolerates_vanished_remote_playlist() -> None:
+    playlist = make_playlist()
+    row = local_row(playlist, cached_track(uuid.uuid7(), "t1", 1), uuid.uuid7())
+    session = make_session()
+    session.execute.side_effect = [result_with_scalars([row]), MagicMock()]
+    spotify = AsyncMock(spec=SpotifyClient)
+    spotify.replace_playlist_items.side_effect = SpotifyApiError(404, "gone")
+
+    item = await _empty_playlist(session, spotify, playlist, SYNC_NOW)
+
+    assert item.tracks_removed == 1  # local rows still cleared
+    assert session.execute.await_count == 2
 
 
 def make_tombstone(

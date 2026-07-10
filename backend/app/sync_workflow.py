@@ -97,8 +97,10 @@ def _summarize_events(result: EventSyncResult) -> str:
 
 def _summarize_playlists(result: PlaylistSyncResult) -> str:
     synced = [playlist for playlist in result.playlists if playlist.status == "synced"]
-    added = sum(playlist.tracks_added for playlist in synced)
-    removed = sum(playlist.tracks_removed for playlist in synced)
+    # Track counts span every status: an emptied no-city playlist removes
+    # tracks too, and the summary must explain where they went.
+    added = sum(playlist.tracks_added for playlist in result.playlists)
+    removed = sum(playlist.tracks_removed for playlist in result.playlists)
     unresolved = (
         f", {result.artists_unresolved} not found on Spotify"
         if result.artists_unresolved > 0
@@ -233,15 +235,12 @@ class DispatchSyncsWorkflow:
                 failed += 1
             else:
                 succeeded += 1
-        orphans_found = 0
+        # Each cleanup step stands alone: neither may fail the night's syncs,
+        # and a broken audit (its endpoint is the design's one unverified
+        # Spotify assumption) must not gate the drainer that the deletion
+        # invariant rests on. Drain runs first for the same reason.
         drain = TombstoneDrainResult(drained=0, pending=0)
         try:
-            orphans_found = await workflow.execute_activity(
-                "audit_bot_playlists",
-                result_type=int,
-                schedule_to_close_timeout=timedelta(minutes=10),
-                retry_policy=RETRY_POLICY,
-            )
             drain = await workflow.execute_activity(
                 "drain_playlist_tombstones",
                 result_type=TombstoneDrainResult,
@@ -249,9 +248,17 @@ class DispatchSyncsWorkflow:
                 retry_policy=RETRY_POLICY,
             )
         except ActivityError:
-            # Cleanup must not fail the night's syncs; anything pending waits
-            # for tomorrow's run.
-            workflow.logger.exception("Playlist cleanup failed; retrying next dispatch")
+            workflow.logger.exception("Tombstone drain failed; retrying next dispatch")
+        orphans_found = 0
+        try:
+            orphans_found = await workflow.execute_activity(
+                "audit_bot_playlists",
+                result_type=int,
+                schedule_to_close_timeout=timedelta(minutes=10),
+                retry_policy=RETRY_POLICY,
+            )
+        except ActivityError:
+            workflow.logger.exception("Bot-account audit failed; retrying next dispatch")
         return DispatchSyncsResult(
             dispatched=len(user_ids),
             succeeded=succeeded,
