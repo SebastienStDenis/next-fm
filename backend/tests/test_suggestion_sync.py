@@ -484,6 +484,7 @@ async def test_sync_drops_suggestion_excluded_while_fetching() -> None:
         result_with_scalars([boc]),  # upsert: existing lastfm row
         result_with_scalars([boc.artist_id]),  # exclusions re-read: ignored mid-sync
         result_with_scalars([]),  # reconcile: no existing suggestion interests
+        result_with_scalars([]),  # enrichment: nothing stale
     ]
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_top_artists.return_value = []
