@@ -225,7 +225,14 @@ async def lastfm_user_not_found(request: Request, exc: LastfmUserNotFoundError) 
 @app.exception_handler(LastfmPrivateDataError)
 async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> JSONResponse:
     return JSONResponse(
-        status_code=403, content={"detail": "This Last.fm account's listening data is private"}
+        status_code=403,
+        content={
+            "detail": (
+                "This Last.fm account hides its listening data. In Last.fm's "
+                'privacy settings, turn off "Hide recent listening information", '
+                "then try again."
+            )
+        },
     )
 
 
@@ -426,6 +433,9 @@ async def link_lastfm_account(
 ) -> LastfmAccount:
     """Link the user to a Last.fm account by username, replacing any existing link."""
     info = await lastfm.get_user_info(payload.username)
+    # user.getinfo succeeds even when listening data is hidden; reading the
+    # data is what fails, so probe it before linking anything.
+    await lastfm.get_top_artists(info.username, limit=1)
 
     result = await session.execute(
         select(LastfmAccount).where(func.lower(LastfmAccount.username) == info.username.lower())

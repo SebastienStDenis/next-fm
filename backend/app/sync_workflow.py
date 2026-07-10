@@ -50,7 +50,8 @@ RETRY_POLICY = RetryPolicy(
     maximum_interval=timedelta(seconds=30),
     maximum_attempts=3,
     # An expired bot refresh token needs re-authorization, not a retry.
-    non_retryable_error_types=["SpotifyAuthError"],
+    # Hidden Last.fm listening data needs a settings change, not a retry.
+    non_retryable_error_types=["SpotifyAuthError", "LastfmPrivateDataError"],
 )
 
 

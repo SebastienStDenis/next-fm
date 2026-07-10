@@ -194,7 +194,9 @@ class LastfmClient:
         if error == USER_NOT_FOUND_ERROR_CODE:
             raise LastfmUserNotFoundError(params.get("user"))
         if error == PRIVATE_DATA_ERROR_CODE:
-            raise LastfmPrivateDataError(params.get("user"))
+            raise LastfmPrivateDataError(
+                f"Last.fm account {params.get('user')} hides its listening data"
+            )
         if error is not None:
             raise LastfmApiError(error, payload.get("message"))
         response.raise_for_status()
