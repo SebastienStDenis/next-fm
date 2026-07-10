@@ -65,7 +65,7 @@ function LinkForm() {
           )}
         </button>
       </div>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-xs text-red-600">{state.error}</p>}
     </form>
   );
 }
@@ -129,15 +129,17 @@ function AccountCard({ account }: { account: LastfmAccount }) {
             <span className={unlinkPending ? "invisible" : undefined}>
               Unlink
             </span>
+            {/* The button's red text would tint the spinner like an error;
+                spin in neutral gray instead. */}
             {unlinkPending && (
-              <span className="absolute inset-0 flex items-center justify-center">
+              <span className="absolute inset-0 flex items-center justify-center text-gray-500">
                 <Spinner />
               </span>
             )}
           </button>
         </form>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
