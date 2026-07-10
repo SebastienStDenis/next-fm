@@ -7,7 +7,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BeforeValidator
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from temporalio.client import (
@@ -34,7 +35,12 @@ from app.lastfm import (
     LastfmUserInfo,
     LastfmUserNotFoundError,
 )
-from app.matching import EVENT_MATCH_RADIUS_KM, artist_qualifies, distance_km
+from app.matching import (
+    EVENT_MATCH_RADIUS_KM,
+    SIMILAR_ARTIST_KIND,
+    artist_qualifies,
+    distance_km,
+)
 from app.models import (
     Artist,
     ArtistTopTrack,
@@ -47,6 +53,7 @@ from app.models import (
     Playlist,
     PlaylistTrack,
     User,
+    UserArtistExclusion,
     UserArtistInterest,
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
@@ -433,7 +440,14 @@ async def sync_lastfm_artists_for_user(
 
 @app.get("/me/artists", response_model=list[UserArtistRead])
 async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[UserArtistRead]:
-    """List the user's artists of interest, grouped by artist with all reasons."""
+    """List the user's artists of interest, grouped by artist with all reasons.
+    Excluded (ignored) artists stay in the listing, flagged, so the UI can
+    show and undo the exclusion."""
+    result = await session.execute(
+        select(UserArtistExclusion.artist_id).where(UserArtistExclusion.user_id == user.id)
+    )
+    excluded_ids = set(result.scalars())
+
     result = await session.execute(
         select(UserArtistInterest, Artist)
         .join(Artist, UserArtistInterest.artist_id == Artist.id)
@@ -444,10 +458,52 @@ async def list_user_artists(user: CurrentUserDep, session: SessionDep) -> list[U
     for interest, artist in result.all():
         entry = grouped.get(artist.id)
         if entry is None:
-            entry = UserArtistRead(artist=ArtistRead.model_validate(artist), interests=[])
+            entry = UserArtistRead(
+                artist=ArtistRead.model_validate(artist),
+                interests=[],
+                excluded=artist.id in excluded_ids,
+            )
             grouped[artist.id] = entry
         entry.interests.append(ArtistInterestRead.model_validate(interest))
     return list(grouped.values())
+
+
+@app.put("/me/artists/{artist_id}/exclusion", status_code=204)
+async def exclude_artist(user: CurrentUserDep, artist_id: uuid.UUID, session: SessionDep) -> None:
+    """Ignore the artist: never suggest, never seed, never match (see
+    docs/design/2026-07-07-ignoring-plan.md). Idempotent. Any standing
+    suggestion for the pair is dropped immediately rather than waiting for
+    the next suggestion sync to prune it."""
+    artist = await session.get(Artist, artist_id)
+    if artist is None:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    await session.execute(
+        pg_insert(UserArtistExclusion)
+        .values(user_id=user.id, artist_id=artist_id)
+        .on_conflict_do_nothing(index_elements=["user_id", "artist_id"])
+    )
+    await session.execute(
+        delete(UserArtistInterest).where(
+            UserArtistInterest.user_id == user.id,
+            UserArtistInterest.artist_id == artist_id,
+            UserArtistInterest.kind == SIMILAR_ARTIST_KIND,
+        )
+    )
+    await session.commit()
+
+
+@app.delete("/me/artists/{artist_id}/exclusion", status_code=204)
+async def unexclude_artist(user: CurrentUserDep, artist_id: uuid.UUID, session: SessionDep) -> None:
+    """Stop ignoring the artist. Idempotent. A formerly suggested artist
+    re-enters as an ordinary candidate at the next sync (no standing claim
+    to its old hysteresis advantage)."""
+    await session.execute(
+        delete(UserArtistExclusion).where(
+            UserArtistExclusion.user_id == user.id,
+            UserArtistExclusion.artist_id == artist_id,
+        )
+    )
+    await session.commit()
 
 
 @app.get(

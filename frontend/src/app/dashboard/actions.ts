@@ -130,6 +130,19 @@ export async function setIncludeKnownArtists(
   );
 }
 
+export async function setArtistIgnored(
+  artistId: string,
+  ignored: boolean,
+): Promise<ActionState> {
+  return callApi(
+    `/me/artists/${artistId}/exclusion`,
+    { method: ignored ? "PUT" : "DELETE" },
+    ignored ? "Failed to ignore artist." : "Failed to stop ignoring artist.",
+    `/dashboard`,
+    "layout",
+  );
+}
+
 export async function createCityPlaylist(
   geonameid: number,
 ): Promise<ActionState> {
