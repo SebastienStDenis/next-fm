@@ -61,5 +61,11 @@ enable_confirmations = true
 # the mail is captured by Mailpit (http://127.0.0.1:54324); production needs a
 # custom SMTP provider (the built-in sender allows only a few emails/hour).
 [auth.email.template.confirmation]
+# The template writes "Next.fm" as Next&zwnj;.fm to stop mail clients from
+# auto-linking the .fm TLD. Headers are plain text, so if the subject (or the
+# SMTP sender name) ever gets linkified too, HTML entities won't help: embed a
+# literal U+200C via a TOML escape instead ("Confirm your email for
+# Next\u200C.fm"). Caveat: some spam filters treat zero-width characters in
+# headers as an obfuscation signal, so only do it if it's actually needed.
 subject = "Confirm your email for Next.fm"
 content_path = "./supabase/templates/confirmation.html"
