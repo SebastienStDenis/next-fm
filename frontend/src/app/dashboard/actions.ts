@@ -134,13 +134,27 @@ export async function setArtistIgnored(
   artistId: string,
   ignored: boolean,
 ): Promise<ActionState> {
-  return callApi(
-    `/me/artists/${artistId}/exclusion`,
-    { method: ignored ? "PUT" : "DELETE" },
-    ignored ? "Failed to ignore artist." : "Failed to stop ignoring artist.",
-    `/dashboard`,
-    "layout",
-  );
+  // Unlike callApi, never surface the response's detail: the row has no room
+  // for prose, and a stale backend answers with an unhelpful route-miss
+  // "Not Found".
+  const failure = {
+    error: ignored ? "Failed to ignore." : "Failed to stop ignoring.",
+  };
+  let res: Response;
+  try {
+    res = await apiFetch(`/me/artists/${artistId}/exclusion`, {
+      method: ignored ? "PUT" : "DELETE",
+    });
+  } catch (e) {
+    unstable_rethrow(e);
+    return failure;
+  }
+  if (!res.ok) {
+    return failure;
+  }
+
+  revalidatePath(`/dashboard`, "layout");
+  return { error: null };
 }
 
 export async function createCityPlaylist(

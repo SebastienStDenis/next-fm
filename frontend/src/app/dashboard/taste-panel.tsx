@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { setArtistIgnored } from "./actions";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
@@ -115,12 +115,23 @@ function IgnoreIcon({ ignored }: { ignored: boolean }) {
   );
 }
 
+const ERROR_DISMISS_MS = 4000;
+
 function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   const { artist, interests, excluded } = userArtist;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    const timer = setTimeout(() => setError(null), ERROR_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [error]);
+
   function toggleIgnored() {
+    setError(null);
     startTransition(async () => {
       const result = await setArtistIgnored(artist.id, !excluded);
       setError(result.error);
