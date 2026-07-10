@@ -77,9 +77,7 @@ export function SuggestedArtistsPanel({
                   userArtist.listeners != null) && (
                   <div className="mt-auto pt-2">
                     {(userArtist.tags ?? []).length > 0 && (
-                      <div className="-ml-2 flex flex-wrap gap-1.5">
-                        {/* -ml-2 hangs the quiet pill backgrounds in the
-                            gutter so the tag text aligns with the column. */}
+                      <div className="flex flex-wrap gap-1.5">
                         {(userArtist.tags ?? []).map((tag) => (
                           <span
                             key={tag}
