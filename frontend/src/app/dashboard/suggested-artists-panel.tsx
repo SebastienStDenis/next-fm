@@ -66,26 +66,32 @@ export function SuggestedArtistsPanel({
                     score {scoreOf(userArtist).toFixed(2)}
                   </span>
                 </div>
-                {userArtist.listeners != null && (
-                  <p className="mt-0.5 text-xs text-gray-500">
-                    {listenersFormat.format(userArtist.listeners)} listeners
-                  </p>
-                )}
                 {reasonOf(userArtist) && (
                   <p className="mt-1 text-xs text-gray-500">
                     {reasonOf(userArtist)}
                   </p>
                 )}
-                {(userArtist.tags ?? []).length > 0 && (
-                  <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-                    {(userArtist.tags ?? []).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                {((userArtist.tags ?? []).length > 0 ||
+                  userArtist.listeners != null) && (
+                  <div className="mt-auto pt-2">
+                    {(userArtist.tags ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(userArtist.tags ?? []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {userArtist.listeners != null && (
+                      <p className="mt-1.5 text-xs text-gray-500 italic">
+                        {listenersFormat.format(userArtist.listeners)}{" "}
+                        listeners
+                      </p>
+                    )}
                   </div>
                 )}
               </li>
