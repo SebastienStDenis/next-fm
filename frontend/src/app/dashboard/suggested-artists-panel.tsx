@@ -60,8 +60,10 @@ export function SuggestedArtistsPanel({
                 key={userArtist.artist.id}
                 className="flex flex-col rounded border border-gray-300 p-3 text-sm dark:border-gray-700"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium">{userArtist.artist.name}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">
+                    {userArtist.artist.name}
+                  </span>
                   <span className="shrink-0 rounded-full border border-gray-300 px-2 py-0.5 text-xs whitespace-nowrap text-gray-500 dark:border-gray-700">
                     score {scoreOf(userArtist).toFixed(2)}
                   </span>
