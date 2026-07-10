@@ -60,7 +60,12 @@ class LastfmArtistNotFoundError(Exception):
 
 
 class LastfmPrivateDataError(Exception):
-    pass
+    def __init__(self, username: str | None) -> None:
+        super().__init__(
+            f"Last.fm account {username} hides its listening data. In Last.fm's "
+            'privacy settings, turn off "Hide recent listening information".'
+        )
+        self.username = username
 
 
 class LastfmApiError(Exception):
@@ -194,9 +199,7 @@ class LastfmClient:
         if error == USER_NOT_FOUND_ERROR_CODE:
             raise LastfmUserNotFoundError(params.get("user"))
         if error == PRIVATE_DATA_ERROR_CODE:
-            raise LastfmPrivateDataError(
-                f"Last.fm account {params.get('user')} hides its listening data"
-            )
+            raise LastfmPrivateDataError(params.get("user"))
         if error is not None:
             raise LastfmApiError(error, payload.get("message"))
         response.raise_for_status()

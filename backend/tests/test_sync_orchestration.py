@@ -501,7 +501,7 @@ async def test_workflow_does_not_retry_private_lastfm_data() -> None:
     async def private_sync_artists(user_id: str) -> ArtistSyncResult:
         nonlocal attempts
         attempts += 1
-        raise LastfmPrivateDataError("Last.fm account rj hides its listening data")
+        raise LastfmPrivateDataError("rj")
 
     async with await WorkflowEnvironment.start_time_skipping(
         data_converter=pydantic_data_converter
@@ -531,7 +531,7 @@ async def test_workflow_does_not_retry_private_lastfm_data() -> None:
 
     assert attempts == 1
     assert [step.status for step in steps] == ["failed", "pending", "pending", "pending"]
-    assert steps[0].summary == "Last.fm account rj hides its listening data"
+    assert steps[0].summary == str(LastfmPrivateDataError("rj"))
     assert recorded == []
 
 
