@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import type { City } from "./city-panel";
 import { EmptyState } from "./empty-state";
+import { ExpandToggleMark } from "./expand-toggle-mark";
 import { RunSyncMessage } from "./run-sync-message";
 
 export type Playlist = {
@@ -135,9 +136,10 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
           upcoming concerts change.
         </p>
       ) : (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-sm text-gray-500">
-            Tracks ({playlist.tracks.length})
+        <details className="group mt-2">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-sm list-none [&::-webkit-details-marker]:hidden text-gray-500">
+            <span>{playlist.tracks.length} tracks</span>
+            <ExpandToggleMark />
           </summary>
           <ol className="mt-2 space-y-1">
             {playlist.tracks.map((track) => (
