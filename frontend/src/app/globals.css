@@ -51,6 +51,8 @@
   --animate-fade-in: fade-in 250ms ease-out;
   --animate-slide-in-up: slide-in-up 250ms ease-out;
   --animate-slide-out-up: slide-out-up 250ms ease-out forwards;
+  --animate-collapsible-down: collapsible-down 250ms ease-out;
+  --animate-collapsible-up: collapsible-up 250ms ease-out;
 
   @keyframes fade-in {
     from {
@@ -80,6 +82,28 @@
     to {
       opacity: 0;
       transform: translateY(-0.375rem);
+    }
+  }
+
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+      opacity: 1;
+    }
+  }
+
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height);
+      opacity: 1;
+    }
+    to {
+      height: 0;
+      opacity: 0;
     }
   }
 }
