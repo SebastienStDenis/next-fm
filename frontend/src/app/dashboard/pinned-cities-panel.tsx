@@ -66,9 +66,21 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
           <button
             type="button"
             onClick={remove}
-            className="text-xs text-red-600 hover:underline"
+            aria-label={`Remove ${playlist.city?.name ?? "pinned city"}`}
+            title="Remove"
+            className="flex self-center text-red-600 hover:text-red-700"
           >
-            Remove
+            <svg
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <path d="m4.5 4.5 7 7m0-7-7 7" />
+            </svg>
           </button>
         )}
       </span>
