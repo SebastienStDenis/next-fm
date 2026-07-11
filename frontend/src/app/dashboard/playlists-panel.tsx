@@ -94,7 +94,7 @@ export function PlaylistsPanel({
   ];
 
   return (
-    <ul className="space-y-3">
+    <ul className="grid items-start gap-3 sm:grid-cols-2">
       {ordered.map((playlist) => (
         <PlaylistCard key={playlist.id} playlist={playlist} />
       ))}
