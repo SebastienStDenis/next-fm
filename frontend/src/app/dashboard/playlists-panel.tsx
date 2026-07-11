@@ -132,7 +132,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
       </p>
       {playlist.tracks.length === 0 ? (
         <p className="mt-2 text-xs text-gray-500">
-          No songs found. We&apos;ll add new ones as your listening history and
+          No tracks found. We&apos;ll add new ones as your listening history and
           upcoming concerts change.
         </p>
       ) : (

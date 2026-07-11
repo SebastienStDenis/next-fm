@@ -171,7 +171,7 @@ def lastfm_track(title: str, rank: int | None) -> LastfmArtistTopTrack:
 
 def spotify_track(track_id: str, artist_spotify_id: str) -> SpotifyTrackData:
     return SpotifyTrackData(
-        id=track_id, name="Song", artists=[SpotifyArtistData(id=artist_spotify_id, name="X")]
+        id=track_id, name="Track", artists=[SpotifyArtistData(id=artist_spotify_id, name="X")]
     )
 
 
@@ -226,7 +226,7 @@ async def test_refresh_stops_at_per_artist_cap() -> None:
     session = make_session()
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_artist_top_tracks.return_value = [
-        lastfm_track(f"Song {rank}", rank) for rank in range(1, 8)
+        lastfm_track(f"Track {rank}", rank) for rank in range(1, 8)
     ]
     spotify = AsyncMock(spec=SpotifyClient)
     spotify.search_tracks.side_effect = [

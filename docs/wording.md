@@ -15,6 +15,7 @@ changes, update this doc in the same change. Introduced by
 | suggested artists | recommendations, similar artists |
 | concerts | events, shows |
 | playlists | - |
+| tracks | songs |
 | home city / pinned cities | city (when the home one is meant) |
 
 ## Verbs
@@ -51,7 +52,7 @@ step ran and found nothing". The step statuses come from `GET /me/sync`
 
 - Concerts tab with no home city set (regardless of sync state): "Set your
   home city in [Account] to see local concerts."
-- An empty tracklist inside a playlist: "No songs found. We'll add new ones
+- An empty tracklist inside a playlist: "No tracks found. We'll add new ones
   as your listening history and upcoming concerts change."
 
 ## Section and tab names
