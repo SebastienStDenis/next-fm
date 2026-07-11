@@ -279,8 +279,10 @@ export function SyncCard({
         </div>
       </div>
       {!showSteps && status && finalOutcome !== "none" && (
-        <CollapsibleContent className="mt-2">
-          <StepList steps={status.steps} />
+        <CollapsibleContent>
+          <div className="pt-2">
+            <StepList steps={status.steps} />
+          </div>
         </CollapsibleContent>
       )}
     </Collapsible>
