@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Next.fm API"
+description = "NextFM API"
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.18.5",

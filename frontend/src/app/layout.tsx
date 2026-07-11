@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Next.fm",
+  title: "NextFM",
   description: "Live-music discovery through listening",
 };
 

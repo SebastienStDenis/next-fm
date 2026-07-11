@@ -20,7 +20,7 @@ export default function SignupPage() {
           <CardTitle className="text-xl">
             <h1>Sign up</h1>
           </CardTitle>
-          <CardDescription>Create your Next.fm account.</CardDescription>
+          <CardDescription>Create your NextFM account.</CardDescription>
         </CardHeader>
         <CardContent>
           <SignupForm />

@@ -61,12 +61,5 @@ enable_confirmations = true
 # the mail is captured by Mailpit (http://127.0.0.1:54324); production needs a
 # custom SMTP provider (the built-in sender allows only a few emails/hour).
 [auth.email.template.confirmation]
-# "Next.fm" is de-linkified here the same way as in the body template: mail
-# clients auto-link the bare .fm TLD. Headers are plain text, so instead of the
-# body's &zwnj; entity the subject contains a raw invisible U+200C after "Next"
-# (don't switch it to a \u200C TOML escape: the supabase CLI mangles the escape
-# into literal "u200C" text). Caveat: some spam filters treat zero-width
-# characters in headers as an obfuscation signal; drop it if deliverability
-# ever becomes a problem.
-subject = "Confirm your email for Next‌.fm"
+subject = "Confirm your email for NextFM"
 content_path = "./supabase/templates/confirmation.html"

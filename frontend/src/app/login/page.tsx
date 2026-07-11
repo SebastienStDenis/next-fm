@@ -20,7 +20,7 @@ export default function LoginPage() {
           <CardTitle className="text-xl">
             <h1>Log in</h1>
           </CardTitle>
-          <CardDescription>Welcome back to Next.fm.</CardDescription>
+          <CardDescription>Welcome back to NextFM.</CardDescription>
         </CardHeader>
         <CardContent>
           <LoginForm />
