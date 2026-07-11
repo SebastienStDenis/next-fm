@@ -221,7 +221,7 @@ function PlaylistCard({
         </CardHeader>
         <CardContent>
           <Collapsible>
-            <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-180">
+            <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
               <span>
                 {playlist.tracks.length}{" "}
                 {playlist.tracks.length === 1 ? "track" : "tracks"}
