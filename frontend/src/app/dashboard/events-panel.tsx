@@ -10,6 +10,7 @@ import { EmptyState } from "./empty-state";
 import { PencilMark } from "./pencil-mark";
 import { RunSyncMessage } from "./run-sync-message";
 import { Spinner } from "../spinner";
+import { UndoMark } from "./undo-mark";
 import { useTransientError } from "./use-transient-error";
 import { XMark } from "./x-mark";
 
@@ -169,7 +170,7 @@ export function EventsPanel({
           title={`Back to ${city.name}`}
           className="flex text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
         >
-          <XMark className="h-4 w-4" />
+          <UndoMark />
         </button>
       )}
     </span>

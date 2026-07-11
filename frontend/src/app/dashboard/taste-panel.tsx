@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import type { ActionState } from "./actions";
 import { setArtistHidden } from "./actions";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
+import { UndoMark } from "./undo-mark";
 import { useTransientError } from "./use-transient-error";
 
 export type Artist = {
@@ -95,6 +96,9 @@ function interestLabel(interest: Interest): string {
 }
 
 function HideIcon({ hidden }: { hidden: boolean }) {
+  if (hidden) {
+    return <UndoMark />;
+  }
   return (
     <svg
       viewBox="0 0 24 24"
@@ -106,17 +110,8 @@ function HideIcon({ hidden }: { hidden: boolean }) {
       className="h-4 w-4"
       aria-hidden
     >
-      {hidden ? (
-        <>
-          <path d="M9 14 4 9l5-5" />
-          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-        </>
-      ) : (
-        <>
-          <circle cx="12" cy="12" r="10" />
-          <path d="m4.9 4.9 14.2 14.2" />
-        </>
-      )}
+      <circle cx="12" cy="12" r="10" />
+      <path d="m4.9 4.9 14.2 14.2" />
     </svg>
   );
 }
