@@ -90,6 +90,13 @@ export function EventsPanel({
   }
 
   function selectCity(selected: City) {
+    // Picking the home city is a return home, not a city view - the home
+    // events are already loaded and the back control should disappear.
+    if (city && selected.geonameid === city.geonameid) {
+      setViewCity(null);
+      setEditingCity(false);
+      return;
+    }
     startTransition(async () => {
       const res = await fetch(
         `/api/me/events?geonameid=${selected.geonameid}`,
