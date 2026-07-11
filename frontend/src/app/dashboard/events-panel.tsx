@@ -43,6 +43,10 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
+function placeLabel(event: UserEvent["event"]): string {
+  return [event.city_name, event.region].filter(Boolean).join(", ");
+}
+
 export type ArtistRelation = "known" | "suggested";
 
 function artistChipLabel(
@@ -254,7 +258,7 @@ export function EventsPanel({
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
-                    {event.venue_name} · {event.city_name}
+                    {event.venue_name} · {placeLabel(event)}
                   </p>
                   <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                     {artists.map((artist) => (
