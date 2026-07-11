@@ -106,10 +106,11 @@ export function PlaylistsPanel({
   ];
 
   // A plain grid: at most three playlists exist (home city + the pin cap of
-  // two), so cards share a row at desktop widths, where stretch alignment
-  // keeps them equal height and expanding one never moves its neighbors.
+  // two), so cards share a row at desktop widths. items-start lets an
+  // expanded tracklist grow its own card without stretching neighbors;
+  // collapsed cards match heights via the fixed-height content area below.
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {ordered.map((playlist) => (
         <PlaylistCard key={playlist.id} playlist={playlist} />
       ))}
@@ -142,7 +143,9 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        {/* min-h-8 fits the two-line no-tracks message, so collapsed cards
+            keep the same height whether they show it or the tracks toggle. */}
+        <CardContent className="min-h-8">
           {playlist.tracks.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No tracks found. We&apos;ll add new ones as your listening
