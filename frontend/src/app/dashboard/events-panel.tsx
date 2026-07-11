@@ -43,12 +43,6 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-function placeLabel(event: UserEvent["event"]): string {
-  return [event.city_name, event.region, event.country]
-    .filter(Boolean)
-    .join(", ");
-}
-
 export type ArtistRelation = "known" | "suggested";
 
 function artistChipLabel(
@@ -243,7 +237,7 @@ export function EventsPanel({
             )
           ) : (
             <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleEvents.map(({ event, url, distance_km, artists }) => (
+              {visibleEvents.map(({ event, url, artists }) => (
                 <li
                   key={event.id}
                   className="flex flex-col rounded border border-gray-300 p-3 dark:border-gray-700"
@@ -260,8 +254,7 @@ export function EventsPanel({
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
-                    {event.venue_name} · {placeLabel(event)} · {distance_km} km
-                    away
+                    {event.venue_name} · {event.city_name}
                   </p>
                   <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                     {artists.map((artist) => (
