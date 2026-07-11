@@ -100,7 +100,7 @@ export default async function DashboardPage() {
               key: "suggested",
               label: `Artists (${suggestedArtists.length})`,
               description:
-                "Artists we think you'll like based on your listening history.",
+                "Artists NextFM thinks you'll like based on your listening history.",
               content: (
                 <SuggestedArtistsPanel
                   suggestedArtists={suggestedArtists}
