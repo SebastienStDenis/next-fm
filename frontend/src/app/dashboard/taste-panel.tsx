@@ -129,8 +129,6 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
     // (and chips wrap) inside the inner container while the hide control
     // stays right, centered on them.
     <li className="group flex items-center gap-2 text-sm">
-      {/* gap-y-1 matches the list's space-y-1, so a wrapped badge sits as
-          close to its own row above as to the next row below. */}
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
         <span
           className={`min-w-0 ${
@@ -222,7 +220,7 @@ export function TastePanel({
               </Select>
             </div>
           </div>
-          <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+          <ul className="mt-2 max-h-80 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
             {sortedArtists.map((userArtist) => (
               <ArtistRow key={userArtist.artist.id} userArtist={userArtist} />
             ))}
