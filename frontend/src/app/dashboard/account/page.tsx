@@ -12,7 +12,6 @@ import { TastePanel, type UserArtist } from "../taste-panel";
 import { KNOWN_ARTIST_KINDS } from "../artist-kinds";
 import { IntroText } from "../../intro-text";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -46,21 +45,12 @@ function Section({
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <h2>{heading}</h2>
-          {alertText && (
+          {alert && alertText && (
             <Badge
               variant="secondary"
-              aria-hidden={!alert}
-              className={cn(
-                "font-normal transition-all duration-300",
-                // The wrap overrides apply only while shown: collapsed to
-                // max-w-0, wrapping text would stack one character per line
-                // and blow up the title row's height.
-                alert
-                  ? "h-auto min-h-5 max-w-full whitespace-normal"
-                  : "max-w-0 border-0 px-0 opacity-0",
-              )}
+              className="h-auto min-h-5 px-1.5 font-normal whitespace-normal"
             >
-              <AttentionDot className="mr-0" />
+              <AttentionDot />
               {alertText}
             </Badge>
           )}
@@ -111,13 +101,7 @@ export default async function AccountPage() {
         <Section
           heading="Daily Sync"
           alert={missingSyncActions.length > 0}
-          alertText={
-            // Falls back to a bare "Disabled" so the pill never carries a
-            // dangling comma while fading out after the last action clears.
-            missingSyncActions.length > 0
-              ? `Disabled, ${missingSyncActions.join(" and ")}`
-              : "Disabled"
-          }
+          alertText={`Disabled, ${missingSyncActions.join(" and ")}`}
           description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
           <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
