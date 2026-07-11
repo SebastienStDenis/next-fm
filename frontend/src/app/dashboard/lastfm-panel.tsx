@@ -153,10 +153,10 @@ function AccountCard({
 
   return (
     <div>
-      {/* Below sm the account details drop to a full-width row under the
-          avatar; squeezed between the avatar and the unlink button they'd
+      {/* Below 25rem the account details drop to a full-width row under the
+          avatar; squeezed between the avatar and the icon buttons they'd
           overflow into overlapping columns. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
         {account.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -165,7 +165,7 @@ function AccountCard({
             className="col-start-1 row-start-1 h-16 w-16 rounded-full"
           />
         )}
-        <div className="col-span-full row-start-2 min-w-0 sm:col-auto sm:row-start-1">
+        <div className="col-span-full row-start-2 min-w-0 min-[25rem]:col-auto min-[25rem]:row-start-1">
           <p className="font-medium">{account.real_name ?? account.username}</p>
           <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
             <dt className="text-gray-500">Username</dt>
@@ -197,7 +197,7 @@ function AccountCard({
             )}
           </dl>
         </div>
-        <div className="col-start-2 row-start-1 mt-1 flex items-center gap-2 justify-self-end sm:col-start-3">
+        <div className="col-start-2 row-start-1 mt-1 flex items-center gap-2 justify-self-end min-[25rem]:col-start-3">
           <button
             type="button"
             onClick={onEdit}
