@@ -73,7 +73,12 @@ function LinkForm() {
         </button>
       </div>
       {error && (
-        <p className="animate-fade-in-out-slow text-xs text-red-600">{error}</p>
+        <p
+          key={error.key}
+          className="animate-fade-in-out-slow text-xs text-red-600"
+        >
+          {error.message}
+        </p>
       )}
     </form>
   );
@@ -149,8 +154,11 @@ function AccountCard({ account }: { account: LastfmAccount }) {
         </form>
       </div>
       {error && (
-        <p className="mt-2 animate-fade-in-out-slow text-xs text-red-600">
-          {error}
+        <p
+          key={error.key}
+          className="mt-2 animate-fade-in-out-slow text-xs text-red-600"
+        >
+          {error.message}
         </p>
       )}
     </div>
