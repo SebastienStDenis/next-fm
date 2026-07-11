@@ -62,46 +62,6 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
 
 const emptySubscribe = () => () => {};
 
-// Playlist cards stack per column (masonry-ish) so an expanded tracklist
-// only pushes down cards in its own column. The column count mirrors the
-// grid breakpoints the other tabs use; ordered by matchMedia specificity.
-const COLUMN_QUERIES: [string, number][] = [
-  ["(min-width: 64rem)", 3],
-  ["(min-width: 40rem)", 2],
-];
-
-function subscribeToColumnCount(onChange: () => void): () => void {
-  const lists = COLUMN_QUERIES.map(([query]) => window.matchMedia(query));
-  for (const list of lists) {
-    list.addEventListener("change", onChange);
-  }
-  return () => {
-    for (const list of lists) {
-      list.removeEventListener("change", onChange);
-    }
-  };
-}
-
-function readColumnCount(): number {
-  for (const [query, count] of COLUMN_QUERIES) {
-    if (window.matchMedia(query).matches) {
-      return count;
-    }
-  }
-  return 1;
-}
-
-// null until hydration: the server can't know the viewport, so the first
-// render uses the breakpoint grid instead (visually identical while all
-// tracklists are collapsed).
-function useColumnCount(): number | null {
-  return useSyncExternalStore(
-    subscribeToColumnCount,
-    readColumnCount,
-    () => null,
-  );
-}
-
 function SyncedAtLabel({ iso }: { iso: string }) {
   // Formats in the viewer's timezone, which the server can't know - render
   // only after hydration so server and client HTML always match.
@@ -120,8 +80,6 @@ export function PlaylistsPanel({
   synced: boolean;
   playlists: Playlist[];
 }) {
-  const columnCount = useColumnCount();
-
   if (!synced) {
     return <RunSyncMessage action="generate playlists" />;
   }
@@ -147,29 +105,15 @@ export function PlaylistsPanel({
     ...playlists.filter((playlist) => playlist.city !== null),
   ];
 
-  if (columnCount === null) {
-    return (
-      <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ordered.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
-        ))}
-      </ul>
-    );
-  }
-
-  const columns = Array.from({ length: columnCount }, (_, column) =>
-    ordered.filter((_, index) => index % columnCount === column),
-  );
+  // A plain grid: at most three playlists exist (home city + the pin cap of
+  // two), so cards share a row at desktop widths, where stretch alignment
+  // keeps them equal height and expanding one never moves its neighbors.
   return (
-    <div className="flex items-start gap-3">
-      {columns.map((column, index) => (
-        <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
-          {column.map((playlist) => (
-            <PlaylistCard key={playlist.id} playlist={playlist} />
-          ))}
-        </ul>
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {ordered.map((playlist) => (
+        <PlaylistCard key={playlist.id} playlist={playlist} />
       ))}
-    </div>
+    </ul>
   );
 }
 
@@ -205,9 +149,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
               history and upcoming concerts change.
             </p>
           ) : (
-            // pt-3 tops the single trigger line up to the height of the
-            // two-line no-tracks message, so collapsed cards match either way.
-            <Collapsible className="pt-3">
+            <Collapsible>
               <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-180">
                 <span>{playlist.tracks.length} tracks</span>
                 <ChevronDown
