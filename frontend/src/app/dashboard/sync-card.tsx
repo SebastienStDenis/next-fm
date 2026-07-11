@@ -43,7 +43,7 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
 
 const stepMarkClasses: Record<SyncStep["status"], string> = {
   pending: "text-muted-foreground",
-  running: "animate-pulse",
+  running: "",
   completed: "text-green-600 dark:text-green-500",
   failed: "text-destructive",
 };
@@ -135,6 +135,15 @@ export function SyncCard({
   }, [polling, router]);
 
   const running = status?.status === "running";
+  // Fraction of the run already done, for the button's progress ring: each
+  // completed step is a full share, the in-flight step counts as half. The
+  // floor keeps a just-started run from showing a dead, empty ring.
+  const steps = status?.steps ?? [];
+  const completedShare =
+    steps.filter((step) => step.status === "completed").length +
+    (steps.some((step) => step.status === "running") ? 0.5 : 0);
+  const progress =
+    steps.length > 0 ? Math.max(completedShare / steps.length, 0.04) : null;
   // The button shows a spinner while checking for an existing run, while one is
   // in progress, and while the step playback is still catching up after the run
   // finished behind the scenes (settling).
@@ -224,7 +233,11 @@ export function SyncCard({
             <RefreshCw aria-hidden className={busy ? "invisible" : undefined} />
             {busy && (
               <span className="absolute inset-0 flex items-center justify-center">
-                <Spinner />
+                {(running || settling) && progress !== null ? (
+                  <SyncProgressRing fraction={settling ? 1 : progress} />
+                ) : (
+                  <Spinner />
+                )}
               </span>
             )}
           </Button>
@@ -243,7 +256,7 @@ export function SyncCard({
             <div className="min-w-0 flex-1">
               {status && finalOutcome !== "none" && (
                 <CollapsibleTrigger
-                  className={`group flex animate-slide-in-up cursor-pointer items-center gap-1.5 text-left text-sm ${
+                  className={`group -mx-1.5 -my-0.5 flex animate-slide-in-up cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-sm hover:bg-muted dark:hover:bg-muted/50 ${
                     finalOutcome === "failed"
                       ? "text-foreground"
                       : "text-muted-foreground"
@@ -265,7 +278,7 @@ export function SyncCard({
                     {finalOutcome === "failed"
                       ? "Last sync failed"
                       : "Last synced"}
-                    {finishedAt && ` ${finishedAt}`}.
+                    {finishedAt && ` ${finishedAt}`}
                   </span>
                   <ChevronDown
                     aria-hidden
@@ -274,9 +287,26 @@ export function SyncCard({
                 </CollapsibleTrigger>
               )}
               {finalOutcome === "none" && !statusLoading && (
-                <p className="text-sm text-muted-foreground">
-                  Run a sync (requires Last.fm and home city)
-                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onSync}
+                  disabled={starting || !canSync}
+                  // -ml-2.5 cancels the ghost padding so the label stays
+                  // optically aligned with the card content edge; the height
+                  // and whitespace overrides let the label wrap on narrow
+                  // screens.
+                  className="-ml-2.5 h-auto min-h-7 animate-fade-in justify-start text-left whitespace-normal text-muted-foreground"
+                >
+                  {canSync && (
+                    <span
+                      className="size-1.5 shrink-0 rounded-full bg-primary"
+                      aria-hidden
+                    />
+                  )}
+                  Get started by running a manual sync.
+                </Button>
               )}
             </div>
           )}
@@ -290,6 +320,41 @@ export function SyncCard({
         </CollapsibleContent>
       )}
     </Collapsible>
+  );
+}
+
+// Determinate progress ring for the sync button: the arc fills clockwise
+// from the top as steps complete.
+function SyncProgressRing({ fraction }: { fraction: number }) {
+  const radius = 5.5;
+  const circumference = 2 * Math.PI * radius;
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-4 -rotate-90"
+      role="status"
+      aria-label={`Sync progress: ${Math.round(fraction * 100)}%`}
+    >
+      <circle
+        cx="8"
+        cy="8"
+        r={radius}
+        fill="none"
+        strokeWidth="1.5"
+        className="stroke-border"
+      />
+      <circle
+        cx="8"
+        cy="8"
+        r={radius}
+        fill="none"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - fraction)}
+        className="stroke-current transition-[stroke-dashoffset] duration-500"
+      />
+    </svg>
   );
 }
 
@@ -503,10 +568,8 @@ function StepMark({ status }: { status: SyncStep["status"] }) {
   if (status === "failed") {
     return <X aria-hidden className="size-3.5" strokeWidth={2.5} />;
   }
-  return (
-    <Circle
-      aria-hidden
-      className={`size-3.5 ${status === "running" ? "fill-current" : ""}`}
-    />
-  );
+  if (status === "running") {
+    return <Spinner className="size-3.5" />;
+  }
+  return <Circle aria-hidden className="size-3.5" />;
 }

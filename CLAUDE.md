@@ -8,6 +8,8 @@ Live-music discovery delivered as Spotify playlists: match a user's taste (Last.
 
 Monorepo: `backend/` (FastAPI, Python 3.14, managed with uv), `frontend/` (Next.js App Router, TypeScript, Tailwind v4). App data and auth run on the Supabase CLI stack (`supabase start`); Docker Compose runs the app services and Temporal.
 
+When working on user-facing copy, consult `docs/wording.md`; when working on styling or visual design, consult `docs/theme.md`. Both are living reference docs - follow them and update them in the same change when the product or theme evolves.
+
 ## Commands
 
 ### Full stack

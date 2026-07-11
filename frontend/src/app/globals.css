@@ -54,12 +54,12 @@
   --animate-collapsible-down: collapsible-down 250ms ease-out;
   --animate-collapsible-up: collapsible-up 250ms ease-out;
 
+  /* No `to` frame: the animation ends at the element's own opacity, so a
+     dimmed element (e.g. a disabled button) fades straight to its final
+     state instead of overshooting to full opacity and snapping back. */
   @keyframes fade-in {
     from {
       opacity: 0;
-    }
-    to {
-      opacity: 1;
     }
   }
 

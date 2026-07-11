@@ -43,18 +43,6 @@ export async function loadSyncStatus(): Promise<SyncStatus | null> {
   }
 }
 
-// True when the user has never completed a sync: the "get started" nudge.
-// last_synced_at is the durable success record; a retained completed run also
-// counts (it predates the column), and a running first sync isn't nudged.
-// A null sync (transport or Temporal error) hides the nudge rather than
-// breaking the page over a dot.
-export function hasNeverSynced(user: User, sync: SyncStatus | null): boolean {
-  return (
-    user.last_synced_at === null &&
-    (sync?.status === "none" || sync?.status === "failed")
-  );
-}
-
 // Whether the latest sync run completed the given step. Empty lists read
 // differently depending on it: "run a sync" vs "the sync found nothing".
 export function syncStepCompleted(

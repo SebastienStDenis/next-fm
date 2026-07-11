@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { ExternalLink, Pencil, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,6 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
+import { InlineNav } from "../inline-nav";
 import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 
@@ -169,17 +169,17 @@ export function EventsPanel({
         title="See concerts in another city"
         className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
       >
-        <span className="min-w-0">{shownCity?.name ?? "another city"}</span>
+        {shownCity && <span className="min-w-0">{shownCity.name}</span>}
         <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
       </Button>
-      {viewCity && city && (
+      {viewCity && (
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           onClick={() => setViewCity(null)}
-          aria-label={`Back to ${city.name}`}
-          title={`Back to ${city.name}`}
+          aria-label={city ? `Back to ${city.name}` : "Back"}
+          title={city ? `Back to ${city.name}` : "Back"}
           className="text-muted-foreground"
         >
           <Undo2 aria-hidden />
@@ -198,13 +198,8 @@ export function EventsPanel({
           </h3>
           <EmptyState className="mt-4">
             Set your home city in{" "}
-            <Link
-              href="/dashboard/account"
-              className="underline hover:text-foreground"
-            >
-              Account
-            </Link>{" "}
-            to see local concerts.
+            <InlineNav href="/dashboard/account">Account</InlineNav> to see
+            local concerts.
           </EmptyState>
         </div>
       ) : (
@@ -264,12 +259,13 @@ export function EventsPanel({
                     </CardHeader>
                     <CardContent className="mt-auto flex flex-wrap items-center gap-2">
                       {artists.map((artist) => {
-                        const known = artistRelations[artist.id] === "known";
+                        const suggested =
+                          artistRelations[artist.id] === "suggested";
                         return (
                           <Badge
                             key={artist.id}
-                            variant={known ? "secondary" : "outline"}
-                            className={`max-w-full font-normal ${known ? "" : "text-muted-foreground"}`}
+                            variant={suggested ? "secondary" : "outline"}
+                            className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
                           >
                             <span className="truncate">
                               {artistChipLabel(artist, artistRelations)}

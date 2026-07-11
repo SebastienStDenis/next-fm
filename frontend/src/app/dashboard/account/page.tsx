@@ -22,7 +22,6 @@ import {
 import {
   fetchJson,
   fetchOptional,
-  hasNeverSynced,
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
@@ -47,13 +46,20 @@ function Section({
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <h2>{heading}</h2>
           {alert && alertText && (
-            <Badge variant="secondary" className="font-normal">
+            <Badge
+              variant="secondary"
+              className="h-auto min-h-5 px-1.5 font-normal whitespace-normal"
+            >
               <AttentionDot />
               {alertText}
             </Badge>
           )}
         </CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+        {description && (
+          <CardDescription className="text-xs italic">
+            {description}
+          </CardDescription>
+        )}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
@@ -74,7 +80,11 @@ export default async function AccountPage() {
     ),
     loadSyncStatus(),
   ]);
-  const neverSynced = hasNeverSynced(user, sync);
+
+  const missingSyncActions = [
+    lastfm === null && "link Last.fm account",
+    city === null && "set home city",
+  ].filter((item): item is string => item !== false);
 
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
@@ -94,8 +104,8 @@ export default async function AccountPage() {
       <div className="mt-6 space-y-6">
         <Section
           heading="Daily Sync"
-          alert={neverSynced}
-          alertText="Get started by running a sync"
+          alert={missingSyncActions.length > 0}
+          alertText={`Disabled, ${missingSyncActions.join(" and ")}`}
           description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
           <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />

@@ -17,7 +17,6 @@ import { type UserArtist } from "./taste-panel";
 import {
   fetchJson,
   fetchOptional,
-  hasNeverSynced,
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
@@ -34,7 +33,10 @@ export default async function DashboardPage() {
     fetchJson<Playlist[]>("/me/playlists", "playlists"),
     loadSyncStatus(),
   ]);
-  const neverSynced = hasNeverSynced(user, sync);
+  // Also gates the "continually updated" pulse on playlists: a missing
+  // Last.fm link or home city is what stops the nightly sync from
+  // maintaining them.
+  const syncDisabled = lastfm === null || city === null;
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
@@ -84,9 +86,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/dashboard/account">
-            {(lastfm === null || city === null || neverSynced) && (
-              <AttentionDot />
-            )}
+            {syncDisabled && <AttentionDot pulse />}
             Account
             <ArrowRight aria-hidden />
           </Link>
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
       </div>
       <section className="mt-6">
         <Tabs
-          defaultTab={lastTab}
+          defaultTab={lastTab ?? "playlists"}
           tabs={[
             {
               key: "suggested",
@@ -123,13 +123,23 @@ export default async function DashboardPage() {
             },
             {
               key: "playlists",
-              label: `Playlists (${linkedPlaylists.length})`,
+              label: (
+                <>
+                  {!syncDisabled && linkedPlaylists.length > 0 && (
+                    <span className="shrink-0 animate-fade-in" aria-hidden>
+                      <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
+                    </span>
+                  )}
+                  Playlists ({linkedPlaylists.length})
+                </>
+              ),
               description:
                 "Spotify playlists tracking suggested concerts in your cities.",
               content: (
                 <PlaylistsPanel
                   synced={syncStepCompleted(sync, "playlists")}
                   playlists={linkedPlaylists}
+                  maintained={!syncDisabled}
                 />
               ),
             },

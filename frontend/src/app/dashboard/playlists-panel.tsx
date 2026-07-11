@@ -1,7 +1,6 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
 import { ChevronDown, ExternalLink } from "lucide-react";
 
 import {
@@ -16,6 +15,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
 import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
@@ -116,9 +116,13 @@ function SyncedAtLabel({ iso }: { iso: string }) {
 export function PlaylistsPanel({
   synced,
   playlists,
+  maintained,
 }: {
   synced: boolean;
   playlists: Playlist[];
+  // Whether the nightly sync is keeping these playlists up to date; drives
+  // the pulsing "live" dot on each card.
+  maintained: boolean;
 }) {
   const columnCount = useColumnCount();
 
@@ -130,13 +134,7 @@ export function PlaylistsPanel({
     return (
       <EmptyState>
         No playlists generated. Set your home city in{" "}
-        <Link
-          href="/dashboard/account"
-          className="underline hover:text-foreground"
-        >
-          Account
-        </Link>
-        .
+        <InlineNav href="/dashboard/account">Account</InlineNav>.
       </EmptyState>
     );
   }
@@ -151,7 +149,11 @@ export function PlaylistsPanel({
     return (
       <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
+          <PlaylistCard
+            key={playlist.id}
+            playlist={playlist}
+            maintained={maintained}
+          />
         ))}
       </ul>
     );
@@ -165,7 +167,11 @@ export function PlaylistsPanel({
       {columns.map((column, index) => (
         <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
           {column.map((playlist) => (
-            <PlaylistCard key={playlist.id} playlist={playlist} />
+            <PlaylistCard
+              key={playlist.id}
+              playlist={playlist}
+              maintained={maintained}
+            />
           ))}
         </ul>
       ))}
@@ -173,12 +179,25 @@ export function PlaylistsPanel({
   );
 }
 
-function PlaylistCard({ playlist }: { playlist: Playlist }) {
+function PlaylistCard({
+  playlist,
+  maintained,
+}: {
+  playlist: Playlist;
+  maintained: boolean;
+}) {
   return (
     <li className="flex">
       <Card size="sm" className="flex-1">
         <CardHeader>
-          <CardTitle>{playlist.name}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            {maintained && (
+              <span className="shrink-0 animate-fade-in" aria-hidden>
+                <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
+              </span>
+            )}
+            {playlist.name}
+          </CardTitle>
           <CardDescription>
             {playlist.spotify_url ? (
               <a
@@ -200,7 +219,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
         </CardHeader>
         <CardContent>
           <Collapsible>
-            <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-180">
+            <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
               <span>
                 {playlist.tracks.length}{" "}
                 {playlist.tracks.length === 1 ? "track" : "tracks"}
