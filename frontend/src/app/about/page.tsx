@@ -35,6 +35,15 @@ export default function AboutPage() {
             as your listening history and upcoming concerts change.
           </p>
         </section>
+        <section>
+          <h2 className="text-sm font-medium">Playlist order</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            Tracks are ordered by concert date, soonest first, and the playlist
+            is capped at 100 tracks. To catch new concerts fastest, sort the
+            playlist by &ldquo;Date added&rdquo; in Spotify: newly announced
+            concerts and newly suggested artists will appear at the top.
+          </p>
+        </section>
       </div>
     </main>
   );
