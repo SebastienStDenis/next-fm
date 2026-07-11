@@ -15,6 +15,7 @@ from temporalio.service import RPCError, RPCStatusCode
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
+from app.lastfm import LastfmPrivateDataError
 from app.models import LastfmAccount, User
 from app.schemas import (
     ArtistSyncKindResult,
@@ -489,6 +490,48 @@ async def test_workflow_stops_at_first_failed_step() -> None:
     assert [step.status for step in steps] == ["completed", "failed", "pending", "pending"]
     assert steps[0].summary is not None
     assert steps[1].summary == "Last.fm exploded"
+    assert recorded == []
+
+
+async def test_workflow_does_not_retry_private_lastfm_data() -> None:
+    recorded: list[str] = []
+    attempts = 0
+
+    @activity.defn(name="sync_artists")
+    async def private_sync_artists(user_id: str) -> ArtistSyncResult:
+        nonlocal attempts
+        attempts += 1
+        raise LastfmPrivateDataError("rj")
+
+    async with await WorkflowEnvironment.start_time_skipping(
+        data_converter=pydantic_data_converter
+    ) as env:
+        async with Worker(
+            env.client,
+            task_queue="test-sync",
+            workflows=[SyncUserWorkflow],
+            activities=[
+                private_sync_artists,
+                fake_sync_suggestions,
+                fake_sync_events,
+                fake_sync_playlists,
+                record_activity(recorded),
+            ],
+        ):
+            handle = await env.client.start_workflow(
+                SyncUserWorkflow.run,
+                str(USER_ID),
+                id=user_sync_workflow_id(USER_ID),
+                task_queue="test-sync",
+            )
+            with pytest.raises(WorkflowFailureError):
+                await handle.result()
+
+            steps = await handle.query(SyncUserWorkflow.progress)
+
+    assert attempts == 1
+    assert [step.status for step in steps] == ["failed", "pending", "pending", "pending"]
+    assert steps[0].summary == str(LastfmPrivateDataError("rj"))
     assert recorded == []
 
 

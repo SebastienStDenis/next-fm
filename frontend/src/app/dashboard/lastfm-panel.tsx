@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
+import { Spinner } from "./spinner";
+import { useTransientError } from "./use-transient-error";
 
 export type LastfmAccount = {
   id: string;
@@ -39,6 +41,7 @@ function LinkForm() {
   const [state, formAction, pending] = useActionState(linkLastfm, {
     error: null,
   });
+  const error = useTransientError(state);
 
   return (
     <form action={formAction} className="space-y-2">
@@ -47,17 +50,32 @@ function LinkForm() {
           name="username"
           placeholder="Last.fm username"
           required
-          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm dark:border-gray-700"
+          disabled={pending}
+          className="flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
         />
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
+          className="relative rounded bg-foreground px-3 py-1 text-sm font-medium text-background disabled:opacity-50"
         >
-          {pending ? "Linking..." : "Link"}
+          {/* Kept in the layout (just hidden) while pending so the button
+              holds the same width as when it reads "Link". */}
+          <span className={pending ? "invisible" : undefined}>Link</span>
+          {pending && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Spinner />
+            </span>
+          )}
         </button>
       </div>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {error && !pending && (
+        <p
+          key={error.key}
+          className="animate-fade-in-out text-xs text-red-600"
+        >
+          {error.message}
+        </p>
+      )}
     </form>
   );
 }
@@ -67,7 +85,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
     unlinkLastfm,
     { error: null },
   );
-  const error = unlinkState.error;
+  const error = useTransientError(unlinkState);
 
   return (
     <div>
@@ -116,13 +134,29 @@ function AccountCard({ account }: { account: LastfmAccount }) {
           <button
             type="submit"
             disabled={unlinkPending}
-            className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+            className="relative rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
           >
-            {unlinkPending ? "Unlinking..." : "Unlink"}
+            <span className={unlinkPending ? "invisible" : undefined}>
+              Unlink
+            </span>
+            {/* The button's red text would tint the spinner like an error;
+                spin in neutral gray instead. */}
+            {unlinkPending && (
+              <span className="absolute inset-0 flex items-center justify-center text-gray-500">
+                <Spinner />
+              </span>
+            )}
           </button>
         </form>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && !unlinkPending && (
+        <p
+          key={error.key}
+          className="mt-2 animate-fade-in-out text-xs text-red-600"
+        >
+          {error.message}
+        </p>
+      )}
     </div>
   );
 }

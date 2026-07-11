@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
+import type { ActionState } from "./actions";
 import { setArtistHidden } from "./actions";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
+import { useTransientError } from "./use-transient-error";
 
 export type Artist = {
   id: string;
@@ -119,28 +121,15 @@ function HideIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
-// Must match the animate-fade-in-out duration: the animation ends at
-// opacity 0 and this timeout unmounts the message.
-const ERROR_DISMISS_MS = 4000;
-
 function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   const { artist, interests, excluded } = userArtist;
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ActionState>({ error: null });
+  const error = useTransientError(result);
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (!error) {
-      return;
-    }
-    const timer = setTimeout(() => setError(null), ERROR_DISMISS_MS);
-    return () => clearTimeout(timer);
-  }, [error]);
-
   function toggleHidden() {
-    setError(null);
     startTransition(async () => {
-      const result = await setArtistHidden(artist.id, !excluded);
-      setError(result.error);
+      setResult(await setArtistHidden(artist.id, !excluded));
     });
   }
 
@@ -166,9 +155,12 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
           </span>
         ))}
       <span className="ml-auto flex items-center gap-2">
-        {error && (
-          <span className="animate-fade-in-out text-xs text-red-600">
-            {error}
+        {error && !pending && (
+          <span
+            key={error.key}
+            className="animate-fade-in-out text-xs text-red-600"
+          >
+            {error.message}
           </span>
         )}
         <button

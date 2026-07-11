@@ -325,7 +325,7 @@ async def test_sync_private_lastfm_data() -> None:
     response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "This Last.fm account's listening data is private"
+    assert "visibility settings" in response.json()["detail"]
     session.commit.assert_not_awaited()
 
 

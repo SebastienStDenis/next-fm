@@ -224,9 +224,7 @@ async def lastfm_user_not_found(request: Request, exc: LastfmUserNotFoundError) 
 
 @app.exception_handler(LastfmPrivateDataError)
 async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> JSONResponse:
-    return JSONResponse(
-        status_code=403, content={"detail": "This Last.fm account's listening data is private"}
-    )
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 
 @app.exception_handler(LastfmApiError)
@@ -408,6 +406,16 @@ def _apply_user_info(account: LastfmAccount, info: LastfmUserInfo, synced_at: da
     account.last_synced_at = synced_at
 
 
+async def _probe_listening_data(lastfm: LastfmClient, username: str) -> None:
+    """Raise LastfmPrivateDataError if the account hides its listening data.
+
+    user.getinfo succeeds even for private accounts; the sync's user-scoped
+    reads are what fail, so exercise both before accepting the account.
+    """
+    await lastfm.get_top_artists(username, limit=1)
+    await lastfm.get_loved_tracks(username, limit=1)
+
+
 @app.get("/me/lastfm", response_model=LastfmAccountRead)
 async def get_linked_lastfm_account(user: CurrentUserDep, session: SessionDep) -> LastfmAccount:
     """Return the user's linked Last.fm account; 404 if none is linked."""
@@ -426,6 +434,7 @@ async def link_lastfm_account(
 ) -> LastfmAccount:
     """Link the user to a Last.fm account by username, replacing any existing link."""
     info = await lastfm.get_user_info(payload.username)
+    await _probe_listening_data(lastfm, info.username)
 
     result = await session.execute(
         select(LastfmAccount).where(func.lower(LastfmAccount.username) == info.username.lower())
@@ -462,6 +471,7 @@ async def refresh_lastfm_account(
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
     info = await lastfm.get_user_info(account.username)
+    await _probe_listening_data(lastfm, account.username)
     _apply_user_info(account, info, datetime.now(UTC))
     await session.commit()
     return account

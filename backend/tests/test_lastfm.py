@@ -99,6 +99,8 @@ async def test_link_creates_account_and_connection() -> None:
     body = response.json()
     assert body["username"] == "rj"
     lastfm.get_user_info.assert_awaited_once_with("RJ")
+    lastfm.get_top_artists.assert_awaited_once_with("rj", limit=1)
+    lastfm.get_loved_tracks.assert_awaited_once_with("rj", limit=1)
     assert session.add.call_count == 2
     session.commit.assert_awaited_once()
 
@@ -133,6 +135,37 @@ async def test_link_unknown_lastfm_user() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Last.fm user not found"
+    session.commit.assert_not_awaited()
+
+
+async def test_link_private_lastfm_account() -> None:
+    session = make_session()
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_user_info.return_value = USER_INFO
+    lastfm.get_top_artists.side_effect = LastfmPrivateDataError("rj")
+
+    response = await request(
+        "PUT", "/me/lastfm", session, lastfm, user=user(), json={"username": "rj"}
+    )
+
+    assert response.status_code == 403
+    assert "visibility settings" in response.json()["detail"]
+    session.add.assert_not_called()
+    session.commit.assert_not_awaited()
+
+
+async def test_link_probes_loved_tracks_too() -> None:
+    session = make_session()
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_user_info.return_value = USER_INFO
+    lastfm.get_loved_tracks.side_effect = LastfmPrivateDataError("rj")
+
+    response = await request(
+        "PUT", "/me/lastfm", session, lastfm, user=user(), json={"username": "rj"}
+    )
+
+    assert response.status_code == 403
+    session.add.assert_not_called()
     session.commit.assert_not_awaited()
 
 
@@ -451,6 +484,21 @@ async def test_get_artist_info_raises_on_unknown_artist(
 
     with pytest.raises(LastfmArtistNotFoundError):
         await LastfmClient("key").get_artist_info("nope")
+
+
+async def test_refresh_private_lastfm_account() -> None:
+    account = make_account()
+    session = make_session()
+    session.execute.return_value = result_returning(account)
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_user_info.return_value = USER_INFO
+    lastfm.get_top_artists.side_effect = LastfmPrivateDataError("rj")
+
+    response = await request("POST", "/me/lastfm/refresh", session, lastfm, user=user())
+
+    assert response.status_code == 403
+    assert "visibility settings" in response.json()["detail"]
+    session.commit.assert_not_awaited()
 
 
 async def test_refresh_when_not_linked() -> None:

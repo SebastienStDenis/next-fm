@@ -2,8 +2,10 @@
 
 import { useActionState, useState, useTransition } from "react";
 
+import type { ActionState } from "./actions";
 import { clearCity, setCity } from "./actions";
 import { CitySearchBox, cityLabel } from "./city-search-box";
+import { useTransientError } from "./use-transient-error";
 
 export type City = {
   geonameid: number;
@@ -47,6 +49,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
   const [state, clearAction, pending] = useActionState(clearCity, {
     error: null,
   });
+  const error = useTransientError(state);
 
   return (
     <div>
@@ -71,7 +74,14 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
           </form>
         </div>
       </div>
-      {state.error && <p className="mt-2 text-sm text-red-600">{state.error}</p>}
+      {error && !pending && (
+        <p
+          key={error.key}
+          className="mt-2 animate-fade-in-out text-xs text-red-600"
+        >
+          {error.message}
+        </p>
+      )}
     </div>
   );
 }
@@ -83,18 +93,17 @@ function CitySearch({
   hasCity: boolean;
   onDone: (selected?: City) => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ActionState>({ error: null });
+  const error = useTransientError(result);
   const [pending, startTransition] = useTransition();
 
   function select(city: City) {
     startTransition(async () => {
-      const result = await setCity(city.geonameid);
-      if (result.error) {
-        setError(result.error);
-        return;
+      const next = await setCity(city.geonameid);
+      setResult(next);
+      if (!next.error) {
+        onDone(city);
       }
-      setError(null);
-      onDone(city);
     });
   }
 
@@ -119,7 +128,11 @@ function CitySearch({
           </button>
         )}
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && !pending && (
+        <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
+          {error.message}
+        </p>
+      )}
     </div>
   );
 }

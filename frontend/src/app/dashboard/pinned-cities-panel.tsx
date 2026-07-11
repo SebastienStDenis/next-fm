@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 
+import type { ActionState } from "./actions";
 import { createCityPlaylist, deletePlaylist } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import type { Playlist } from "./playlists-panel";
+import { useTransientError } from "./use-transient-error";
 
 const PINNED_PLAYLIST_CAP = 2;
 
@@ -25,7 +27,8 @@ export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
 }
 
 function PinnedCityRow({ playlist }: { playlist: Playlist }) {
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ActionState>({ error: null });
+  const error = useTransientError(result);
   const [pending, startTransition] = useTransition();
 
   function remove() {
@@ -38,8 +41,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
       return;
     }
     startTransition(async () => {
-      const result = await deletePlaylist(playlist.id);
-      setError(result.error);
+      setResult(await deletePlaylist(playlist.id));
     });
   }
 
@@ -47,7 +49,14 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
     <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
       <span>{playlist.city && cityLabel(playlist.city)}</span>
       <span className="flex items-baseline gap-2">
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && !pending && (
+          <span
+            key={error.key}
+            className="animate-fade-in-out text-xs text-red-600"
+          >
+            {error.message}
+          </span>
+        )}
         <button
           type="button"
           onClick={remove}
@@ -62,13 +71,13 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
 }
 
 function PinCitySearch({ atCap }: { atCap: boolean }) {
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ActionState>({ error: null });
+  const error = useTransientError(result);
   const [pending, startTransition] = useTransition();
 
   function select(city: City) {
     startTransition(async () => {
-      const result = await createCityPlaylist(city.geonameid);
-      setError(result.error);
+      setResult(await createCityPlaylist(city.geonameid));
     });
   }
 
@@ -83,7 +92,11 @@ function PinCitySearch({ atCap }: { atCap: boolean }) {
         disabled={atCap || pending}
         onSelect={select}
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && !pending && (
+        <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
+          {error.message}
+        </p>
+      )}
     </div>
   );
 }

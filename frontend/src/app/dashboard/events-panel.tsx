@@ -3,10 +3,15 @@
 import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 
+import type { ActionState } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import {
+  useTransientError,
+  type TransientError,
+} from "./use-transient-error";
 
 export type UserEvent = {
   event: {
@@ -74,7 +79,8 @@ export function EventsPanel({
   const [showKnown, setShowKnown] = useState(false);
   const [viewCity, setViewCity] = useState<City | null>(null);
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
-  const [viewError, setViewError] = useState<string | null>(null);
+  const [viewResult, setViewResult] = useState<ActionState>({ error: null });
+  const viewError = useTransientError(viewResult);
   const [searchOpen, setSearchOpen] = useState(false);
   const [loading, startTransition] = useTransition();
 
@@ -88,12 +94,12 @@ export function EventsPanel({
         `/api/me/events?geonameid=${selected.geonameid}`,
       );
       if (!res.ok) {
-        setViewError("Failed to load concerts for that city.");
+        setViewResult({ error: "Failed to load concerts for that city." });
         return;
       }
       setViewEvents(await res.json());
       setViewCity(selected);
-      setViewError(null);
+      setViewResult({ error: null });
       setSearchOpen(false);
     });
   }
@@ -243,7 +249,7 @@ function CityControls({
   viewCity: City | null;
   searchOpen: boolean;
   loading: boolean;
-  error: string | null;
+  error: TransientError;
   onToggleSearch: () => void;
   onBackHome: () => void;
   onSelect: (city: City) => void;
@@ -276,7 +282,14 @@ function CityControls({
           onSelect={onSelect}
         />
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && !loading && (
+        <p
+          key={error.key}
+          className="animate-fade-in-out text-xs text-red-600"
+        >
+          {error.message}
+        </p>
+      )}
     </div>
   );
 }
