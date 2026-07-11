@@ -121,7 +121,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
             rel="noreferrer"
             className="underline hover:text-gray-700 dark:hover:text-gray-300"
           >
-            Open in Spotify
+            Open in Spotify {"\u2197\uFE0E"}
           </a>
         ) : (
           "Not on Spotify yet - sync to generate it."
