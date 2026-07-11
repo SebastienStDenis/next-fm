@@ -221,18 +221,18 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
                   {playlist.tracks.map((track) => (
                     <li
                       key={track.spotify_track_id}
-                      className="flex gap-x-2 text-sm"
+                      className="flex items-center gap-x-2 text-sm"
                     >
                       <span
-                        className="inline-block shrink-0 text-right tabular-nums text-muted-foreground"
+                        className="flex h-5 shrink-0 items-center justify-center rounded bg-muted text-[10px] tabular-nums text-muted-foreground"
                         style={{
-                          width: `calc(${String(playlist.tracks.length).length}ch + 0.3rem)`,
+                          minWidth: `calc(${String(playlist.tracks.length).length}ch + 0.5rem)`,
                         }}
                       >
-                        {track.position + 1}.
+                        {track.position + 1}
                       </span>
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-baseline gap-x-2">
+                        <div className="flex flex-wrap items-baseline gap-x-1">
                           <span className="min-w-0">
                             {track.title ?? "Unknown title"}
                           </span>
