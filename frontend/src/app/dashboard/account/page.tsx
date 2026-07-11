@@ -74,6 +74,11 @@ export default async function AccountPage() {
     loadSyncStatus(),
   ]);
 
+  const missingSyncActions = [
+    lastfm === null && "link Last.fm account",
+    city === null && "set home city",
+  ].filter((item): item is string => item !== false);
+
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
   );
@@ -92,8 +97,8 @@ export default async function AccountPage() {
       <div className="mt-6 space-y-6">
         <Section
           heading="Daily Sync"
-          alert={lastfm === null || city === null}
-          alertText="Disabled, link Last.fm account and set home city"
+          alert={missingSyncActions.length > 0}
+          alertText={`Disabled, ${missingSyncActions.join(" and ")}`}
           description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
           <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />

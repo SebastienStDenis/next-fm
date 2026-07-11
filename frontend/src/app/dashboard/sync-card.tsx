@@ -269,28 +269,22 @@ export function SyncCard({
                   />
                 </CollapsibleTrigger>
               )}
-              {finalOutcome === "none" &&
-                !statusLoading &&
-                (canSync ? (
-                  <button
-                    type="button"
-                    onClick={onSync}
-                    disabled={starting}
-                    className="flex cursor-pointer items-center gap-2 text-left text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <span
-                      className="size-1.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary"
-                      aria-hidden
-                    />
-                    <span className="underline underline-offset-4">
-                      Get started by running a manual sync.
-                    </span>
-                  </button>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
+              {finalOutcome === "none" && !statusLoading && canSync && (
+                <button
+                  type="button"
+                  onClick={onSync}
+                  disabled={starting}
+                  className="flex cursor-pointer items-center gap-2 text-left text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <span
+                    className="size-1.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary"
+                    aria-hidden
+                  />
+                  <span className="underline underline-offset-4">
                     Get started by running a manual sync.
-                  </p>
-                ))}
+                  </span>
+                </button>
+              )}
             </div>
           )}
         </div>
