@@ -13,7 +13,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* min-w-80: below 320px the page scrolls horizontally instead of
+          squeezing layouts past their breaking point. */}
+      <body className="min-h-full min-w-80 flex flex-col">{children}</body>
     </html>
   );
 }
