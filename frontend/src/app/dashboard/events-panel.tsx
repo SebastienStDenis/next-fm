@@ -174,11 +174,11 @@ export function EventsPanel({
               </EmptyState>
             )
           ) : (
-            <ul className="mt-3 space-y-3">
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleEvents.map(({ event, url, distance_km, artists }) => (
                 <li
                   key={event.id}
-                  className="rounded border border-gray-300 p-3 dark:border-gray-700"
+                  className="flex flex-col rounded border border-gray-300 p-3 dark:border-gray-700"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-medium">
@@ -193,7 +193,7 @@ export function EventsPanel({
                     {event.venue_name} · {placeLabel(event)} · {distance_km} km
                     away
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                     {artists.map((artist) => (
                       <span
                         key={artist.id}
