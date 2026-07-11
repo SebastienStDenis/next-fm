@@ -108,7 +108,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
         title="Remove"
         className="text-destructive hover:text-destructive"
       >
-        {pending ? <Spinner /> : <X aria-hidden />}
+        {pending ? <Spinner className="text-muted-foreground" /> : <X aria-hidden />}
       </Button>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>

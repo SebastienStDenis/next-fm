@@ -199,7 +199,7 @@ function AccountCard({
             title="Unlink"
             className="text-destructive hover:text-destructive"
           >
-            {unlinkPending ? <Spinner /> : <X aria-hidden />}
+            {unlinkPending ? <Spinner className="text-muted-foreground" /> : <X aria-hidden />}
           </Button>
         </form>
       </div>

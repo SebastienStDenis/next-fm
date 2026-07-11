@@ -90,6 +90,15 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Radix overlays (dialogs, selects) lock scroll via react-remove-scroll,
+   which compensates for the vanishing scrollbar with a body margin. The
+   gutter never vanishes here (scrollbar-gutter: stable above), so the
+   compensation double-counts and shifts the page left while an overlay is
+   open. The doubled attribute outweighs the injected single-attribute rule. */
+body[data-scroll-locked][data-scroll-locked] {
+  margin-right: 0 !important;
+}
+
 body {
   /* A long unbroken word (artist, city, username) wraps instead of
      overflowing its container. Flex/grid items still need min-w-0 to shrink

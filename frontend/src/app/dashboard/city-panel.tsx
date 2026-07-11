@@ -117,7 +117,7 @@ function CityCard({
             title="Clear"
             className="text-destructive hover:text-destructive"
           >
-            {pending ? <Spinner /> : <X aria-hidden />}
+            {pending ? <Spinner className="text-muted-foreground" /> : <X aria-hidden />}
           </Button>
         </div>
       )}
