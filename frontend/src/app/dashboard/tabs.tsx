@@ -52,7 +52,7 @@ export function Tabs({
 
   return (
     <TabsRoot value={active} onValueChange={selectTab}>
-      <TabsList className="w-full sm:w-fit">
+      <TabsList className="w-full gap-1 sm:w-fit">
         {tabs.map((tab) => (
           <TabsTrigger key={tab.key} value={tab.key}>
             {tab.label}

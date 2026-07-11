@@ -47,7 +47,7 @@ function Section({
           <h2>{heading}</h2>
           {alert && alertText && (
             <Badge variant="secondary" className="font-normal">
-              <AttentionDot />
+              <AttentionDot className="mr-0" />
               {alertText}
             </Badge>
           )}
