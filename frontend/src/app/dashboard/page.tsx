@@ -79,7 +79,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl p-8">
-      <span className="text-sm text-muted-foreground">Next.fm</span>
+      <span className="text-sm text-muted-foreground">NextFM</span>
       <div className="mt-2 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Button asChild variant="outline" size="sm" className="shrink-0">

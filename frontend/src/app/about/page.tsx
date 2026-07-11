@@ -7,7 +7,7 @@ export default function AboutPage() {
       <h1 className="mt-2 mb-6 text-2xl font-semibold tracking-tight">About</h1>
       <div className="space-y-6">
         <section>
-          <h2 className="text-sm font-medium">What Next.fm does</h2>
+          <h2 className="text-sm font-medium">What NextFM does</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             It finds live music you would love but do not know yet. Your
             Last.fm listening history tells us what you like, concert listings

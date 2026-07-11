@@ -7,6 +7,12 @@ vocabulary. When adding or editing copy, follow these rules; when the product
 changes, update this doc in the same change. Introduced by
 `docs/design/2026-07-09-standardize-missing-data-messages.md`.
 
+## Product name
+
+The product is written **NextFM** everywhere: UI, documentation, emails,
+API titles. Never "Next.fm". Third-party brands keep their own styling
+(Last.fm, Spotify, Bandsintown).
+
 ## Terms
 
 | Use | Not |
