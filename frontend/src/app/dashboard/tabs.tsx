@@ -52,7 +52,7 @@ export function Tabs({
 
   return (
     <TabsRoot value={active} onValueChange={selectTab}>
-      <TabsList className="w-full gap-1 sm:w-fit">
+      <TabsList className="w-full gap-1 overflow-x-auto [scrollbar-width:none] sm:w-fit [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => (
           <TabsTrigger key={tab.key} value={tab.key}>
             {tab.label}
