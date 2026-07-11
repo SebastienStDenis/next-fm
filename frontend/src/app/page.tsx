@@ -23,7 +23,7 @@ export default async function Home() {
         <p className="max-w-md text-center text-lg text-muted-foreground">
           Live-music discovery through listening.
         </p>
-        <IntroText className="max-w-lg text-center text-xs text-muted-foreground italic" />
+        <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
       </div>
       <div className="flex gap-3">
         <Button asChild size="lg">
