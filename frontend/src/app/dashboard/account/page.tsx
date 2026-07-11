@@ -55,7 +55,11 @@ function Section({
             </Badge>
           )}
         </CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+        {description && (
+          <CardDescription className="text-xs italic">
+            {description}
+          </CardDescription>
+        )}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>

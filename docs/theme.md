@@ -39,6 +39,13 @@ shaped the values, and should shape future adjustments:
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
 
+## Typography
+
+- **Explanatory asides are small italics.** Text that annotates a heading or
+  section (the intro paragraph, dashboard tab descriptions, account section
+  descriptions, listener counts) renders `text-xs text-muted-foreground
+  italic`, so it reads as a quiet aside rather than body copy.
+
 ## Interactive affordances
 
 - **Internal navigation is a button, never an underlined link.** In-app page
