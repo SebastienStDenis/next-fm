@@ -134,27 +134,32 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   }
 
   return (
-    <li className="group flex flex-wrap items-center gap-2 text-sm">
-      <span
-        className={`min-w-0 ${
-          excluded ? "text-gray-400 line-through dark:text-gray-600" : ""
-        }`}
-      >
-        {artist.name}
-      </span>
-      {interests
-        .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
-        .map((interest) => (
-          <span
-            key={`${interest.kind}-${interest.source}`}
-            className={`rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700 ${
-              excluded ? "opacity-60" : ""
-            }`}
-          >
-            {interestLabel(interest)}
-          </span>
-        ))}
-      <span className="ml-auto flex items-center gap-2">
+    // The outer row never wraps: a long artist name breaks onto extra lines
+    // (and chips wrap) inside the inner container while the hide control
+    // stays right, centered on them.
+    <li className="group flex items-center gap-2 text-sm">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <span
+          className={`min-w-0 ${
+            excluded ? "text-gray-400 line-through dark:text-gray-600" : ""
+          }`}
+        >
+          {artist.name}
+        </span>
+        {interests
+          .filter((interest) => KNOWN_ARTIST_KINDS.has(interest.kind))
+          .map((interest) => (
+            <span
+              key={`${interest.kind}-${interest.source}`}
+              className={`rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700 ${
+                excluded ? "opacity-60" : ""
+              }`}
+            >
+              {interestLabel(interest)}
+            </span>
+          ))}
+      </div>
+      <span className="flex items-center gap-2">
         {error && !pending && (
           <span
             key={error.key}
@@ -171,7 +176,7 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
           aria-label={
             excluded ? `Unhide ${artist.name}` : `Hide ${artist.name}`
           }
-          className={`rounded p-1 text-gray-400 transition-opacity hover:text-foreground focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-40 ${
+          className={`rounded p-1 text-gray-400 transition-opacity hover:bg-gray-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-gray-800 ${
             // Hidden-until-hover only where hovering exists; touch devices
             // (no group-hover: Tailwind gates it behind hover: hover) always
             // show the button.

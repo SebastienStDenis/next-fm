@@ -48,7 +48,9 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
   }
 
   return (
-    <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
+    // The row never wraps: a long city name breaks onto extra lines inside
+    // its own span while the remove control stays right, centered on them.
+    <li className="flex items-center justify-between gap-x-2 text-sm">
       <span className="min-w-0">
         {playlist.city && cityLabel(playlist.city)}
       </span>
@@ -71,7 +73,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
             onClick={remove}
             aria-label={`Remove ${playlist.city?.name ?? "pinned city"}`}
             title="Remove"
-            className="flex self-center text-red-600 hover:text-red-700"
+            className="-m-1 flex self-center rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <XMark />
           </button>

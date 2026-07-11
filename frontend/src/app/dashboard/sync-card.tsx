@@ -268,11 +268,16 @@ export function SyncCard({
                   >
                     <StepMark status={finalOutcome} />
                   </span>
-                  <span>
+                  {/* The mark rides beside the text, hugging it on one line
+                      and centered on the right of both lines when it wraps -
+                      never wrapping onto the second line itself. */}
+                  <span className="min-w-0">
                     {finalOutcome === "failed"
                       ? "Last sync failed"
                       : "Last synced"}
                     {finishedAt && ` ${finishedAt}`}.
+                  </span>
+                  <span className="flex">
                     <ExpandToggleMark />
                   </span>
                 </button>
