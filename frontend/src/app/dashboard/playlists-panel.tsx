@@ -144,20 +144,24 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {playlist.tracks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No tracks found for concerts in this city.
-            </p>
-          ) : (
-            <Collapsible>
-              <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-180">
-                <span>{playlist.tracks.length} tracks</span>
-                <ChevronDown
-                  className="size-3.5 transition-transform"
-                  aria-hidden
-                />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
+          <Collapsible>
+            <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-180">
+              <span>
+                {playlist.tracks.length}{" "}
+                {playlist.tracks.length === 1 ? "track" : "tracks"}
+              </span>
+              <ChevronDown
+                className="size-3.5 transition-transform"
+                aria-hidden
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {playlist.tracks.length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  No tracks found. We&apos;ll add new ones as your listening
+                  history and upcoming concerts change.
+                </p>
+              ) : (
                 <ol className="mt-2 space-y-1">
                   {playlist.tracks.map((track) => (
                     <li
@@ -212,9 +216,9 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
                     </li>
                   ))}
                 </ol>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
     </li>
