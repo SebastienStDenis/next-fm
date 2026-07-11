@@ -63,7 +63,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
             onClick={onEdit}
             aria-label="Change home city"
             title="Change"
-            className="flex text-gray-500 hover:text-foreground"
+            className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <svg
               viewBox="0 0 16 16"
@@ -88,7 +88,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
                 type="submit"
                 aria-label="Clear home city"
                 title="Clear"
-                className="flex text-red-600 hover:text-red-700"
+                className="-m-1 flex rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 <XMark />
               </button>
@@ -141,14 +141,14 @@ function CitySearch({
           />
         </div>
         {hasCity && (
-          // py-2.5 centers the icon on the input's height while staying
+          // mt-1.5 centers the icon on the input's height while staying
           // self-start, so it doesn't move when an error line appears below.
           <button
             type="button"
             onClick={() => onDone()}
             aria-label="Cancel"
             title="Cancel"
-            className="flex self-start py-2.5 text-gray-500 hover:text-foreground"
+            className="mt-1.5 flex self-start rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <XMark />
           </button>

@@ -147,7 +147,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
               type="submit"
               aria-label="Unlink Last.fm account"
               title="Unlink"
-              className="flex text-red-600 hover:text-red-700"
+              className="-m-1 flex rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <XMark />
             </button>
