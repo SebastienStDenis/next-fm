@@ -7,6 +7,7 @@ import { clearCity, setCity } from "./actions";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
+import { XMark } from "./x-mark";
 
 export type City = {
   geonameid: number;
@@ -55,32 +56,43 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-4">
-        <p className="font-medium">{cityLabel(city)}</p>
-        <div className="flex gap-2">
+        <p className="min-w-0 font-medium">{cityLabel(city)}</p>
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onEdit}
-            className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
+            aria-label="Change home city"
+            title="Change"
+            className="flex text-gray-500 hover:text-foreground"
           >
-            Change
-          </button>
-          <form action={clearAction}>
-            <button
-              type="submit"
-              disabled={pending}
-              className="relative rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+            <svg
+              viewBox="0 0 16 16"
+              className="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
             >
-              {/* Kept in the layout (just hidden) while pending so the button
-                  holds the same width as when it reads "Clear". */}
-              <span className={pending ? "invisible" : undefined}>Clear</span>
-              {/* The button's red text would tint the spinner like an error;
-                  spin in neutral gray instead. */}
-              {pending && (
-                <span className="absolute inset-0 flex items-center justify-center text-gray-500">
-                  <Spinner />
-                </span>
-              )}
-            </button>
+              <path d="m11 3 2 2-7.5 7.5L2.5 13.5l1-3z" />
+            </svg>
+          </button>
+          <form action={clearAction} className="flex">
+            {pending ? (
+              <span className="flex text-gray-500">
+                <Spinner />
+              </span>
+            ) : (
+              <button
+                type="submit"
+                aria-label="Clear home city"
+                title="Clear"
+                className="flex text-red-600 hover:text-red-700"
+              >
+                <XMark />
+              </button>
+            )}
           </form>
         </div>
       </div>
@@ -129,12 +141,16 @@ function CitySearch({
           />
         </div>
         {hasCity && (
+          // py-2.5 centers the icon on the input's height while staying
+          // self-start, so it doesn't move when an error line appears below.
           <button
             type="button"
             onClick={() => onDone()}
-            className="self-start rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
+            aria-label="Cancel"
+            title="Cancel"
+            className="flex self-start py-2.5 text-gray-500 hover:text-foreground"
           >
-            Cancel
+            <XMark />
           </button>
         )}
       </div>

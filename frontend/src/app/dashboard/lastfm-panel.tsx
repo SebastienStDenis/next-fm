@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { linkLastfm, unlinkLastfm } from "./actions";
 import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
+import { XMark } from "./x-mark";
 
 export type LastfmAccount = {
   id: string;
@@ -101,7 +102,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
             className="col-start-1 row-start-1 h-16 w-16 rounded-full"
           />
         )}
-        <div className="col-span-full row-start-2 min-w-0 break-words sm:col-auto sm:row-start-1">
+        <div className="col-span-full row-start-2 min-w-0 sm:col-auto sm:row-start-1">
           <p className="font-medium">{account.real_name ?? account.username}</p>
           <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
             <dt className="text-gray-500">Username</dt>
@@ -135,24 +136,22 @@ function AccountCard({ account }: { account: LastfmAccount }) {
         </div>
         <form
           action={unlinkAction}
-          className="col-start-2 row-start-1 justify-self-end sm:col-start-3"
+          className="col-start-2 row-start-1 mt-1 flex justify-self-end sm:col-start-3"
         >
-          <button
-            type="submit"
-            disabled={unlinkPending}
-            className="relative rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
-          >
-            <span className={unlinkPending ? "invisible" : undefined}>
-              Unlink
+          {unlinkPending ? (
+            <span className="flex text-gray-500">
+              <Spinner />
             </span>
-            {/* The button's red text would tint the spinner like an error;
-                spin in neutral gray instead. */}
-            {unlinkPending && (
-              <span className="absolute inset-0 flex items-center justify-center text-gray-500">
-                <Spinner />
-              </span>
-            )}
-          </button>
+          ) : (
+            <button
+              type="submit"
+              aria-label="Unlink Last.fm account"
+              title="Unlink"
+              className="flex text-red-600 hover:text-red-700"
+            >
+              <XMark />
+            </button>
+          )}
         </form>
       </div>
       {error && !unlinkPending && (

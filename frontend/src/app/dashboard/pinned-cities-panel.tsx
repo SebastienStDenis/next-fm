@@ -9,6 +9,7 @@ import { CitySearchBox, cityLabel } from "./city-search-box";
 import type { Playlist } from "./playlists-panel";
 import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
+import { XMark } from "./x-mark";
 
 const PINNED_PLAYLIST_CAP = 2;
 
@@ -48,7 +49,9 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
 
   return (
     <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
-      <span>{playlist.city && cityLabel(playlist.city)}</span>
+      <span className="min-w-0">
+        {playlist.city && cityLabel(playlist.city)}
+      </span>
       <span className="flex items-baseline gap-2">
         {error && !pending && (
           <span
@@ -70,17 +73,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
             title="Remove"
             className="flex self-center text-red-600 hover:text-red-700"
           >
-            <svg
-              viewBox="0 0 16 16"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              aria-hidden
-            >
-              <path d="m4.5 4.5 7 7m0-7-7 7" />
-            </svg>
+            <XMark />
           </button>
         )}
       </span>
