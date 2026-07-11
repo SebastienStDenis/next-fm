@@ -1,6 +1,20 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { Command as CommandPrimitive, useCommandState } from "cmdk";
+
+import {
+  Command,
+  CommandEmpty,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 
 import type { City } from "./city-panel";
 
@@ -25,15 +39,17 @@ export function CitySearchBox({
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<City[]>([]);
+  // cmdk's own first-item auto-select runs when the search changes, which is
+  // before the async results land; the active option is controlled instead
+  // and reset to the first result whenever a new list arrives.
+  const [active, setActive] = useState("");
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // City data is static (seeded from GeoNames), so results can be cached for
   // the life of the component; backspacing and retyping never refetch.
   const cache = useRef(new Map<string, City[]>());
-  const listRef = useRef<HTMLUListElement>(null);
-  const listboxId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const q = query.trim();
 
@@ -47,7 +63,7 @@ export function CitySearchBox({
     const cached = cache.current.get(trimmed);
     if (cached) {
       setResults(cached);
-      setActive(0);
+      setActive(cached[0] ? String(cached[0].geonameid) : "");
       setSearching(false);
       return;
     }
@@ -68,7 +84,7 @@ export function CitySearchBox({
           const cities: City[] = await res.json();
           cache.current.set(q, cities);
           setResults(cities);
-          setActive(0);
+          setActive(cities[0] ? String(cities[0].geonameid) : "");
           setError(null);
         } else {
           setResults([]);
@@ -85,12 +101,6 @@ export function CitySearchBox({
     };
   }, [q]);
 
-  useEffect(() => {
-    listRef.current
-      ?.querySelector('[aria-selected="true"]')
-      ?.scrollIntoView({ block: "nearest" });
-  }, [active]);
-
   function select(city: City) {
     setQuery("");
     setResults([]);
@@ -98,101 +108,151 @@ export function CitySearchBox({
     onSelect(city);
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      setOpen(false);
-      return;
-    }
-    if (!open || results.length === 0) {
-      return;
-    }
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActive((i) => (i + 1) % results.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((i) => (i - 1 + results.length) % results.length);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      select(results[active]);
-    }
-  }
-
   const showList = open && results.length > 0;
   const showEmpty =
     open && q.length >= 2 && !searching && !error && results.length === 0;
+  const listOpen = showList || showEmpty;
+
+  // cmdk clears the controlled value when the list unmounts with the active
+  // item in it (closing the popover unregisters every option); reselect the
+  // first result whenever the shown list has no active option.
+  if (showList && !results.some((city) => String(city.geonameid) === active)) {
+    setActive(String(results[0].geonameid));
+  }
 
   return (
-    <div className="relative">
-      <input
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-          resolveLocally(e.target.value);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        disabled={disabled}
-        autoFocus={autoFocus}
-        role="combobox"
-        aria-expanded={showList}
-        aria-controls={listboxId}
-        aria-activedescendant={showList ? `${listboxId}-${active}` : undefined}
-        aria-autocomplete="list"
-        className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-1.5 text-sm placeholder:text-gray-400 focus:border-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:placeholder:text-gray-500 dark:focus:border-gray-500"
-      />
-      {showList && (
-        <ul
-          ref={listRef}
-          id={listboxId}
-          role="listbox"
-          className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-gray-200 bg-background py-1 shadow-lg dark:border-gray-800"
+    <div>
+      <Popover open={listOpen} onOpenChange={setOpen} modal={false}>
+        {/* Filtering is server-side (shouldFilter off); cmdk only drives the
+            listbox: arrow-key selection with wrap, Enter, and the combobox
+            aria wiring on the input. */}
+        <Command
+          shouldFilter={false}
+          loop
+          value={active}
+          onValueChange={setActive}
+          className="overflow-visible bg-transparent p-0"
         >
-          {results.map((city, i) => (
-            <li
-              key={city.geonameid}
-              id={`${listboxId}-${i}`}
-              role="option"
-              aria-selected={i === active}
-            >
-              <button
-                type="button"
-                tabIndex={-1}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => select(city)}
-                disabled={disabled}
-                className={`w-full px-3 py-1.5 text-left text-sm disabled:opacity-50 ${
-                  i === active ? "bg-gray-100 dark:bg-gray-800" : ""
-                }`}
-              >
-                {/* Region on its own line: side by side, a long region would
-                    truncate the name down to a letter in narrow dropdowns. */}
-                <span className="block truncate">{city.name}</span>
-                {cityRegion(city) && (
-                  <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
-                    {cityRegion(city)}
-                  </span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {showEmpty && (
-        <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-background px-3 py-1.5 text-sm text-gray-500 shadow-lg dark:border-gray-800 dark:text-gray-400">
-          No matching cities
-        </div>
-      )}
+          <PopoverAnchor asChild>
+            <CommandPrimitive.Input
+              ref={inputRef}
+              value={query}
+              onValueChange={(value) => {
+                setQuery(value);
+                setOpen(true);
+                resolveLocally(value);
+              }}
+              onFocus={() => setOpen(true)}
+              onBlur={() => setOpen(false)}
+              placeholder={placeholder}
+              disabled={disabled}
+              autoFocus={autoFocus}
+              className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80"
+            />
+          </PopoverAnchor>
+          <PopoverContent
+            align="start"
+            className="w-(--radix-popover-trigger-width) p-1"
+            // The input stays the active element: nothing in the list may
+            // steal focus, whether on open, on option click, or on close.
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()}
+            // Clicking the input itself counts as "outside" the content;
+            // closing then would fight the input's own focus/typing handlers.
+            onInteractOutside={(e) => {
+              if (
+                e.target instanceof Node &&
+                inputRef.current?.contains(e.target)
+              ) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <CommandList>
+              <CommandEmpty>No matching cities</CommandEmpty>
+              {results.map((city) => (
+                <CommandItem
+                  key={city.geonameid}
+                  value={String(city.geonameid)}
+                  disabled={disabled}
+                  onSelect={() => select(city)}
+                  className="[&>svg]:hidden"
+                >
+                  <div className="min-w-0 flex-1">
+                    {/* Region on its own line: side by side, a long region
+                        would truncate the name down to a letter in narrow
+                        dropdowns. */}
+                    <span className="block truncate">{city.name}</span>
+                    {cityRegion(city) && (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {cityRegion(city)}
+                      </span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandList>
+          </PopoverContent>
+          <ActiveDescendantSync
+            inputRef={inputRef}
+            active={active}
+            showList={showList}
+          />
+        </Command>
+      </Popover>
       {/* A live status, not a one-shot action error: it clears itself on the
           next keystroke, so it fades in but never auto-dismisses. */}
       {error && (
-        <p className="mt-2 animate-fade-in text-xs text-red-600">{error}</p>
+        <p className="mt-2 animate-fade-in text-xs text-destructive">{error}</p>
       )}
     </div>
   );
+}
+
+// cmdk only wires the input's aria-activedescendant (and scrolls the active
+// option into view) for selection changes it made itself; changes driven
+// through the controlled value prop bypass that path, and cmdk's own renders
+// can strip a manually set attribute again. Subscribing to its state from
+// inside the Command re-asserts the attribute after every such render.
+function ActiveDescendantSync({
+  inputRef,
+  active,
+  showList,
+}: {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  active: string;
+  showList: boolean;
+}) {
+  const selectedItemId = useCommandState((state) => state.selectedItemId);
+  useEffect(() => {
+    let frame = 0;
+    function sync() {
+      const input = inputRef.current;
+      if (!input) {
+        return;
+      }
+      const item = active
+        ? document.querySelector(
+            `[cmdk-item][data-value="${CSS.escape(active)}"]`,
+          )
+        : null;
+      if (showList && !item) {
+        // The portaled list can mount a frame after the results render.
+        frame = requestAnimationFrame(sync);
+        return;
+      }
+      if (showList && item?.id) {
+        if (input.getAttribute("aria-activedescendant") !== item.id) {
+          input.setAttribute("aria-activedescendant", item.id);
+          item.scrollIntoView({ block: "nearest" });
+        }
+      } else {
+        input.removeAttribute("aria-activedescendant");
+      }
+    }
+    sync();
+    return () => cancelAnimationFrame(frame);
+  }, [inputRef, active, showList, selectedItemId]);
+  return null;
 }

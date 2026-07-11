@@ -1,23 +1,25 @@
+import { Separator } from "@/components/ui/separator";
 import { HomeLink } from "../home-link";
 
 export default function AboutPage() {
   return (
     <main className="mx-auto w-full max-w-xl p-8">
       <HomeLink />
-      <h1 className="mt-2 mb-4 text-2xl font-semibold">About</h1>
-      <div className="space-y-5">
+      <h1 className="mt-2 mb-6 text-2xl font-semibold tracking-tight">About</h1>
+      <div className="space-y-6">
         <section>
           <h2 className="text-sm font-medium">What Next.fm does</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             It finds live music you would love but do not know yet. Your
             Last.fm listening history tells us what you like, concert listings
             tell us who is playing near you, and the overlap becomes a Spotify
             playlist of artists worth discovering while they are in town.
           </p>
         </section>
+        <Separator />
         <section>
           <h2 className="text-sm font-medium">How suggested artists work</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             We look at who sounds similar to the artists you listen to most and
             keep the strongest matches - each one shows its reason, like
             &ldquo;because you listen to Slowdive&rdquo;. Artists you already
@@ -25,9 +27,10 @@ export default function AboutPage() {
             still be suggested.
           </p>
         </section>
+        <Separator />
         <section>
           <h2 className="text-sm font-medium">Your playlist</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             A few top tracks from each suggested artist playing near your city,
             soonest concert first. You can pin extra cities to follow concerts
             where you travel. Tracklists are automatically updated every day

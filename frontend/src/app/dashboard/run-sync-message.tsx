@@ -10,7 +10,7 @@ export function RunSyncMessage({ action }: { action: string }) {
       Run a sync in{" "}
       <Link
         href="/dashboard/account"
-        className="underline hover:text-foreground"
+        className="underline underline-offset-4 hover:text-foreground"
       >
         Account
       </Link>{" "}

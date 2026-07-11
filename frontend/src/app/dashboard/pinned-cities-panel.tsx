@@ -2,20 +2,29 @@
 
 import { useState, useTransition } from "react";
 
-import type { ActionState } from "./actions";
+import { X } from "lucide-react";
+import { toast } from "sonner";
+
 import { createCityPlaylist, deletePlaylist } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import type { Playlist } from "./playlists-panel";
-import { Spinner } from "../spinner";
-import { useTransientError } from "./use-transient-error";
-import { XMark } from "./x-mark";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 const PINNED_PLAYLIST_CAP = 2;
 
 export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
-  const [result, setResult] = useState<ActionState>({ error: null });
-  const error = useTransientError(result);
   const [pending, startTransition] = useTransition();
   // The city just picked, shown as a placeholder row with a spinner until
   // the pin action's revalidated payload delivers the real row.
@@ -30,7 +39,10 @@ export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
   function pin(city: City) {
     setAdding(city);
     startTransition(async () => {
-      setResult(await createCityPlaylist(city.geonameid));
+      const result = await createCityPlaylist(city.geonameid);
+      if (result.error) {
+        toast.error(result.error);
+      }
     });
   }
 
@@ -44,49 +56,36 @@ export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
           {pending && adding && (
             <li className="flex items-center justify-between gap-x-2 text-sm">
               <span className="min-w-0">{cityLabel(adding)}</span>
-              <span className="flex text-gray-500">
+              <span className="flex size-7 items-center justify-center text-muted-foreground">
                 <Spinner />
               </span>
             </li>
           )}
         </ul>
       )}
-      <div className="space-y-2">
-        <CitySearchBox
-          placeholder={
-            atCap
-              ? "Remove an existing pin to add another"
-              : "Add a playlist for another city"
-          }
-          disabled={atCap || pending}
-          onSelect={pin}
-        />
-        {error && !pending && (
-          <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
-            {error.message}
-          </p>
-        )}
-      </div>
+      <CitySearchBox
+        placeholder={
+          atCap
+            ? "Remove an existing pin to add another"
+            : "Add a playlist for another city"
+        }
+        disabled={atCap || pending}
+        onSelect={pin}
+      />
     </div>
   );
 }
 
 function PinnedCityRow({ playlist }: { playlist: Playlist }) {
-  const [result, setResult] = useState<ActionState>({ error: null });
-  const error = useTransientError(result);
+  const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function remove() {
-    if (
-      playlist.spotify_url &&
-      !window.confirm(
-        `Remove the playlist for ${playlist.city?.name}? It will also be removed from Spotify.`,
-      )
-    ) {
-      return;
-    }
     startTransition(async () => {
-      setResult(await deletePlaylist(playlist.id));
+      const result = await deletePlaylist(playlist.id);
+      if (result.error) {
+        toast.error(result.error);
+      }
     });
   }
 
@@ -97,32 +96,38 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
       <span className="min-w-0">
         {playlist.city && cityLabel(playlist.city)}
       </span>
-      <span className="flex items-baseline gap-2">
-        {error && !pending && (
-          <span
-            key={error.key}
-            className="animate-fade-in-out text-xs text-red-600"
-          >
-            {error.message}
-          </span>
-        )}
-        {pending ? (
-          <span className="flex self-center text-gray-500">
-            <Spinner />
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={remove}
-            aria-label={`Remove ${playlist.city?.name ?? "pinned city"}`}
-            title="Remove"
-            className="-m-1 flex self-center rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <XMark className="h-4 w-4" />
-          </button>
-        )}
-      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={() =>
+          playlist.spotify_url ? setConfirming(true) : remove()
+        }
+        disabled={pending}
+        aria-label={`Remove ${playlist.city?.name ?? "pinned city"}`}
+        title="Remove"
+        className="text-destructive hover:text-destructive"
+      >
+        {pending ? <Spinner /> : <X aria-hidden />}
+      </Button>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove the playlist for {playlist.city?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              It will also be removed from Spotify.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={remove}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   );
 }
-

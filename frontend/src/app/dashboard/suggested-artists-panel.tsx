@@ -1,5 +1,14 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import { EmptyState } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
@@ -53,47 +62,49 @@ export function SuggestedArtistsPanel({
           <RunSyncMessage action="suggest artists" />
         )
       ) : (
-        <>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedArtists.map((userArtist) => (
-              <li
-                key={userArtist.artist.id}
-                className="flex flex-col rounded border border-gray-300 p-3 text-sm dark:border-gray-700"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 font-semibold">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedArtists.map((userArtist) => (
+            <li key={userArtist.artist.id} className="min-w-0">
+              <Card size="sm" className="h-full">
+                <CardHeader>
+                  <CardTitle className="min-w-0 break-words">
                     {userArtist.artist.name}
-                  </span>
-                  <span className="shrink-0 rounded-full border border-gray-300 px-2 py-0.5 text-xs whitespace-nowrap text-gray-500 dark:border-gray-700">
-                    score {scoreOf(userArtist).toFixed(2)}
-                  </span>
-                </div>
-                {reasonOf(userArtist) && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {reasonOf(userArtist)}
-                  </p>
-                )}
-                {userArtist.listeners != null && (
-                  <p className="mt-1 text-xs text-gray-500 italic">
-                    {listenersFormat.format(userArtist.listeners)} listeners
-                  </p>
-                )}
-                {(userArtist.tags ?? []).length > 0 && (
-                  <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
-                    {(userArtist.tags ?? []).map((tag) => (
-                      <span
-                        key={tag}
-                        className="max-w-full rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline" className="text-muted-foreground">
+                      score {scoreOf(userArtist).toFixed(2)}
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col gap-1">
+                  {reasonOf(userArtist) && (
+                    <p className="text-xs text-muted-foreground">
+                      {reasonOf(userArtist)}
+                    </p>
+                  )}
+                  {userArtist.listeners != null && (
+                    <p className="text-xs text-muted-foreground italic">
+                      {listenersFormat.format(userArtist.listeners)} listeners
+                    </p>
+                  )}
+                  {(userArtist.tags ?? []).length > 0 && (
+                    <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
+                      {(userArtist.tags ?? []).map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="max-w-full"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -1,4 +1,7 @@
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import { AttentionDot } from "./attention-dot";
@@ -73,17 +76,18 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl p-8">
-      <span className="text-sm text-gray-500">Next.fm</span>
+      <span className="text-sm text-muted-foreground">Next.fm</span>
       <div className="mt-2 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
-        <Link
-          href="/dashboard/account"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:border-foreground hover:text-foreground dark:border-gray-700 dark:text-gray-400"
-        >
-          {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
-          Account
-          <span aria-hidden>&rarr;</span>
-        </Link>
+        <Button asChild variant="outline" size="sm" className="shrink-0">
+          <Link href="/dashboard/account">
+            {(lastfm === null || city === null || neverSynced) && (
+              <AttentionDot />
+            )}
+            Account
+            <ArrowRight aria-hidden />
+          </Link>
+        </Button>
       </div>
       <section className="mt-6">
         <Tabs

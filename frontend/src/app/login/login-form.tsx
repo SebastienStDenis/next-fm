@@ -2,43 +2,44 @@
 
 import { useActionState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { logIn } from "./actions";
-import { Spinner } from "../spinner";
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(logIn, { error: null });
 
   return (
-    <form action={formAction} className="space-y-3">
-      <input
-        name="email"
-        type="email"
-        placeholder="Email"
-        required
-        autoComplete="email"
-        className="w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
-      />
-      <input
-        name="password"
-        type="password"
-        placeholder="Password"
-        required
-        autoComplete="current-password"
-        className="w-full rounded border border-gray-300 bg-transparent px-3 py-2 dark:border-gray-700"
-      />
-      <button
-        type="submit"
-        disabled={pending}
-        className="relative w-full rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
-      >
-        <span className={pending ? "invisible" : undefined}>Log in</span>
-        {pending && (
-          <span className="absolute inset-0 flex items-center justify-center">
-            <Spinner />
-          </span>
-        )}
-      </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+    <form action={formAction} className="grid gap-4">
+      <div className="grid gap-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+      </div>
+      {state.error && (
+        <p className="text-sm text-destructive">{state.error}</p>
+      )}
+      <Button type="submit" disabled={pending} className="w-full">
+        {pending && <Spinner />}
+        Log in
+      </Button>
     </form>
   );
 }

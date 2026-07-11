@@ -1,18 +1,25 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { ExternalLink, Pencil, Undo2, X } from "lucide-react";
+import { toast } from "sonner";
 
-import type { ActionState } from "./actions";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { Toggle } from "@/components/ui/toggle";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { EmptyState } from "./empty-state";
-import { PencilMark } from "./pencil-mark";
 import { RunSyncMessage } from "./run-sync-message";
-import { Spinner } from "../spinner";
-import { UndoMark } from "./undo-mark";
-import { useTransientError } from "./use-transient-error";
-import { XMark } from "./x-mark";
 
 export type UserEvent = {
   event: {
@@ -78,8 +85,6 @@ export function EventsPanel({
   const [showKnown, setShowKnown] = useState(false);
   const [viewCity, setViewCity] = useState<City | null>(null);
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
-  const [viewResult, setViewResult] = useState<ActionState>({ error: null });
-  const viewError = useTransientError(viewResult);
   const [editingCity, setEditingCity] = useState(false);
   const [loading, startTransition] = useTransition();
 
@@ -100,18 +105,17 @@ export function EventsPanel({
         `/api/me/events?geonameid=${selected.geonameid}`,
       );
       if (!res.ok) {
-        setViewResult({ error: "Failed to load concerts for that city." });
+        toast.error("Failed to load concerts for that city.");
         return;
       }
       setViewEvents(await res.json());
       setViewCity(selected);
-      setViewResult({ error: null });
       setEditingCity(false);
     });
   }
 
   // Events come with known artists included regardless of the user's global
-  // setting; the filter pills below only affect this view.
+  // setting; the filter toggles below only affect this view.
   const shownEvents = viewCity ? viewEvents : events;
   const visibleEvents = shownEvents.filter((userEvent) =>
     userEvent.artists.some((artist) => {
@@ -127,7 +131,7 @@ export function EventsPanel({
   const shownCity = viewCity ?? city;
   // The city name in the title is the switcher: click it (or its pencil) to
   // swap in a search input; picking from the dropdown accepts, the X cancels.
-  // While viewing another city, a second X jumps back to the home city.
+  // While viewing another city, an undo arrow jumps back to the home city.
   const cityField = editingCity ? (
     <span className="flex items-center gap-2">
       <span className="w-56 max-w-full font-normal">
@@ -139,54 +143,49 @@ export function EventsPanel({
         />
       </span>
       {loading ? (
-        <span className="flex text-gray-500">
+        <span className="flex text-muted-foreground">
           <Spinner />
         </span>
       ) : (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={() => setEditingCity(false)}
           aria-label="Cancel"
           title="Cancel"
-          className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="text-muted-foreground"
         >
-          <XMark className="h-4 w-4" />
-        </button>
+          <X aria-hidden />
+        </Button>
       )}
     </span>
   ) : (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <button
+    <span className="flex min-w-0 items-center gap-0.5">
+      <Button
         type="button"
+        variant="ghost"
         onClick={() => setEditingCity(true)}
         title="See concerts in another city"
-        className="-m-1 flex min-w-0 items-center gap-1.5 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+        className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
       >
         <span className="min-w-0">{shownCity?.name ?? "another city"}</span>
-        <span className="flex text-gray-500">
-          <PencilMark />
-        </span>
-      </button>
+        <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
+      </Button>
       {viewCity && city && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={() => setViewCity(null)}
           aria-label={`Back to ${city.name}`}
           title={`Back to ${city.name}`}
-          className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="text-muted-foreground"
         >
-          <UndoMark />
-        </button>
+          <Undo2 aria-hidden />
+        </Button>
       )}
     </span>
-  );
-  const cityError = viewError && !loading && (
-    <p
-      key={viewError.key}
-      className="mt-2 animate-fade-in-out text-xs text-red-600"
-    >
-      {viewError.message}
-    </p>
   );
 
   return (
@@ -197,7 +196,6 @@ export function EventsPanel({
             <span>Upcoming concerts in</span>
             {cityField}
           </h3>
-          {cityError}
           <EmptyState className="mt-4">
             Set your home city in{" "}
             <Link
@@ -216,20 +214,23 @@ export function EventsPanel({
             {cityField}
             <span>({visibleEvents.length})</span>
           </h3>
-          {cityError}
           <div className="mt-3 flex flex-wrap gap-2">
-            <FilterPill
-              selected={showSuggested}
-              onToggle={() => setShowSuggested(!showSuggested)}
+            <Toggle
+              variant="outline"
+              size="sm"
+              pressed={showSuggested}
+              onPressedChange={setShowSuggested}
             >
               Suggested artists
-            </FilterPill>
-            <FilterPill
-              selected={showKnown}
-              onToggle={() => setShowKnown(!showKnown)}
+            </Toggle>
+            <Toggle
+              variant="outline"
+              size="sm"
+              pressed={showKnown}
+              onPressedChange={setShowKnown}
             >
               Artists you listen to
-            </FilterPill>
+            </Toggle>
           </div>
           {visibleEvents.length === 0 ? (
             hiddenCount === 0 && (
@@ -242,50 +243,59 @@ export function EventsPanel({
           ) : (
             <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleEvents.map(({ event, url, artists }) => (
-                <li
-                  key={event.id}
-                  className="flex flex-col rounded border border-gray-300 p-3 dark:border-gray-700"
-                >
-                  {/* gap-y-1 matches the mt-1 below, so a wrapped date sits as
-                      close to the title above as to the venue line below. */}
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                    <span className="min-w-0 font-medium">
-                      {event.title ??
-                        artists.map((artist) => artist.name).join(", ")}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {dateFormat.format(new Date(event.starts_at))}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {event.venue_name} · {placeLabel(event)}
-                  </p>
-                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
-                    {artists.map((artist) => (
-                      <span
-                        key={artist.id}
-                        className="max-w-full rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700"
-                      >
-                        {artistChipLabel(artist, artistRelations)}
-                      </span>
-                    ))}
-                    {url && (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
-                      >
-                        Tickets {"\u2197\uFE0E"}
-                      </a>
-                    )}
-                  </div>
+                <li key={event.id} className="flex">
+                  <Card size="sm" className="flex-1">
+                    <CardHeader>
+                      {/* gap-y-1 matches the header gap, so a wrapped date
+                          sits as close to the title above as to the venue
+                          line below. */}
+                      <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                        <span className="min-w-0">
+                          {event.title ??
+                            artists.map((artist) => artist.name).join(", ")}
+                        </span>
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {dateFormat.format(new Date(event.starts_at))}
+                        </span>
+                      </CardTitle>
+                      <CardDescription>
+                        {event.venue_name} · {placeLabel(event)}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="mt-auto flex flex-wrap items-center gap-2">
+                      {artists.map((artist) => {
+                        const known = artistRelations[artist.id] === "known";
+                        return (
+                          <Badge
+                            key={artist.id}
+                            variant={known ? "secondary" : "outline"}
+                            className={`max-w-full font-normal ${known ? "" : "text-muted-foreground"}`}
+                          >
+                            <span className="truncate">
+                              {artistChipLabel(artist, artistRelations)}
+                            </span>
+                          </Badge>
+                        );
+                      })}
+                      {url && (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+                        >
+                          Tickets
+                          <ExternalLink className="size-3.5" aria-hidden />
+                        </a>
+                      )}
+                    </CardContent>
+                  </Card>
                 </li>
               ))}
             </ul>
           )}
           {hiddenCount > 0 && (
-            <p className="mt-3 text-xs text-gray-500 italic">
+            <p className="mt-3 text-xs text-muted-foreground italic">
               {hiddenCount} {hiddenCount === 1 ? "concert is" : "concerts are"}{" "}
               hidden by filters.
             </p>
@@ -293,30 +303,5 @@ export function EventsPanel({
         </>
       )}
     </div>
-  );
-}
-
-function FilterPill({
-  selected,
-  onToggle,
-  children,
-}: {
-  selected: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onToggle}
-      className={`rounded-full border px-3 py-1 text-xs font-medium ${
-        selected
-          ? "border-foreground bg-foreground text-background"
-          : "border-gray-300 text-gray-500 hover:text-foreground dark:border-gray-700"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

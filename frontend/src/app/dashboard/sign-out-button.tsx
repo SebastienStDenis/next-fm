@@ -3,25 +3,24 @@
 import { useTransition } from "react";
 
 import { signOut } from "./actions";
-import { Spinner } from "../spinner";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export function SignOutButton() {
   const [pending, startTransition] = useTransition();
 
   return (
     <form action={() => startTransition(() => signOut())}>
-      <button
+      <Button
         type="submit"
+        variant="ghost"
+        size="sm"
         disabled={pending}
-        className="relative text-sm text-gray-500 hover:underline disabled:opacity-50"
+        className="text-muted-foreground"
       >
-        <span className={pending ? "invisible" : undefined}>Sign out</span>
-        {pending && (
-          <span className="absolute inset-0 flex items-center justify-center">
-            <Spinner />
-          </span>
-        )}
-      </button>
+        {pending && <Spinner />}
+        Sign out
+      </Button>
     </form>
   );
 }

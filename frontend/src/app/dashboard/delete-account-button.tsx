@@ -3,7 +3,19 @@
 import { useActionState } from "react";
 
 import { deleteAccount } from "./actions";
-import { Spinner } from "../spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export function DeleteAccountButton({ userName }: { userName: string }) {
   const [state, formAction, pending] = useActionState(deleteAccount, {
@@ -11,36 +23,42 @@ export function DeleteAccountButton({ userName }: { userName: string }) {
   });
 
   return (
-    <form
-      action={formAction}
-      onSubmit={(event) => {
-        if (
-          !window.confirm(`Delete ${userName}'s account? This cannot be undone.`)
-        ) {
-          event.preventDefault();
-        }
-      }}
-      className="text-right"
-    >
-      <button
-        type="submit"
-        disabled={pending}
-        className="relative rounded border border-red-600 px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950"
-      >
-        {/* Kept in the layout (just hidden) while pending so the button holds
-            the same width as when it reads "Delete account". */}
-        <span className={pending ? "invisible" : undefined}>
-          Delete account
-        </span>
-        {/* The button's red text would tint the spinner like an error; spin
-            in neutral gray instead. */}
-        {pending && (
-          <span className="absolute inset-0 flex items-center justify-center text-gray-500">
-            <Spinner />
-          </span>
-        )}
-      </button>
-      {state.error && <p className="mt-2 text-sm text-red-600">{state.error}</p>}
-    </form>
+    <div className="text-right">
+      {/* The confirm button lives in a portal, outside this element; it
+          submits via form="delete-account". */}
+      <form id="delete-account" action={formAction} />
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive" disabled={pending}>
+            {pending && <Spinner />}
+            Delete account
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {userName}&apos;s account?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes your account, playlists, and data. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              type="submit"
+              form="delete-account"
+            >
+              Delete account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {state.error && (
+        <p className="mt-2 text-sm text-destructive">{state.error}</p>
+      )}
+    </div>
   );
 }

@@ -1,12 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+
+import { Link2, Pencil, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
-import { PencilMark } from "./pencil-mark";
-import { Spinner } from "../spinner";
-import { useTransientError } from "./use-transient-error";
-import { XMark } from "./x-mark";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 
 export type LastfmAccount = {
   id: string;
@@ -63,78 +67,51 @@ function LinkForm({
   const [state, formAction, pending] = useActionState(linkLastfm, {
     error: null,
   });
-  const error = useTransientError(state);
 
   return (
     <form action={formAction} className="space-y-2">
       <div className="flex items-center gap-2">
-        <input
+        <Label htmlFor="lastfm-username" className="sr-only">
+          Last.fm username
+        </Label>
+        <Input
+          id="lastfm-username"
           name="username"
           placeholder="Last.fm username"
           required
           disabled={pending}
           autoFocus={hasAccount}
-          className="min-w-0 flex-1 rounded border border-gray-300 bg-transparent px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
+          className="flex-1"
         />
-        <button
+        <Button
           type="submit"
+          variant="ghost"
+          size="icon-sm"
           disabled={pending}
           aria-label="Link account"
           title="Link"
-          className="relative -m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800"
+          className="text-muted-foreground"
         >
-          {/* Kept in the layout (just hidden) while pending so the button
-              holds its size under the spinner. */}
-          <span className={pending ? "invisible flex" : "flex"}>
-            <LinkMark />
-          </span>
-          {pending && (
-            <span className="absolute inset-0 flex items-center justify-center">
-              <Spinner />
-            </span>
-          )}
-        </button>
+          {pending ? <Spinner /> : <Link2 aria-hidden />}
+        </Button>
         {hasAccount && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={onDone}
             aria-label="Cancel"
             title="Cancel"
-            className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="text-muted-foreground"
           >
-            <XMark className="h-4 w-4" />
-          </button>
+            <X aria-hidden />
+          </Button>
         )}
       </div>
-      {error && !pending && (
-        <p
-          key={error.key}
-          className="animate-fade-in-out text-xs text-red-600"
-        >
-          {error.message}
-        </p>
+      {state.error && !pending && (
+        <p className="text-sm text-destructive">{state.error}</p>
       )}
     </form>
-  );
-}
-
-// Chain link: the "connect this account" action.
-function LinkMark() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m6.5 9.5 3-3" />
-      <path d="M7.75 4.5 9.25 3a2.475 2.475 0 0 1 3.5 3.5L11.25 8" />
-      <path d="M8.25 11.5 6.75 13a2.475 2.475 0 0 1-3.5-3.5L4.75 8" />
-    </svg>
   );
 }
 
@@ -149,90 +126,83 @@ function AccountCard({
     unlinkLastfm,
     { error: null },
   );
-  const error = useTransientError(unlinkState);
+  // State-object identity changes with every attempt, so repeat failures
+  // re-toast.
+  useEffect(() => {
+    if (unlinkState.error) {
+      toast.error(unlinkState.error);
+    }
+  }, [unlinkState]);
 
   return (
-    <div>
-      {/* Below 25rem the account details drop to a full-width row under the
-          avatar; squeezed between the avatar and the icon buttons they'd
-          overflow into overlapping columns. */}
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
-        {account.avatar_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={account.avatar_url}
-            alt=""
-            className="col-start-1 row-start-1 h-16 w-16 rounded-full"
-          />
-        )}
-        <div className="col-span-full row-start-2 min-w-0 min-[25rem]:col-auto min-[25rem]:row-start-1">
-          <p className="font-medium">{account.real_name ?? account.username}</p>
-          <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
-            <dt className="text-gray-500">Username</dt>
-            <dd>
-              {account.profile_url ? (
-                <a
-                  href={account.profile_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  {account.username}
-                </a>
-              ) : (
-                account.username
-              )}
-            </dd>
-            {account.country && (
-              <>
-                <dt className="text-gray-500">Country</dt>
-                <dd>{account.country}</dd>
-              </>
-            )}
-            {account.registered_at && (
-              <>
-                <dt className="text-gray-500">Registered</dt>
-                <dd>{formatDate(account.registered_at)}</dd>
-              </>
-            )}
-          </dl>
-        </div>
-        <div className="col-start-2 row-start-1 mt-1 flex items-center gap-2 justify-self-end min-[25rem]:col-start-3">
-          <button
-            type="button"
-            onClick={onEdit}
-            aria-label="Change Last.fm account"
-            title="Change"
-            className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <PencilMark />
-          </button>
-          <form action={unlinkAction} className="flex">
-            {unlinkPending ? (
-              <span className="flex text-gray-500">
-                <Spinner />
-              </span>
-            ) : (
-              <button
-                type="submit"
-                aria-label="Unlink Last.fm account"
-                title="Unlink"
-                className="-m-1 flex rounded p-1 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+    // Below 25rem the account details drop to a full-width row under the
+    // avatar; squeezed between the avatar and the icon buttons they'd
+    // overflow into overlapping columns.
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
+      <Avatar className="col-start-1 row-start-1 size-16">
+        {account.avatar_url && <AvatarImage src={account.avatar_url} alt="" />}
+        <AvatarFallback className="text-xl">
+          {account.username.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div className="col-span-full row-start-2 min-w-0 min-[25rem]:col-auto min-[25rem]:row-start-1">
+        <p className="font-medium">{account.real_name ?? account.username}</p>
+        <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+          <dt className="text-muted-foreground">Username</dt>
+          <dd>
+            {account.profile_url ? (
+              <a
+                href={account.profile_url}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-muted-foreground"
               >
-                <XMark className="h-4 w-4" />
-              </button>
+                {account.username}
+              </a>
+            ) : (
+              account.username
             )}
-          </form>
-        </div>
+          </dd>
+          {account.country && (
+            <>
+              <dt className="text-muted-foreground">Country</dt>
+              <dd>{account.country}</dd>
+            </>
+          )}
+          {account.registered_at && (
+            <>
+              <dt className="text-muted-foreground">Registered</dt>
+              <dd>{formatDate(account.registered_at)}</dd>
+            </>
+          )}
+        </dl>
       </div>
-      {error && !unlinkPending && (
-        <p
-          key={error.key}
-          className="mt-2 animate-fade-in-out text-xs text-red-600"
+      <div className="col-start-2 row-start-1 flex items-center gap-1 justify-self-end min-[25rem]:col-start-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onEdit}
+          aria-label="Change Last.fm account"
+          title="Change"
+          className="text-muted-foreground"
         >
-          {error.message}
-        </p>
-      )}
+          <Pencil aria-hidden />
+        </Button>
+        <form action={unlinkAction} className="flex">
+          <Button
+            type="submit"
+            variant="ghost"
+            size="icon-sm"
+            disabled={unlinkPending}
+            aria-label="Unlink Last.fm account"
+            title="Unlink"
+            className="text-destructive hover:text-destructive"
+          >
+            {unlinkPending ? <Spinner /> : <X aria-hidden />}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

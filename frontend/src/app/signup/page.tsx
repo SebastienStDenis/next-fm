@@ -1,5 +1,13 @@
 import Link from "next/link";
 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { HomeLink } from "../home-link";
 import { SignupForm } from "./signup-form";
 
@@ -7,14 +15,28 @@ export default function SignupPage() {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-8">
       <HomeLink href="/" />
-      <h1 className="mt-2 mb-6 text-2xl font-semibold">Sign up</h1>
-      <SignupForm />
-      <p className="mt-4 text-sm text-gray-500">
-        Already have an account?{" "}
-        <Link href="/login" className="underline hover:text-foreground">
-          Log in
-        </Link>
-      </p>
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-xl">
+            <h1>Sign up</h1>
+          </CardTitle>
+          <CardDescription>Create your Next.fm account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignupForm />
+        </CardContent>
+        <CardFooter>
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Log in
+            </Link>
+          </p>
+        </CardFooter>
+      </Card>
     </main>
   );
 }

@@ -3,10 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import { Check, ChevronDown, Circle, RefreshCw, X } from "lucide-react";
+import { toast } from "sonner";
+
 import { startSync } from "./actions";
-import { ExpandToggleMark } from "./expand-toggle-mark";
-import { Spinner } from "../spinner";
-import { XMark } from "./x-mark";
+import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Spinner } from "@/components/ui/spinner";
 
 export type SyncStep = {
   key: string;
@@ -35,10 +42,10 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
 });
 
 const stepMarkClasses: Record<SyncStep["status"], string> = {
-  pending: "text-gray-400 dark:text-gray-600",
+  pending: "text-muted-foreground",
   running: "animate-pulse",
   completed: "text-green-600 dark:text-green-500",
-  failed: "text-red-600",
+  failed: "text-destructive",
 };
 
 async function fetchStatus(): Promise<SyncStatus | null> {
@@ -69,7 +76,6 @@ export function SyncCard({
   const [settling, setSettling] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [starting, startTransition] = useTransition();
 
   // Loaded client-side so the page never waits on Temporal to render.
@@ -161,7 +167,6 @@ export function SyncCard({
     // Show the run as started right away; the first poll replaces this with
     // real state, and a failed start reverts it.
     const previous = status;
-    setError(null);
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
@@ -180,7 +185,7 @@ export function SyncCard({
       const result = await startSync();
       if (result.error) {
         setStatus(previous);
-        setError(result.error);
+        toast.error(result.error);
         return;
       }
       setPolling(true);
@@ -188,7 +193,7 @@ export function SyncCard({
   }
 
   return (
-    <div>
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
       {/* The status column reserves the two-line height of a step display
           (min-h-9) and everything centers within the row, so the button holds
           its place across states and stays centered next to the last-run line
@@ -200,25 +205,25 @@ export function SyncCard({
           className="order-last shrink-0"
           title={missingNote ?? undefined}
         >
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={onSync}
             disabled={starting || busy || !canSync}
             aria-label="Sync"
             title={canSync ? "Sync" : undefined}
-            className="relative -m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
+            className="relative text-muted-foreground"
           >
             {/* Kept in the layout (just hidden) while busy so the button
                 holds its size under the spinner. */}
-            <span className={busy ? "invisible flex" : "flex"}>
-              <SyncMark />
-            </span>
+            <RefreshCw aria-hidden className={busy ? "invisible" : undefined} />
             {busy && (
               <span className="absolute inset-0 flex items-center justify-center">
                 <Spinner />
               </span>
             )}
-          </button>
+          </Button>
         </span>
         <div className="flex min-h-9 min-w-0 flex-1 items-center">
           {showSteps && status ? (
@@ -233,20 +238,17 @@ export function SyncCard({
           ) : (
             <div className="min-w-0 flex-1">
               {status && finalOutcome !== "none" && (
-                <button
-                  type="button"
-                  onClick={() => setExpanded((open) => !open)}
-                  aria-expanded={expanded}
+                <CollapsibleTrigger
                   className={`group flex animate-slide-in-up cursor-pointer items-center gap-1.5 text-left text-sm ${
                     finalOutcome === "failed"
                       ? "text-foreground"
-                      : "text-gray-500"
+                      : "text-muted-foreground"
                   }`}
                 >
                   <span
                     className={
                       finalOutcome === "failed"
-                        ? "text-red-600"
+                        ? "text-destructive"
                         : "text-green-600 dark:text-green-500"
                     }
                   >
@@ -261,13 +263,14 @@ export function SyncCard({
                       : "Last synced"}
                     {finishedAt && ` ${finishedAt}`}.
                   </span>
-                  <span className="flex">
-                    <ExpandToggleMark />
-                  </span>
-                </button>
+                  <ChevronDown
+                    aria-hidden
+                    className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180"
+                  />
+                </CollapsibleTrigger>
               )}
               {finalOutcome === "none" && !statusLoading && (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Run a sync (requires Last.fm and home city)
                 </p>
               )}
@@ -275,13 +278,12 @@ export function SyncCard({
           )}
         </div>
       </div>
-      {expanded && !showSteps && status && finalOutcome !== "none" && (
-        <div className="mt-2">
+      {!showSteps && status && finalOutcome !== "none" && (
+        <CollapsibleContent className="mt-2">
           <StepList steps={status.steps} />
-        </div>
+        </CollapsibleContent>
       )}
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-    </div>
+    </Collapsible>
   );
 }
 
@@ -431,11 +433,11 @@ function StepLine({
       <div className="min-w-0">
         <span>{snapshot.label}</span>
         {snapshot.status === "failed" && (
-          <span className="ml-2 animate-fade-in text-xs text-red-600">
+          <span className="ml-2 animate-fade-in text-xs text-destructive">
             failed
           </span>
         )}
-        <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
+        <span className="ml-2 text-xs text-muted-foreground">
           step {snapshot.position} of {total}
         </span>
       </div>
@@ -445,10 +447,10 @@ function StepLine({
           height (and vertical centering) consistent. */}
       <p
         key={snapshot.status}
-        className="col-start-2 animate-fade-in truncate text-xs text-gray-500"
+        className="col-start-2 animate-fade-in truncate text-xs text-muted-foreground"
       >
         {snapshot.summary ??
-          (snapshot.status === "running" ? "In progress" : " ")}
+          (snapshot.status === "running" ? "In progress" : " ")}
       </p>
     </div>
   );
@@ -468,17 +470,19 @@ function StepList({ steps }: { steps: SyncStep[] }) {
           <div className="min-w-0">
             <span
               className={
-                step.status === "pending" ? "text-gray-500" : undefined
+                step.status === "pending" ? "text-muted-foreground" : undefined
               }
             >
               {step.label}
             </span>
             {step.status === "failed" && (
-              <span className="ml-2 text-xs text-red-600">failed</span>
+              <span className="ml-2 text-xs text-destructive">failed</span>
             )}
           </div>
           {step.summary && (
-            <p className="col-start-2 text-xs text-gray-500">{step.summary}</p>
+            <p className="col-start-2 text-xs text-muted-foreground">
+              {step.summary}
+            </p>
           )}
         </li>
       ))}
@@ -486,55 +490,17 @@ function StepList({ steps }: { steps: SyncStep[] }) {
   );
 }
 
-// Circular arrow: the run-a-sync action.
-function SyncMark() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M13.75 3v3.5h-3.5" />
-      <path d="M13.4 9.5a5.5 5.5 0 1 1-.9-4.8l1.25 1.55" />
-    </svg>
-  );
-}
-
 function StepMark({ status }: { status: SyncStep["status"] }) {
   if (status === "completed") {
-    return (
-      <svg
-        viewBox="0 0 16 16"
-        className="h-3.5 w-3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-      </svg>
-    );
+    return <Check aria-hidden className="size-3.5" strokeWidth={2.5} />;
   }
   if (status === "failed") {
-    return <XMark />;
+    return <X aria-hidden className="size-3.5" strokeWidth={2.5} />;
   }
   return (
-    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden>
-      <circle
-        cx="8"
-        cy="8"
-        r="4.5"
-        fill={status === "running" ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth={1.5}
-      />
-    </svg>
+    <Circle
+      aria-hidden
+      className={`size-3.5 ${status === "running" ? "fill-current" : ""}`}
+    />
   );
 }

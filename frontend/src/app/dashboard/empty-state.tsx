@@ -1,5 +1,7 @@
 import { type ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 // Standard container for missing-data messages (see docs/wording.md): a
 // dashed placeholder box where the list content will eventually appear.
 export function EmptyState({
@@ -11,7 +13,10 @@ export function EmptyState({
 }) {
   return (
     <p
-      className={`rounded border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500 dark:border-gray-700 ${className ?? ""}`}
+      className={cn(
+        "rounded-lg border border-dashed px-6 py-10 text-center text-sm text-muted-foreground",
+        className,
+      )}
     >
       {children}
     </p>

@@ -14,19 +14,20 @@ export default async function ArtistsPage() {
 
   return (
     <main className="mx-auto w-full max-w-xl p-8">
-      <h1 className="mb-4 text-2xl font-semibold">Artists ({artists.length})</h1>
-      <p className="mb-4 text-sm text-gray-500">
+      <h1 className="mb-1 text-2xl font-semibold tracking-tight">
+        Artists ({artists.length})
+      </h1>
+      <p className="mb-6 text-sm text-muted-foreground">
         Every artist in the registry, across all users and sources.
       </p>
       {artists.length === 0 ? (
-        <p className="text-sm text-gray-500">No artists yet.</p>
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No artists yet.
+        </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y rounded-lg border">
           {artists.map((artist) => (
-            <li
-              key={artist.id}
-              className="rounded border border-gray-300 px-4 py-2 dark:border-gray-700"
-            >
+            <li key={artist.id} className="px-4 py-2.5 text-sm">
               {artist.name}
             </li>
           ))}
