@@ -4,10 +4,7 @@ import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
 import { Spinner } from "./spinner";
-import {
-  SLOW_ERROR_DISMISS_MS,
-  useTransientError,
-} from "./use-transient-error";
+import { useTransientError } from "./use-transient-error";
 
 export type LastfmAccount = {
   id: string;
@@ -44,8 +41,7 @@ function LinkForm() {
   const [state, formAction, pending] = useActionState(linkLastfm, {
     error: null,
   });
-  // The privacy error carries instructions; give it more reading time.
-  const error = useTransientError(state, SLOW_ERROR_DISMISS_MS);
+  const error = useTransientError(state);
 
   return (
     <form action={formAction} className="space-y-2">
@@ -89,7 +85,7 @@ function AccountCard({ account }: { account: LastfmAccount }) {
     unlinkLastfm,
     { error: null },
   );
-  const error = useTransientError(unlinkState, SLOW_ERROR_DISMISS_MS);
+  const error = useTransientError(unlinkState);
 
   return (
     <div>
