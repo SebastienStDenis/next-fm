@@ -7,6 +7,7 @@ import { createCityPlaylist, deletePlaylist } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import type { Playlist } from "./playlists-panel";
+import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
 
 const PINNED_PLAYLIST_CAP = 2;
@@ -57,14 +58,19 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
             {error.message}
           </span>
         )}
-        <button
-          type="button"
-          onClick={remove}
-          disabled={pending}
-          className="text-xs text-red-600 hover:underline disabled:opacity-50"
-        >
-          {pending ? "Removing..." : "Remove"}
-        </button>
+        {pending ? (
+          <span className="flex self-center text-gray-500">
+            <Spinner />
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={remove}
+            className="text-xs text-red-600 hover:underline"
+          >
+            Remove
+          </button>
+        )}
       </span>
     </li>
   );

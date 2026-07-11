@@ -5,6 +5,7 @@ import { useActionState, useState, useTransition } from "react";
 import type { ActionState } from "./actions";
 import { clearCity, setCity } from "./actions";
 import { CitySearchBox, cityLabel } from "./city-search-box";
+import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
 
 export type City = {
@@ -67,9 +68,18 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
             <button
               type="submit"
               disabled={pending}
-              className="rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
+              className="relative rounded border border-gray-300 px-3 py-1 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-900"
             >
-              {pending ? "Clearing..." : "Clear"}
+              {/* Kept in the layout (just hidden) while pending so the button
+                  holds the same width as when it reads "Clear". */}
+              <span className={pending ? "invisible" : undefined}>Clear</span>
+              {/* The button's red text would tint the spinner like an error;
+                  spin in neutral gray instead. */}
+              {pending && (
+                <span className="absolute inset-0 flex items-center justify-center text-gray-500">
+                  <Spinner />
+                </span>
+              )}
             </button>
           </form>
         </div>

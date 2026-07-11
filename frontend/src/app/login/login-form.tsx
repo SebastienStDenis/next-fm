@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { logIn } from "./actions";
+import { Spinner } from "../spinner";
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(logIn, { error: null });
@@ -28,9 +29,14 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
+        className="relative w-full rounded bg-foreground px-4 py-2 font-medium text-background disabled:opacity-50"
       >
-        {pending ? "Logging in..." : "Log in"}
+        <span className={pending ? "invisible" : undefined}>Log in</span>
+        {pending && (
+          <span className="absolute inset-0 flex items-center justify-center">
+            <Spinner />
+          </span>
+        )}
       </button>
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
     </form>
