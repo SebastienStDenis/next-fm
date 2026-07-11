@@ -138,7 +138,9 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
     // (and chips wrap) inside the inner container while the hide control
     // stays right, centered on them.
     <li className="group flex items-center gap-2 text-sm">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      {/* gap-y-1 matches the list's space-y-1, so a wrapped badge sits as
+          close to its own row above as to the next row below. */}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
         <span
           className={`min-w-0 ${
             excluded ? "text-gray-400 line-through dark:text-gray-600" : ""
