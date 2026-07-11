@@ -7,11 +7,11 @@ import type { ActionState } from "./actions";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { EmptyState } from "./empty-state";
+import { PencilMark } from "./pencil-mark";
 import { RunSyncMessage } from "./run-sync-message";
-import {
-  useTransientError,
-  type TransientError,
-} from "./use-transient-error";
+import { Spinner } from "../spinner";
+import { useTransientError } from "./use-transient-error";
+import { XMark } from "./x-mark";
 
 export type UserEvent = {
   event: {
@@ -81,7 +81,7 @@ export function EventsPanel({
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [viewResult, setViewResult] = useState<ActionState>({ error: null });
   const viewError = useTransientError(viewResult);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [editingCity, setEditingCity] = useState(false);
   const [loading, startTransition] = useTransition();
 
   if (!synced) {
@@ -100,7 +100,7 @@ export function EventsPanel({
       setViewEvents(await res.json());
       setViewCity(selected);
       setViewResult({ error: null });
-      setSearchOpen(false);
+      setEditingCity(false);
     });
   }
 
@@ -118,27 +118,80 @@ export function EventsPanel({
   );
   const hiddenCount = shownEvents.length - visibleEvents.length;
 
-  const cityControls = (
-    <CityControls
-      homeCity={city}
-      viewCity={viewCity}
-      searchOpen={searchOpen}
-      loading={loading}
-      error={viewError}
-      onToggleSearch={() => setSearchOpen((open) => !open)}
-      onBackHome={() => {
-        setViewCity(null);
-        setSearchOpen(false);
-      }}
-      onSelect={selectCity}
-    />
+  const shownCity = viewCity ?? city;
+  // The city name in the title is the switcher: click it (or its pencil) to
+  // swap in a search input; picking from the dropdown accepts, the X cancels.
+  // While viewing another city, a second X jumps back to the home city.
+  const cityField = editingCity ? (
+    <span className="flex items-center gap-2">
+      <span className="w-56 max-w-full font-normal">
+        <CitySearchBox
+          placeholder="Search for a city"
+          disabled={loading}
+          autoFocus
+          onSelect={selectCity}
+        />
+      </span>
+      {loading ? (
+        <span className="flex text-gray-500">
+          <Spinner />
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditingCity(false)}
+          aria-label="Cancel"
+          title="Cancel"
+          className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
+          <XMark className="h-4 w-4" />
+        </button>
+      )}
+    </span>
+  ) : (
+    <span className="flex min-w-0 items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setEditingCity(true)}
+        title="See concerts in another city"
+        className="-mx-1.5 -my-1 flex min-w-0 items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+      >
+        <span className="min-w-0">{shownCity?.name ?? "another city"}</span>
+        <span className="flex text-gray-400 dark:text-gray-600">
+          <PencilMark />
+        </span>
+      </button>
+      {viewCity && city && (
+        <button
+          type="button"
+          onClick={() => setViewCity(null)}
+          aria-label={`Back to ${city.name}`}
+          title={`Back to ${city.name}`}
+          className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
+          <XMark className="h-4 w-4" />
+        </button>
+      )}
+    </span>
+  );
+  const cityError = viewError && !loading && (
+    <p
+      key={viewError.key}
+      className="mt-2 animate-fade-in-out text-xs text-red-600"
+    >
+      {viewError.message}
+    </p>
   );
 
   return (
     <div>
       {!city && !viewCity ? (
         <div>
-          {cityControls}
+          <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
+            <span>Upcoming concerts in</span>
+            {cityField}
+          </h3>
+          {cityError}
           <EmptyState className="mt-4">
             Set your home city in{" "}
             <Link
@@ -152,11 +205,12 @@ export function EventsPanel({
         </div>
       ) : (
         <>
-          <h3 className="text-base font-semibold">
-            Upcoming concerts in {(viewCity ?? city)?.name} (
-            {visibleEvents.length})
+          <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
+            <span>Upcoming concerts in</span>
+            {cityField}
+            <span>({visibleEvents.length})</span>
           </h3>
-          {cityControls}
+          {cityError}
           <div className="mt-3 flex flex-wrap gap-2">
             <FilterPill
               selected={showSuggested}
@@ -232,65 +286,6 @@ export function EventsPanel({
             </p>
           )}
         </>
-      )}
-    </div>
-  );
-}
-
-function CityControls({
-  homeCity,
-  viewCity,
-  searchOpen,
-  loading,
-  error,
-  onToggleSearch,
-  onBackHome,
-  onSelect,
-}: {
-  homeCity: City | null;
-  viewCity: City | null;
-  searchOpen: boolean;
-  loading: boolean;
-  error: TransientError;
-  onToggleSearch: () => void;
-  onBackHome: () => void;
-  onSelect: (city: City) => void;
-}) {
-  return (
-    <div className="mt-1 space-y-2">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        {viewCity && (
-          <button
-            type="button"
-            onClick={onBackHome}
-            className="text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
-          >
-            &larr; {homeCity ? `Back to ${homeCity.name}` : "Back"}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onToggleSearch}
-          className="text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          See concerts in another city
-        </button>
-      </div>
-      {searchOpen && (
-        <CitySearchBox
-          placeholder="Search for a city"
-          disabled={loading}
-          autoFocus
-          onSelect={onSelect}
-        />
-      )}
-      {error && !loading && (
-        <p
-          key={error.key}
-          className="animate-fade-in-out text-xs text-red-600"
-        >
-          {error.message}
-        </p>
       )}
     </div>
   );
