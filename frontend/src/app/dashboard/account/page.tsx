@@ -22,7 +22,6 @@ import {
 import {
   fetchJson,
   fetchOptional,
-  hasNeverSynced,
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
@@ -74,7 +73,6 @@ export default async function AccountPage() {
     ),
     loadSyncStatus(),
   ]);
-  const neverSynced = hasNeverSynced(user, sync);
 
   const knownArtists = userArtists.filter((userArtist) =>
     userArtist.interests.some((interest) => KNOWN_ARTIST_KINDS.has(interest.kind)),
@@ -94,8 +92,8 @@ export default async function AccountPage() {
       <div className="mt-6 space-y-6">
         <Section
           heading="Daily Sync"
-          alert={neverSynced}
-          alertText="Get started by running a sync"
+          alert={lastfm === null || city === null}
+          alertText="Disabled, link Last.fm account and set home city"
           description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
           <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />

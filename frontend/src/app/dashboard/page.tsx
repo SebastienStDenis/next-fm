@@ -17,7 +17,6 @@ import { type UserArtist } from "./taste-panel";
 import {
   fetchJson,
   fetchOptional,
-  hasNeverSynced,
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
@@ -34,10 +33,10 @@ export default async function DashboardPage() {
     fetchJson<Playlist[]>("/me/playlists", "playlists"),
     loadSyncStatus(),
   ]);
-  const neverSynced = hasNeverSynced(user, sync);
-  // Also gates the "continually updated" pulse on playlists: an incomplete
-  // account is precisely what stops the nightly sync from maintaining them.
-  const needsAttention = lastfm === null || city === null || neverSynced;
+  // Also gates the "continually updated" pulse on playlists: a missing
+  // Last.fm link or home city is what stops the nightly sync from
+  // maintaining them.
+  const syncDisabled = lastfm === null || city === null;
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
@@ -87,7 +86,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/dashboard/account">
-            {needsAttention && <AttentionDot pulse />}
+            {syncDisabled && <AttentionDot pulse />}
             Account
             <ArrowRight aria-hidden />
           </Link>
@@ -126,7 +125,7 @@ export default async function DashboardPage() {
               key: "playlists",
               label: (
                 <>
-                  {!needsAttention && linkedPlaylists.length > 0 && (
+                  {!syncDisabled && linkedPlaylists.length > 0 && (
                     <span
                       className="size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current"
                       aria-hidden
@@ -141,7 +140,7 @@ export default async function DashboardPage() {
                 <PlaylistsPanel
                   synced={syncStepCompleted(sync, "playlists")}
                   playlists={linkedPlaylists}
-                  maintained={!needsAttention}
+                  maintained={!syncDisabled}
                 />
               ),
             },
