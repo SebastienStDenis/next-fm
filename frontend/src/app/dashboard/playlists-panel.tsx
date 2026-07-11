@@ -205,7 +205,9 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
               history and upcoming concerts change.
             </p>
           ) : (
-            <Collapsible>
+            // pt-3 tops the single trigger line up to the height of the
+            // two-line no-tracks message, so collapsed cards match either way.
+            <Collapsible className="pt-3">
               <CollapsibleTrigger className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-180">
                 <span>{playlist.tracks.length} tracks</span>
                 <ChevronDown
