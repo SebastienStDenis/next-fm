@@ -125,7 +125,7 @@ export default async function DashboardPage() {
               key: "playlists",
               label: `Playlists (${linkedPlaylists.length})`,
               description:
-                "Spotify playlists tracking suggested concerts in your cities. Tracklists are automatically updated every day as your listening history and upcoming concerts change.",
+                "Spotify playlists tracking suggested concerts in your cities, updated daily as your listening history changes.",
               content: (
                 <PlaylistsPanel
                   synced={syncStepCompleted(sync, "playlists")}
