@@ -1,6 +1,6 @@
 # Wording conventions
 
-*Written 2026-07-09 by Claude (Fable 5).*
+*Written 2026-07-11 by Claude (Fable 5).*
 
 User-facing copy (web UI, sync step labels and summaries, emails) uses one
 vocabulary. When adding or editing copy, follow these rules; when the product
@@ -12,6 +12,9 @@ changes, update this doc in the same change. Introduced by
 The product is written **NextFM** everywhere: UI, documentation, emails,
 API titles. Never "Next.fm". Third-party brands keep their own styling
 (Last.fm, Spotify, Bandsintown).
+
+Copy refers to the product in the third person ("NextFM finds...",
+"NextFM will add..."), never in the first person ("we", "we'll").
 
 ## Terms
 
@@ -58,29 +61,33 @@ step ran and found nothing". The step statuses come from `GET /me/sync`
 
 - Concerts tab with no home city set (regardless of sync state): "Set your
   home city in [Account] to see local concerts."
-- An empty tracklist inside a playlist: "No tracks found. We'll add new ones
-  as your listening history and upcoming concerts change."
+- An empty tracklist inside a playlist: "No tracks found. NextFM will add new
+  ones as your listening history and upcoming concerts change."
 
 ## Section and tab names
 
-- Dashboard tabs: **Artists**, **Concerts**, **Playlists**.
-- Account sections: **Sync**, **Last.fm**, **Home City**, **Pinned Cities**,
-  **Options**, **Listening History**.
+- Dashboard tabs: **Artists**, **Concerts**, **Playlists** (each label carries
+  a live count, e.g. "Artists (12)").
+- Account sections: **Daily Sync**, **Last.fm**, **Home City**,
+  **Pinned Cities**, **Options**, **Listening History**.
 
 ## Canonical sentences
 
 Keep these exactly as written:
 
 - Tagline: "Live-music discovery through listening."
-- Intro: "We find upcoming concerts near you by artists that match your
-  listening history, and generate Spotify playlists for you to discover them."
-- Sync section: "Imports listening history, suggests artists, finds concerts
-  and generates playlists. Re-runs automatically every day."
+- Intro: "NextFM finds upcoming concerts near you by artists that match your
+  listening history, and generates Spotify playlists for you to discover
+  them. Playlists update daily."
+- Daily Sync section: "Imports listening history, suggests artists, finds
+  concerts and generates playlists."
+- Artists tab: "Artists you might like based on your listening history."
 - Concerts tab: "Upcoming concerts near you by suggested artists."
 - Playlists tab: "Spotify playlists tracking suggested concerts in your
-  cities. Tracklists are automatically updated every day as your listening
-  history and upcoming concerts change."
-- Listening History footnote: "Hidden artists are skipped when suggesting
-  artists and finding concerts."
+  cities."
+- About page, playlist section: "Tracklists are automatically updated every
+  day as your listening history and upcoming concerts change."
+- Listening History section: "Your listening history is used to suggest
+  artists and find concerts. Hidden artists are skipped."
 - Confirmation email: "... and start discovering live music through
   listening."

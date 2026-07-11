@@ -202,7 +202,11 @@ export function SyncCard({
   }
 
   return (
-    <Collapsible open={expanded} onOpenChange={setExpanded}>
+    // While a run plays back, the step display replaces the trigger row, so
+    // the panel closes for the duration and reopens after. Driving `open`
+    // (instead of unmounting the content) lets both moves animate: Radix
+    // skips the animation when content mounts already open.
+    <Collapsible open={expanded && !showSteps} onOpenChange={setExpanded}>
       {/* The status column reserves the two-line height of a step display
           (min-h-9) and everything centers within the row, so the button holds
           its place across states and stays centered next to the last-run line
@@ -308,7 +312,7 @@ export function SyncCard({
           )}
         </div>
       </div>
-      {!showSteps && status && finalOutcome !== "none" && (
+      {status && finalOutcome !== "none" && (
         <CollapsibleContent>
           <div className="pt-2">
             <StepList steps={status.steps} />
