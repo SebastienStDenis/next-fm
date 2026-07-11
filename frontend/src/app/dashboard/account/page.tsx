@@ -128,7 +128,7 @@ export default async function AccountPage() {
       </Section>
       <Section
         heading="Listening History"
-        description="Your listening history is used to suggest artists and find concerts."
+        description="Your listening history is used to suggest artists and find concerts. Hidden artists are skipped."
         className="mt-8"
       >
         <TastePanel

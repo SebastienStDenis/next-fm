@@ -157,10 +157,7 @@ export function EventsPanel({
       )}
     </span>
   ) : (
-    // The dotted underline is a background gradient rather than
-    // border-dotted, which spaces its first dots unevenly; -mb-0.5 gives the
-    // pb-0.5 underline room back so the text stays level with its siblings.
-    <span className="-mb-0.5 flex min-w-0 items-center gap-1.5 bg-bottom bg-no-repeat pb-0.5 [background-image:repeating-linear-gradient(90deg,var(--color-gray-400)_0_1px,transparent_1px_4px)] [background-size:100%_1px] dark:[background-image:repeating-linear-gradient(90deg,var(--color-gray-600)_0_1px,transparent_1px_4px)]">
+    <span className="flex min-w-0 items-center gap-1.5">
       <button
         type="button"
         onClick={() => setEditingCity(true)}
