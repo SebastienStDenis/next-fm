@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import {
   Tabs as TabsRoot,
@@ -11,10 +11,11 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
-const TAB_STORAGE_KEY = "dashboard-tab";
+import { TAB_COOKIE } from "./tab-cookie";
 
 export function Tabs({
   tabs,
+  defaultTab,
 }: {
   tabs: {
     key: string;
@@ -22,37 +23,22 @@ export function Tabs({
     description?: string;
     content: ReactNode;
   }[];
+  defaultTab?: string;
 }) {
   // The URL is the source of truth so the active tab follows browser and
-  // in-app back/forward navigation, not just the value seeded on first render.
+  // in-app back/forward navigation. Without a ?tab= param, defaultTab (the
+  // last selected tab, read from a cookie by the server component) applies -
+  // being available server-side is what lets the page arrive already on the
+  // right tab instead of flashing the first one and switching after mount.
   const tabParam = useSearchParams().get("tab");
+  const requested = tabParam ?? defaultTab;
   const active =
-    tabParam && tabs.some((tab) => tab.key === tabParam)
-      ? tabParam
+    requested && tabs.some((tab) => tab.key === requested)
+      ? requested
       : tabs[0].key;
 
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // When arriving without a ?tab= param (a plain link to the dashboard, like
-  // the account page's Home link), restore the last active tab into the URL.
-  // Explicit ?tab= links win. Declared before the persist effect below so the
-  // stored value is read before it can be overwritten with the default. This
-  // goes through the router (not history.replaceState like selectTab below)
-  // because the router misses history API calls made while hydration is still
-  // in flight, leaving useSearchParams stale.
   useEffect(() => {
-    if (tabParam !== null) return;
-    const stored = sessionStorage.getItem(TAB_STORAGE_KEY);
-    if (stored !== null && tabs.some((tab) => tab.key === stored)) {
-      const params = new URLSearchParams(window.location.search);
-      params.set("tab", stored);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    }
-  }, [tabParam, tabs, router, pathname]);
-
-  useEffect(() => {
-    sessionStorage.setItem(TAB_STORAGE_KEY, active);
+    document.cookie = `${TAB_COOKIE}=${active}; path=/; max-age=31536000; samesite=lax`;
   }, [active]);
 
   const selectTab = (key: string) => {

@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { EventsPanel, type UserEvent } from "./events-panel";
 import { type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
+import { TAB_COOKIE } from "./tab-cookie";
 import { Tabs } from "./tabs";
 import { type UserArtist } from "./taste-panel";
 import {
@@ -23,6 +25,7 @@ import {
 
 export default async function DashboardPage() {
   const user = await loadMe();
+  const lastTab = (await cookies()).get(TAB_COOKIE)?.value;
 
   const [lastfm, city, userArtists, playlists, sync] = await Promise.all([
     fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
@@ -91,6 +94,7 @@ export default async function DashboardPage() {
       </div>
       <section className="mt-6">
         <Tabs
+          defaultTab={lastTab}
           tabs={[
             {
               key: "suggested",
