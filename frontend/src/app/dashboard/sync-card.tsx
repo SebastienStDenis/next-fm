@@ -216,11 +216,15 @@ export function SyncCard({
             type="button"
             onClick={onSync}
             disabled={starting || busy || !canSync}
-            className="relative inline-flex items-center justify-center rounded bg-foreground px-3 py-1 text-sm font-medium text-background transition-colors hover:bg-[#383838] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#ccc]"
+            aria-label="Sync"
+            title={canSync ? "Sync" : undefined}
+            className="relative -m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-800"
           >
-            {/* Kept in the layout (just hidden) while busy so the button holds
-                the same width as when it reads "Sync". */}
-            <span className={busy ? "invisible" : undefined}>Sync</span>
+            {/* Kept in the layout (just hidden) while busy so the button
+                holds its size under the spinner. */}
+            <span className={busy ? "invisible flex" : "flex"}>
+              <SyncMark />
+            </span>
             {busy && (
               <span className="absolute inset-0 flex items-center justify-center">
                 <Spinner />
@@ -527,6 +531,25 @@ function StepList({ steps }: { steps: SyncStep[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+// Circular arrow: the run-a-sync action.
+function SyncMark() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M13.75 3v3.5h-3.5" />
+      <path d="M13.4 9.5a5.5 5.5 0 1 1-.9-4.8l1.25 1.55" />
+    </svg>
   );
 }
 

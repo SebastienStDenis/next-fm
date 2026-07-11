@@ -5,6 +5,7 @@ import { useActionState, useState, useTransition } from "react";
 import type { ActionState } from "./actions";
 import { clearCity, setCity } from "./actions";
 import { CitySearchBox, cityLabel } from "./city-search-box";
+import { PencilMark } from "./pencil-mark";
 import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
 import { XMark } from "./x-mark";
@@ -57,7 +58,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
     <div>
       <div className="flex items-center justify-between gap-4">
         <p className="min-w-0 font-medium">{cityLabel(city)}</p>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onEdit}
@@ -65,18 +66,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
             title="Change"
             className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
-            <svg
-              viewBox="0 0 16 16"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="m11 3 2 2-7.5 7.5L2.5 13.5l1-3z" />
-            </svg>
+            <PencilMark />
           </button>
           <form action={clearAction} className="flex">
             {pending ? (
