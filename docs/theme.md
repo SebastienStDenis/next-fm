@@ -1,10 +1,9 @@
-# Magnesium/chestnut theme
+# Theme
 
 *Written 2026-07-11 by Claude (Fable 5).*
 
-The site's visual identity, replacing the stock shadcn/ui zinc palette. The
-direction was chosen by comparing four candidate themes side by side on the
-live app; this one won after several rounds of tuning.
+The site's visual identity. When adjusting styling, follow these guidelines;
+when the theme changes, update this doc in the same change.
 
 ## Inspiration
 
