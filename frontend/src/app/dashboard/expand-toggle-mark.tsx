@@ -1,9 +1,10 @@
 // Unfold marker: chevrons point away from each other when collapsed (expand)
 // and toward each other when open (collapse). Toggled by the parent "group":
-// an open <details> or a control with aria-expanded.
+// an open <details> or a control with aria-expanded. inline-flex so it can
+// flow inside text, trailing the last word when the line wraps.
 export function ExpandToggleMark() {
   return (
-    <span className="ml-0.5 text-gray-400 dark:text-gray-600">
+    <span className="ml-0.5 inline-flex align-text-bottom text-gray-400 dark:text-gray-600">
       <svg
         viewBox="0 0 16 16"
         className="h-3.5 w-3.5 group-open:hidden group-aria-expanded:hidden"

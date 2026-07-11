@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { startSync } from "./actions";
 import { ExpandToggleMark } from "./expand-toggle-mark";
 import { Spinner } from "../spinner";
+import { XMark } from "./x-mark";
 
 export type SyncStep = {
   key: string;
@@ -252,18 +253,18 @@ export function SyncCard({
                   type="button"
                   onClick={() => setExpanded((open) => !open)}
                   aria-expanded={expanded}
-                  className={`group flex animate-slide-in-up cursor-pointer items-start gap-1.5 text-left text-sm ${
+                  className={`group flex animate-slide-in-up cursor-pointer items-center gap-1.5 text-left text-sm ${
                     finalOutcome === "failed"
                       ? "text-foreground"
                       : "text-gray-500"
                   }`}
                 >
                   <span
-                    className={`mt-0.5 ${
+                    className={
                       finalOutcome === "failed"
                         ? "text-red-600"
                         : "text-green-600 dark:text-green-500"
-                    }`}
+                    }
                   >
                     <StepMark status={finalOutcome} />
                   </span>
@@ -272,12 +273,6 @@ export function SyncCard({
                       ? "Last sync failed"
                       : "Last synced"}
                     {finishedAt && ` ${finishedAt}`}.
-                  </span>
-                  {/* flex so the mark's inline span blockifies; block svgs
-                      inside an inline box would add an empty line above.
-                      self-center keeps the mark centered even when the text
-                      wraps to two lines. */}
-                  <span className="flex self-center">
                     <ExpandToggleMark />
                   </span>
                 </button>
@@ -466,8 +461,10 @@ function StepLine({
   total: number;
 }) {
   return (
-    <div className="flex gap-2 text-sm">
-      <span className={`mt-0.5 ${stepMarkClasses[snapshot.status]}`}>
+    // Two grid rows so the mark centers on the label line (or lines, when
+    // the label wraps) without the subtitle row pulling it down.
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 text-sm">
+      <span className={stepMarkClasses[snapshot.status]}>
         <StepMark status={snapshot.status} />
       </span>
       <div className="min-w-0">
@@ -480,18 +477,18 @@ function StepLine({
         <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
           step {snapshot.position} of {total}
         </span>
-        {/* One truncated line so the fixed-height status area never
-            overflows; the post-run step list shows the full text. A running
-            step has no summary yet, so a placeholder keeps the two-line
-            height (and vertical centering) consistent. */}
-        <p
-          key={snapshot.status}
-          className="animate-fade-in truncate text-xs text-gray-500"
-        >
-          {snapshot.summary ??
-            (snapshot.status === "running" ? "In progress" : " ")}
-        </p>
       </div>
+      {/* One truncated line so the fixed-height status area never
+          overflows; the post-run step list shows the full text. A running
+          step has no summary yet, so a placeholder keeps the two-line
+          height (and vertical centering) consistent. */}
+      <p
+        key={snapshot.status}
+        className="col-start-2 animate-fade-in truncate text-xs text-gray-500"
+      >
+        {snapshot.summary ??
+          (snapshot.status === "running" ? "In progress" : " ")}
+      </p>
     </div>
   );
 }
@@ -500,11 +497,14 @@ function StepList({ steps }: { steps: SyncStep[] }) {
   return (
     <ul className="space-y-1.5">
       {steps.map((step) => (
-        <li key={step.key} className="flex gap-2 text-sm">
-          <span className={`mt-0.5 ${stepMarkClasses[step.status]}`}>
+        <li
+          key={step.key}
+          className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 text-sm"
+        >
+          <span className={stepMarkClasses[step.status]}>
             <StepMark status={step.status} />
           </span>
-          <div>
+          <div className="min-w-0">
             <span
               className={
                 step.status === "pending" ? "text-gray-500" : undefined
@@ -515,10 +515,10 @@ function StepList({ steps }: { steps: SyncStep[] }) {
             {step.status === "failed" && (
               <span className="ml-2 text-xs text-red-600">failed</span>
             )}
-            {step.summary && (
-              <p className="text-xs text-gray-500">{step.summary}</p>
-            )}
           </div>
+          {step.summary && (
+            <p className="col-start-2 text-xs text-gray-500">{step.summary}</p>
+          )}
         </li>
       ))}
     </ul>
@@ -543,19 +543,7 @@ function StepMark({ status }: { status: SyncStep["status"] }) {
     );
   }
   if (status === "failed") {
-    return (
-      <svg
-        viewBox="0 0 16 16"
-        className="h-3.5 w-3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        aria-hidden
-      >
-        <path d="m4.5 4.5 7 7m0-7-7 7" />
-      </svg>
-    );
+    return <XMark />;
   }
   return (
     <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden>
