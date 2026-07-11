@@ -274,7 +274,7 @@ export function EventsPanel({
                         href={url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
+                        className="ml-auto text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
                       >
                         Tickets {"\u2197\uFE0E"}
                       </a>
