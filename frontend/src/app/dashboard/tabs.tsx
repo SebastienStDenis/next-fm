@@ -64,10 +64,10 @@ export function Tabs({
             role="tab"
             aria-selected={active === tab.key}
             onClick={() => selectTab(tab.key)}
-            className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${
+            className={`-mb-px rounded-t border-b-2 px-1 pb-2 text-sm font-medium ${
               active === tab.key
                 ? "border-foreground"
-                : "border-transparent text-gray-500 hover:text-foreground"
+                : "border-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
             }`}
           >
             {tab.label}

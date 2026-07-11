@@ -11,7 +11,10 @@ export default function SignupPage() {
       <SignupForm />
       <p className="mt-4 text-sm text-gray-500">
         Already have an account?{" "}
-        <Link href="/login" className="underline hover:text-foreground">
+        <Link
+          href="/login"
+          className="-mx-1 rounded px-1 underline hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
           Log in
         </Link>
       </p>

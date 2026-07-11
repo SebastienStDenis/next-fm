@@ -120,7 +120,7 @@ export function PlaylistsPanel({
         No playlists generated. Set your home city in{" "}
         <Link
           href="/dashboard/account"
-          className="underline hover:text-foreground"
+          className="-mx-1 rounded px-1 underline hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           Account
         </Link>

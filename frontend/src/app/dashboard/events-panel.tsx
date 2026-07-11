@@ -204,7 +204,7 @@ export function EventsPanel({
             Set your home city in{" "}
             <Link
               href="/dashboard/account"
-              className="underline hover:text-foreground"
+              className="-mx-1 rounded px-1 underline hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Account
             </Link>{" "}
@@ -316,7 +316,7 @@ function FilterPill({
       className={`rounded-full border px-3 py-1 text-xs font-medium ${
         selected
           ? "border-foreground bg-foreground text-background"
-          : "border-gray-300 text-gray-500 hover:text-foreground dark:border-gray-700"
+          : "border-gray-300 text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
       }`}
     >
       {children}

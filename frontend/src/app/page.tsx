@@ -32,7 +32,7 @@ export default async function Home() {
           Log in
         </Link>
         <Link
-          className="flex h-12 items-center justify-center rounded-full border border-gray-300 px-6 font-medium transition-colors hover:border-foreground dark:border-gray-700"
+          className="flex h-12 items-center justify-center rounded-full border border-gray-300 px-6 font-medium transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
           href="/signup"
         >
           Sign up

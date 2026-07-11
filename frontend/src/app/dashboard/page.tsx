@@ -78,7 +78,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Link
           href="/dashboard/account"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:border-foreground hover:text-foreground dark:border-gray-700 dark:text-gray-400"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
         >
           {(lastfm === null || city === null || neverSynced) && <AttentionDot />}
           Account
