@@ -144,8 +144,10 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
           </CardDescription>
         </CardHeader>
         {/* min-h-8 fits the two-line no-tracks message, so collapsed cards
-            keep the same height whether they show it or the tracks toggle. */}
-        <CardContent className="min-h-8">
+            keep the same height whether they show it or the tracks toggle;
+            justify-end keeps the single toggle line on the message's
+            baseline, with the slack above it. */}
+        <CardContent className="flex min-h-8 flex-col justify-end">
           {playlist.tracks.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No tracks found. We&apos;ll add new ones as your listening
