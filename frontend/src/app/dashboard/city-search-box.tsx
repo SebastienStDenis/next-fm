@@ -166,13 +166,15 @@ export function CitySearchBox({
                 onMouseEnter={() => setActive(i)}
                 onClick={() => select(city)}
                 disabled={disabled}
-                className={`flex w-full items-baseline gap-1.5 px-3 py-1.5 text-left text-sm disabled:opacity-50 ${
+                className={`w-full px-3 py-1.5 text-left text-sm disabled:opacity-50 ${
                   i === active ? "bg-gray-100 dark:bg-gray-800" : ""
                 }`}
               >
-                <span className="truncate">{city.name}</span>
+                {/* Region on its own line: side by side, a long region would
+                    truncate the name down to a letter in narrow dropdowns. */}
+                <span className="block truncate">{city.name}</span>
                 {cityRegion(city) && (
-                  <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                  <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
                     {cityRegion(city)}
                   </span>
                 )}
