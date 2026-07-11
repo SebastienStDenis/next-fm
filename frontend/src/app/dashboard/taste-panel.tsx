@@ -49,7 +49,7 @@ export type UserArtist = {
 
 const numberFormat = new Intl.NumberFormat("en-US");
 
-type SortKey = "rank" | "plays" | "loved" | "name" | "hidden";
+type SortKey = "plays" | "loved" | "name" | "hidden";
 
 function rankOf(userArtist: UserArtist): number {
   const rank = userArtist.interests.find(
@@ -78,8 +78,10 @@ function byName(a: UserArtist, b: UserArtist): number {
 
 const comparators: Record<SortKey, (a: UserArtist, b: UserArtist) => number> = {
   name: byName,
-  rank: (a, b) => rankOf(a) - rankOf(b) || byName(a, b),
-  plays: (a, b) => playsOf(b) - playsOf(a) || byName(a, b),
+  // The top-artist rank is Last.fm's own play-based ordering, so it doubles
+  // as the plays sort; raw playcount breaks ties for artists without a rank.
+  plays: (a, b) =>
+    rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b),
   loved: (a, b) => lovedOf(b) - lovedOf(a) || byName(a, b),
   hidden: (a, b) =>
     Number(b.excluded) - Number(a.excluded) ||
@@ -179,7 +181,7 @@ export function TastePanel({
   userArtists: UserArtist[];
   synced: boolean;
 }) {
-  const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [sortKey, setSortKey] = useState<SortKey>("plays");
   const sortedArtists = [...userArtists].sort(comparators[sortKey]);
 
   return (
@@ -212,7 +214,6 @@ export function TastePanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="rank">Top artist rank</SelectItem>
                   <SelectItem value="plays">Most plays</SelectItem>
                   <SelectItem value="loved">Most loved tracks</SelectItem>
                   <SelectItem value="name">Name</SelectItem>
