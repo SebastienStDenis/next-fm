@@ -52,7 +52,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
         {error && !pending && (
           <span
             key={error.key}
-            className="animate-fade-in-out-slow text-xs text-red-600"
+            className="animate-fade-in-out text-xs text-red-600"
           >
             {error.message}
           </span>
@@ -93,7 +93,7 @@ function PinCitySearch({ atCap }: { atCap: boolean }) {
         onSelect={select}
       />
       {error && !pending && (
-        <p key={error.key} className="animate-fade-in-out-slow text-xs text-red-600">
+        <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
           {error.message}
         </p>
       )}

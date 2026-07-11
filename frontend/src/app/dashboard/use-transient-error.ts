@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { ActionState } from "./actions";
 
-// Must match the animate-fade-in-out-slow duration: the animation ends at
+// Must match the animate-fade-in-out duration: the animation ends at
 // opacity 0 and this timeout unmounts the message.
 const ERROR_DISMISS_MS = 8000;
 

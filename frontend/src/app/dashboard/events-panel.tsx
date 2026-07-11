@@ -285,7 +285,7 @@ function CityControls({
       {error && !loading && (
         <p
           key={error.key}
-          className="animate-fade-in-out-slow text-xs text-red-600"
+          className="animate-fade-in-out text-xs text-red-600"
         >
           {error.message}
         </p>

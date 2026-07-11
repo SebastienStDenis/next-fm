@@ -77,7 +77,7 @@ function CityCard({ city, onEdit }: { city: City; onEdit: () => void }) {
       {error && !pending && (
         <p
           key={error.key}
-          className="mt-2 animate-fade-in-out-slow text-xs text-red-600"
+          className="mt-2 animate-fade-in-out text-xs text-red-600"
         >
           {error.message}
         </p>
@@ -129,7 +129,7 @@ function CitySearch({
         )}
       </div>
       {error && !pending && (
-        <p key={error.key} className="animate-fade-in-out-slow text-xs text-red-600">
+        <p key={error.key} className="animate-fade-in-out text-xs text-red-600">
           {error.message}
         </p>
       )}
