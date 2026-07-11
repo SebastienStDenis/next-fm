@@ -52,9 +52,13 @@ export function Tabs({
 
   return (
     <TabsRoot value={active} onValueChange={selectTab}>
-      <TabsList className="w-full gap-1 overflow-x-auto [scrollbar-width:none] sm:w-fit [&::-webkit-scrollbar]:hidden">
+      {/* flex-wrap only engages when the titles overflow (narrow screens):
+          the list grows a second row and the sliding indicator follows the
+          active tab there (it positions by offsetTop/offsetHeight). The
+          trigger height pins the wrapped rows to the single-row height. */}
+      <TabsList className="w-full gap-1 max-sm:h-auto max-sm:flex-wrap sm:w-fit">
         {tabs.map((tab) => (
-          <TabsTrigger key={tab.key} value={tab.key}>
+          <TabsTrigger key={tab.key} value={tab.key} className="max-sm:h-[25px]">
             {tab.label}
           </TabsTrigger>
         ))}
