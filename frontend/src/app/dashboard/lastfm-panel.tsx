@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { linkLastfm, unlinkLastfm } from "./actions";
-import { Spinner } from "./spinner";
+import { Spinner } from "../spinner";
 import { useTransientError } from "./use-transient-error";
 
 export type LastfmAccount = {
@@ -89,18 +89,21 @@ function AccountCard({ account }: { account: LastfmAccount }) {
 
   return (
     <div>
-      <div className="flex items-start gap-4">
+      {/* Below sm the account details drop to a full-width row under the
+          avatar; squeezed between the avatar and the unlink button they'd
+          overflow into overlapping columns. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
         {account.avatar_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={account.avatar_url}
             alt=""
-            className="h-16 w-16 rounded-full"
+            className="col-start-1 row-start-1 h-16 w-16 rounded-full"
           />
         )}
-        <div>
+        <div className="col-span-full row-start-2 min-w-0 break-words sm:col-auto sm:row-start-1">
           <p className="font-medium">{account.real_name ?? account.username}</p>
-          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
             <dt className="text-gray-500">Username</dt>
             <dd>
               {account.profile_url ? (
@@ -130,7 +133,10 @@ function AccountCard({ account }: { account: LastfmAccount }) {
             )}
           </dl>
         </div>
-        <form action={unlinkAction} className="ml-auto">
+        <form
+          action={unlinkAction}
+          className="col-start-2 row-start-1 justify-self-end sm:col-start-3"
+        >
           <button
             type="submit"
             disabled={unlinkPending}
