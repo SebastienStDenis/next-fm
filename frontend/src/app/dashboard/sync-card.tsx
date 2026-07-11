@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { startSync } from "./actions";
 import { ExpandToggleMark } from "./expand-toggle-mark";
-import { Spinner } from "./spinner";
+import { Spinner } from "../spinner";
 
 export type SyncStep = {
   key: string;
@@ -274,8 +274,10 @@ export function SyncCard({
                     {finishedAt && ` ${finishedAt}`}.
                   </span>
                   {/* flex so the mark's inline span blockifies; block svgs
-                      inside an inline box would add an empty line above. */}
-                  <span className="mt-0.5 flex">
+                      inside an inline box would add an empty line above.
+                      self-center keeps the mark centered even when the text
+                      wraps to two lines. */}
+                  <span className="flex self-center">
                     <ExpandToggleMark />
                   </span>
                 </button>
