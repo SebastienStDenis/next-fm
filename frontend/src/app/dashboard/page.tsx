@@ -126,10 +126,9 @@ export default async function DashboardPage() {
               label: (
                 <>
                   {!syncDisabled && linkedPlaylists.length > 0 && (
-                    <span
-                      className="size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current"
-                      aria-hidden
-                    />
+                    <span className="shrink-0 animate-fade-in" aria-hidden>
+                      <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
+                    </span>
                   )}
                   Playlists ({linkedPlaylists.length})
                 </>

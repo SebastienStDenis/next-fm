@@ -46,7 +46,10 @@ function Section({
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <h2>{heading}</h2>
           {alert && alertText && (
-            <Badge variant="secondary" className="font-normal">
+            <Badge
+              variant="secondary"
+              className="h-auto min-h-5 animate-fade-in font-normal whitespace-normal"
+            >
               <AttentionDot className="mr-0" />
               {alertText}
             </Badge>

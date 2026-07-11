@@ -198,10 +198,9 @@ function PlaylistCard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             {maintained && (
-              <span
-                className="size-1.5 shrink-0 animate-pulse motion-reduce:animate-none rounded-full bg-primary"
-                aria-hidden
-              />
+              <span className="shrink-0 animate-fade-in" aria-hidden>
+                <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
+              </span>
             )}
             {playlist.name}
           </CardTitle>
