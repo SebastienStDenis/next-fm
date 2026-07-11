@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 import type { City } from "./city-panel";
@@ -68,6 +68,11 @@ export function PlaylistsPanel({
   synced: boolean;
   playlists: Playlist[];
 }) {
+  // Cards in a row stretch to the same height while every tracklist is
+  // collapsed; as soon as one opens, rows fall back to natural heights so an
+  // expanded card doesn't stretch its row-mates.
+  const [openCount, setOpenCount] = useState(0);
+
   if (!synced) {
     return <RunSyncMessage action="generate playlists" />;
   }
@@ -94,18 +99,36 @@ export function PlaylistsPanel({
   ];
 
   return (
-    <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <ul
+      className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 ${
+        openCount > 0 ? "items-start" : ""
+      }`}
+    >
       {ordered.map((playlist) => (
-        <PlaylistCard key={playlist.id} playlist={playlist} />
+        <PlaylistCard
+          key={playlist.id}
+          playlist={playlist}
+          onToggle={(open) =>
+            setOpenCount((count) => count + (open ? 1 : -1))
+          }
+        />
       ))}
     </ul>
   );
 }
 
-function PlaylistCard({ playlist }: { playlist: Playlist }) {
+function PlaylistCard({
+  playlist,
+  onToggle,
+}: {
+  playlist: Playlist;
+  onToggle: (open: boolean) => void;
+}) {
   return (
-    <li className="rounded border border-gray-300 p-3 dark:border-gray-700">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <li className="flex flex-col rounded border border-gray-300 p-3 dark:border-gray-700">
+      {/* gap-y-1 matches the mt-1 below, so a wrapped badge sits as close to
+          the title above as to the Spotify line below. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <span className="font-medium">{playlist.name}</span>
         <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700">
           {playlist.city
@@ -131,12 +154,15 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
         )}
       </p>
       {playlist.tracks.length === 0 ? (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-auto pt-2 text-xs text-gray-500">
           No tracks found. We&apos;ll add new ones as your listening history and
           upcoming concerts change.
         </p>
       ) : (
-        <details className="group mt-2">
+        <details
+          className="group mt-auto pt-2"
+          onToggle={(event) => onToggle(event.currentTarget.open)}
+        >
           <summary className="flex cursor-pointer items-center gap-0.75 text-sm list-none [&::-webkit-details-marker]:hidden text-gray-500">
             <span>{playlist.tracks.length} tracks</span>
             <ExpandToggleMark />

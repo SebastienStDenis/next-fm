@@ -186,7 +186,9 @@ export function EventsPanel({
                   key={event.id}
                   className="flex flex-col rounded border border-gray-300 p-3 dark:border-gray-700"
                 >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  {/* gap-y-1 matches the mt-1 below, so a wrapped date sits as
+                      close to the title above as to the venue line below. */}
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                     <span className="font-medium">
                       {event.title ??
                         artists.map((artist) => artist.name).join(", ")}
