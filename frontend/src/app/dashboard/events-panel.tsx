@@ -88,10 +88,6 @@ export function EventsPanel({
   const [editingCity, setEditingCity] = useState(false);
   const [loading, startTransition] = useTransition();
 
-  if (!synced) {
-    return <RunSyncMessage action="find concerts" />;
-  }
-
   function selectCity(selected: City) {
     // Picking the home city is a return home, not a city view - the home
     // events are already loaded and the back control should disappear.
@@ -228,13 +224,16 @@ export function EventsPanel({
             </Toggle>
           </div>
           {visibleEvents.length === 0 ? (
-            hiddenCount === 0 && (
+            hiddenCount === 0 &&
+            (synced ? (
               <EmptyState className="mt-4">
                 {viewCity
                   ? "No concerts found. Try a different city."
                   : `No concerts found near ${city?.name}.`}
               </EmptyState>
-            )
+            ) : (
+              <RunSyncMessage action="find concerts" className="mt-4" />
+            ))
           ) : (
             <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleEvents.map(({ event, url, artists }) => (

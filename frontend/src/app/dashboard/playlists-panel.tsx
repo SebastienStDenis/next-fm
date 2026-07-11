@@ -126,16 +126,14 @@ export function PlaylistsPanel({
 }) {
   const columnCount = useColumnCount();
 
-  if (!synced) {
-    return <RunSyncMessage action="generate playlists" />;
-  }
-
   if (playlists.length === 0) {
-    return (
+    return synced ? (
       <EmptyState>
         No playlists generated. Set your home city in{" "}
         <InlineNav href="/dashboard/account">Account</InlineNav>.
       </EmptyState>
+    ) : (
+      <RunSyncMessage action="generate playlists" />
     );
   }
 

@@ -48,7 +48,10 @@ suggests artists, finds concerts and generates playlists."
 
 Every list fed by a sync distinguishes "no successful sync step yet" from "the
 step ran and found nothing". The step statuses come from `GET /me/sync`
-(`artists`, `suggestions`, `events`, `playlists`).
+(`artists`, `suggestions`, `events`, `playlists`). Existing data always
+renders regardless of sync status (which is best-effort and forgets runs that
+age out of Temporal retention); these messages only decide what an empty list
+says.
 
 | Place | Step not completed | Step completed, list empty |
 | --- | --- | --- |
