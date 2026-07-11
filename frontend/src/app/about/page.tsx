@@ -10,16 +10,17 @@ export default function AboutPage() {
           <h2 className="text-sm font-medium">What NextFM does</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             It finds live music you would love but do not know yet. Your
-            Last.fm listening history tells us what you like, concert listings
-            tell us who is playing near you, and the overlap becomes a Spotify
-            playlist of artists worth discovering while they are in town.
+            Last.fm listening history tells NextFM what you like, concert
+            listings tell it who is playing near you, and the overlap becomes
+            a Spotify playlist of artists worth discovering while they are in
+            town.
           </p>
         </section>
         <section>
           <h2 className="text-sm font-medium">How suggested artists work</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            We look at who sounds similar to the artists you listen to most and
-            keep the strongest matches - each one shows its reason, like
+            NextFM looks at who sounds similar to the artists you listen to
+            most and keeps the strongest matches - each one shows its reason, like
             &ldquo;because you listen to Slowdive&rdquo;. Artists you already
             know are left out; an artist you have only played a few times can
             still be suggested.

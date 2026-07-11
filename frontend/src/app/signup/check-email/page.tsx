@@ -23,8 +23,8 @@ export default function CheckEmailPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            We sent you a confirmation link. Click it to finish setting up your
-            account, then you&apos;ll be signed in.
+            You have been sent a confirmation link. Click it to finish setting
+            up your account, then you&apos;ll be signed in.
           </p>
         </CardContent>
         <CardFooter>
