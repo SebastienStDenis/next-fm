@@ -67,9 +67,6 @@ export function SyncCard({
   const [statusLoading, setStatusLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
-  // Briefly true after the run settles: the final step slides up and out while
-  // the last-synced line slides in.
-  const [leaving, setLeaving] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,14 +128,6 @@ export function SyncCard({
     };
   }, [polling, router]);
 
-  useEffect(() => {
-    if (!leaving) {
-      return;
-    }
-    const timer = setTimeout(() => setLeaving(false), 250);
-    return () => clearTimeout(timer);
-  }, [leaving]);
-
   const running = status?.status === "running";
   // The button shows a spinner while checking for an existing run, while one is
   // in progress, and while the step playback is still catching up after the run
@@ -176,7 +165,6 @@ export function SyncCard({
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
-    setLeaving(false);
     setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
@@ -239,19 +227,11 @@ export function SyncCard({
                 key={runSeq}
                 steps={status.steps}
                 finished={!running}
-                onSettled={() => {
-                  setSettling(false);
-                  setLeaving(true);
-                }}
+                onSettled={() => setSettling(false)}
               />
             </div>
           ) : (
-            <div className="relative min-w-0 flex-1">
-              {leaving && status && (
-                <div className="absolute inset-x-0 top-0 animate-slide-out-up">
-                  <LastStepLine steps={status.steps} />
-                </div>
-              )}
+            <div className="min-w-0 flex-1">
               {status && finalOutcome !== "none" && (
                 <button
                   type="button"
@@ -423,34 +403,6 @@ function CurrentStep({
         <StepLine snapshot={snapshot} total={steps.length} />
       </div>
     </div>
-  );
-}
-
-// The final step the playback showed - the furthest-progressed non-pending
-// step (the last completed step, or the failed one). Rendered on its way out
-// as the last-synced line slides in.
-function LastStepLine({ steps }: { steps: SyncStep[] }) {
-  let last = -1;
-  for (let i = 0; i < steps.length; i += 1) {
-    if (steps[i].status !== "pending") {
-      last = i;
-    }
-  }
-  if (last === -1) {
-    return null;
-  }
-  const step = steps[last];
-  return (
-    <StepLine
-      snapshot={{
-        key: String(last),
-        label: step.label,
-        status: step.status,
-        summary: step.summary,
-        position: last + 1,
-      }}
-      total={steps.length}
-    />
   );
 }
 
