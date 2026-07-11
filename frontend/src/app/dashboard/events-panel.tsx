@@ -149,15 +149,15 @@ export function EventsPanel({
       )}
     </span>
   ) : (
-    <span className="flex min-w-0 items-center gap-2">
+    <span className="flex min-w-0 items-center gap-1.5 border-b border-dotted border-gray-400 pb-0.5 dark:border-gray-600">
       <button
         type="button"
         onClick={() => setEditingCity(true)}
         title="See concerts in another city"
-        className="-mx-1.5 -my-1 flex min-w-0 items-center gap-1.5 rounded px-1.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+        className="flex min-w-0 items-center gap-1.5 hover:text-gray-700 dark:hover:text-gray-300"
       >
         <span className="min-w-0">{shownCity?.name ?? "another city"}</span>
-        <span className="flex text-gray-400 dark:text-gray-600">
+        <span className="flex text-gray-500">
           <PencilMark />
         </span>
       </button>
@@ -167,7 +167,7 @@ export function EventsPanel({
           onClick={() => setViewCity(null)}
           aria-label={`Back to ${city.name}`}
           title={`Back to ${city.name}`}
-          className="-m-1 flex rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="flex text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
         >
           <XMark className="h-4 w-4" />
         </button>
