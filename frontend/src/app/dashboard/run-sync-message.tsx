@@ -16,7 +16,7 @@ export function RunSyncMessage({
     <EmptyState>
       {syncEnabled && (
         <span
-          className="mr-1.5 inline-block size-1.5 -translate-y-px animate-fade-in rounded-full bg-primary align-middle"
+          className="mr-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-primary align-middle"
           aria-hidden
         />
       )}
