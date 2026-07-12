@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
-import type { SyncStatus } from "./sync-card";
+import type { SyncStatus } from "./sync-steps";
 
 export type User = {
   id: string;

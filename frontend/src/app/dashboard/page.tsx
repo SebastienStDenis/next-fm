@@ -1,6 +1,8 @@
 import { Settings as SettingsIcon } from "lucide-react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
+import { WELCOME_SKIPPED_COOKIE } from "../welcome/welcome-cookie";
 import { Button } from "@/components/ui/button";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
@@ -28,7 +30,8 @@ import {
 
 export default async function DashboardPage() {
   const user = await loadMe();
-  const lastTab = (await cookies()).get(TAB_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const lastTab = cookieStore.get(TAB_COOKIE)?.value;
 
   const [lastfm, city, userArtists, playlists, sync, email] =
     await Promise.all([
@@ -43,6 +46,16 @@ export default async function DashboardPage() {
   // Last.fm link or home city is what stops the nightly sync from
   // maintaining them.
   const syncDisabled = lastfm === null || city === null;
+
+  // First-run users get the guided welcome flow instead of an empty
+  // dashboard, unless they dismissed it.
+  if (
+    syncDisabled &&
+    user.last_synced_at === null &&
+    !cookieStore.has(WELCOME_SKIPPED_COOKIE)
+  ) {
+    redirect("/welcome");
+  }
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.

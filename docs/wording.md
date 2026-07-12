@@ -91,12 +91,28 @@ playlist card also shows its own last write beside its track count as plain
 text - "Synced {date}", no check, since it isn't a sync-step marker.
 Listening History relies on the Daily Sync card above it.
 
+## Welcome flow
+
+A first-run user (Last.fm or home city still unset, no completed sync) is
+redirected from the dashboard to `/welcome`: a guided flow that links
+Last.fm, sets the home city, then runs the first sync and shows its steps
+live (see `docs/design/2026-07-12-welcome-flow-plan.md`). "Skip for now"
+returns to the dashboard, where the settings nudges take over. Step headings
+reuse the settings section names and descriptions, except the sync step: in
+the flow it is **First Sync** (the guided one-off; the daily schedule takes
+over afterwards). Two fixed sentences:
+
+- While the run plays: "The first sync can take a few minutes. It keeps
+  running if you leave."
+- On completion: "All set. Playlists update daily."
+
 ## Section and tab names
 
 - Dashboard tabs: **Artists**, **Concerts**, **Playlists** (each label carries
   a live count, e.g. "Artists (12)").
 - Settings sections: **Daily Sync**, **Last.fm**, **Home City**,
   **Pinned Cities**, **Options**, **Listening History**, **Account**.
+- Welcome flow steps: **Last.fm**, **Home City**, **First Sync**.
 
 ## Canonical sentences
 
