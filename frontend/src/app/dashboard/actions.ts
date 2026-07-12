@@ -67,15 +67,6 @@ export async function refreshLastfm(): Promise<ActionState> {
   );
 }
 
-export async function unlinkLastfm(): Promise<ActionState> {
-  return callApi(
-    `/me/lastfm`,
-    { method: "DELETE" },
-    "Failed to unlink Last.fm account.",
-    `/dashboard`,
-  );
-}
-
 export async function setCity(geonameid: number): Promise<ActionState> {
   return callApi(
     `/me/city`,

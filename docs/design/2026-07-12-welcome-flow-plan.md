@@ -19,7 +19,8 @@ skipping. This lets the dashboard and settings drop every "no home city" and
 playlists tabs lose their set-a-city empty states, the sync gate reduces to
 "is Last.fm linked", and the home city becomes a quiet, never-clearable
 field in the settings Account section instead of its own alert-bearing
-section.
+section. The Last.fm link is likewise change-only - no unlink control
+anywhere; only deleting the whole account removes it.
 
 "A sync on record" is read from `GET /me/sync`, with `last_synced_at` as a
 fallback: Temporal retention can expire an old run's history, so a stamped

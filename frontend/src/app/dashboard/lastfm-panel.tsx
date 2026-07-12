@@ -1,11 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 
 import { Link2, Pencil, X } from "lucide-react";
-import { toast } from "sonner";
 
-import { linkLastfm, unlinkLastfm } from "./actions";
+import { linkLastfm } from "./actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +114,9 @@ function LinkForm({
   );
 }
 
+// The linked account can be changed but never removed: a sync needs one,
+// so the only way out is a different account (or deleting the NextFM
+// account entirely).
 function AccountCard({
   account,
   onEdit,
@@ -122,18 +124,6 @@ function AccountCard({
   account: LastfmAccount;
   onEdit: () => void;
 }) {
-  const [unlinkState, unlinkAction, unlinkPending] = useActionState(
-    unlinkLastfm,
-    { error: null },
-  );
-  // State-object identity changes with every attempt, so repeat failures
-  // re-toast.
-  useEffect(() => {
-    if (unlinkState.error) {
-      toast.error(unlinkState.error);
-    }
-  }, [unlinkState]);
-
   return (
     // Below 25rem the account details drop to a full-width row under the
     // avatar; squeezed between the avatar and the icon buttons they'd
@@ -177,7 +167,7 @@ function AccountCard({
           )}
         </dl>
       </div>
-      <div className="col-start-2 row-start-1 flex items-center gap-1 justify-self-end min-[25rem]:col-start-3">
+      <div className="col-start-2 row-start-1 justify-self-end min-[25rem]:col-start-3">
         <Button
           type="button"
           variant="ghost"
@@ -189,19 +179,6 @@ function AccountCard({
         >
           <Pencil aria-hidden />
         </Button>
-        <form action={unlinkAction} className="flex">
-          <Button
-            type="submit"
-            variant="ghost"
-            size="icon-sm"
-            disabled={unlinkPending}
-            aria-label="Unlink Last.fm account"
-            title="Unlink"
-            className="text-destructive hover:text-destructive"
-          >
-            {unlinkPending ? <Spinner className="text-muted-foreground" /> : <X aria-hidden />}
-          </Button>
-        </form>
       </div>
     </div>
   );
