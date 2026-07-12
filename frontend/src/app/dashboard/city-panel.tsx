@@ -6,6 +6,7 @@ import { Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { setCity } from "./actions";
+import { AnimatedHeight } from "./animated-height";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -49,21 +50,22 @@ export function CityPanel({ city }: { city: City | null }) {
   }
 
   const shown = optimisticCity ?? city;
-  if (shown !== null && !editing) {
-    return (
-      <CityCard
-        city={shown}
-        saving={pending && optimisticCity !== null}
-        onEdit={() => setEditing(true)}
-      />
-    );
-  }
   return (
-    <CitySearch
-      hasCity={shown !== null}
-      onSelect={pick}
-      onCancel={() => setEditing(false)}
-    />
+    <AnimatedHeight>
+      {shown !== null && !editing ? (
+        <CityCard
+          city={shown}
+          saving={pending && optimisticCity !== null}
+          onEdit={() => setEditing(true)}
+        />
+      ) : (
+        <CitySearch
+          hasCity={shown !== null}
+          onSelect={pick}
+          onCancel={() => setEditing(false)}
+        />
+      )}
+    </AnimatedHeight>
   );
 }
 

@@ -52,6 +52,9 @@
   --animate-slide-in-up: slide-in-up 250ms ease-out;
   --animate-slide-out-up: slide-out-up 250ms ease-out forwards;
   --animate-grow-in: grow-in 250ms ease-out;
+  /* Delayed by grow-in's duration: content inside a growing wrapper waits
+     for the room to finish opening, then fades in exactly where it lands. */
+  --animate-fade-in-delayed: fade-in 250ms ease-out 250ms backwards;
   --animate-collapsible-down: collapsible-down 250ms ease-out;
   --animate-collapsible-up: collapsible-up 250ms ease-out;
 

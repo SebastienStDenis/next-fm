@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { Link2, Pencil, X } from "lucide-react";
 
 import { linkLastfm } from "./actions";
+import { AnimatedHeight } from "./animated-height";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,15 +46,18 @@ export function LastfmPanel({
     setEditing(false);
   }
 
-  if (account === null || editing) {
-    return (
-      <LinkForm
-        hasAccount={account !== null}
-        onDone={() => setEditing(false)}
-      />
-    );
-  }
-  return <AccountCard account={account} onEdit={() => setEditing(true)} />;
+  return (
+    <AnimatedHeight>
+      {account === null || editing ? (
+        <LinkForm
+          hasAccount={account !== null}
+          onDone={() => setEditing(false)}
+        />
+      ) : (
+        <AccountCard account={account} onEdit={() => setEditing(true)} />
+      )}
+    </AnimatedHeight>
+  );
 }
 
 function LinkForm({
