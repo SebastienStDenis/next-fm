@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
-const PINNED_PLAYLIST_CAP = 2;
+const PINNED_PLAYLIST_CAP = 4;
 
 export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
   const [pending, startTransition] = useTransition();
