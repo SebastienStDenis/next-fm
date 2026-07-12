@@ -22,3 +22,21 @@ export function EmptyState({
     </p>
   );
 }
+
+// One grid slot's worth of empty state: the ghost box sized like the result
+// cards it stands in for, laid out in the same grid the results would use.
+export function EmptyStateCell({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-3", className)}>
+      <EmptyState className="flex items-center justify-center">
+        {children}
+      </EmptyState>
+    </div>
+  );
+}

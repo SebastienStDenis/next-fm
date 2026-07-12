@@ -18,9 +18,8 @@ import { Toggle } from "@/components/ui/toggle";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { InlineNav } from "../inline-nav";
-import { EmptyState } from "./empty-state";
+import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
-import { SyncedNote } from "./synced-note";
 
 export type UserEvent = {
   event: {
@@ -74,13 +73,11 @@ function artistChipLabel(
 export function EventsPanel({
   city,
   synced,
-  syncedAt,
   artistRelations,
   events,
 }: {
   city: City | null;
   synced: boolean;
-  syncedAt: string | null;
   artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
 }) {
@@ -201,11 +198,11 @@ export function EventsPanel({
             <span>Upcoming concerts in</span>
             {cityField}
           </h3>
-          <EmptyState className="mt-4">
+          <EmptyStateCell className="mt-4">
             Set your home city in{" "}
             <InlineNav href="/dashboard/account">Account</InlineNav> to see
             local concerts.
-          </EmptyState>
+          </EmptyStateCell>
         </div>
       ) : (
         <>
@@ -213,11 +210,6 @@ export function EventsPanel({
             <span>Upcoming concerts in</span>
             {cityField}
             <span>({visibleEvents.length})</span>
-            {syncedAt && (
-              <span className="ml-auto">
-                <SyncedNote label="Concerts found" iso={syncedAt} />
-              </span>
-            )}
           </h3>
           <div className="mt-3 flex flex-wrap gap-2">
             <Toggle
@@ -238,11 +230,11 @@ export function EventsPanel({
             </Toggle>
           </div>
           {visibleEvents.length === 0 && hiddenCount === 0 ? (
-            <EmptyState className="mt-4">
+            <EmptyStateCell className="mt-4">
               {viewCity
                 ? "No concerts found. Try a different city."
                 : `No concerts found near ${city?.name}. NextFM will find new concerts as they're announced.`}
-            </EmptyState>
+            </EmptyStateCell>
           ) : (
             <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleEvents.map(({ event, url, artists }) => (

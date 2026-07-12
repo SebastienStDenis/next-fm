@@ -11,6 +11,7 @@ import { EventsPanel, type UserEvent } from "./events-panel";
 import { type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
+import { SyncedNote } from "./synced-note";
 import { TAB_COOKIE } from "./tab-cookie";
 import { Tabs } from "./tabs";
 import { type UserArtist } from "./taste-panel";
@@ -68,6 +69,9 @@ export default async function DashboardPage() {
       ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
       ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
     ]);
+  const suggestionsSyncedAt = syncStepCompletedAt(sync, "suggestions");
+  const eventsSyncedAt = syncStepCompletedAt(sync, "events");
+  const playlistsSyncedAt = syncStepCompletedAt(sync, "playlists");
   // Playlists appear only once they exist on Spotify; pins awaiting their
   // first sync are managed on the account page, not shown here.
   const linkedPlaylists = playlists.filter(
@@ -102,11 +106,13 @@ export default async function DashboardPage() {
               label: `Artists (${suggestedArtists.length})`,
               description:
                 "Artists you might like based on your listening history.",
+              note: suggestionsSyncedAt && (
+                <SyncedNote label="Artists suggested" iso={suggestionsSyncedAt} />
+              ),
               content: (
                 <SuggestedArtistsPanel
                   suggestedArtists={suggestedArtists}
                   synced={syncStepCompleted(sync, "suggestions")}
-                  syncedAt={syncStepCompletedAt(sync, "suggestions")}
                 />
               ),
             },
@@ -114,11 +120,13 @@ export default async function DashboardPage() {
               key: "concerts",
               label: `Concerts (${suggestedEventCount})`,
               description: "Upcoming concerts near you by suggested artists.",
+              note: eventsSyncedAt && (
+                <SyncedNote label="Concerts found" iso={eventsSyncedAt} />
+              ),
               content: (
                 <EventsPanel
                   city={city}
                   synced={syncStepCompleted(sync, "events")}
-                  syncedAt={syncStepCompletedAt(sync, "events")}
                   artistRelations={artistRelations}
                   events={events}
                 />
@@ -138,6 +146,9 @@ export default async function DashboardPage() {
               ),
               description:
                 "Spotify playlists tracking suggested concerts in your cities.",
+              note: playlistsSyncedAt && (
+                <SyncedNote label="Playlists generated" iso={playlistsSyncedAt} />
+              ),
               content: (
                 <PlaylistsPanel
                   synced={syncStepCompleted(sync, "playlists")}

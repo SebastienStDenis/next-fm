@@ -21,6 +21,9 @@ export function Tabs({
     key: string;
     label: ReactNode;
     description?: string;
+    // Right-justified companion to the description (e.g. the freshness
+    // marker for the tab's sync step).
+    note?: ReactNode;
     content: ReactNode;
   }[];
   defaultTab?: string;
@@ -73,13 +76,18 @@ export function Tabs({
           forceMount
           hidden={active !== tab.key}
         >
-          {tab.description && (
-            <p
+          {(tab.description || tab.note) && (
+            <div
               key="description"
-              className="mb-4 text-xs text-muted-foreground italic"
+              className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1"
             >
-              {tab.description}
-            </p>
+              {tab.description && (
+                <p className="text-xs text-muted-foreground italic">
+                  {tab.description}
+                </p>
+              )}
+              {tab.note && <div className="ml-auto">{tab.note}</div>}
+            </div>
           )}
           <div key="content">{tab.content}</div>
         </TabsContent>

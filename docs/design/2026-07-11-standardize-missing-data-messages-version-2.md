@@ -17,15 +17,15 @@ Relevant places are:
 
 Never hide data for being stale. If there is data, show it. Doing otherwise leans toward lying to the user, which is bad. If data is stale, it's because the user's daily sync is disabled, and therefore a red dot is shown at the top of the page, so the user is already aware of the issue. No need to let them know elsewhere as well by degrading the existing experience.
 
-In each section, show a date with the latest successful single relevant step (only consider the single relevant step type for each section; in practice, `GET /me/sync` reports the latest run only, so this means the step completed in the latest run, dated by that run's finish time). If there is no successful single relevant step, then show nothing in place of it. Style it with a green checkmark and a date, keep it minimal. A few exceptions:
-- Dashboard - Playlists tab - list of playlists: don't show a single date, each playlist card already shows last sync date - leave it as is without the green checkmark
+In each section, show a date with the latest successful single relevant step (only consider the single relevant step type for each section; in practice, `GET /me/sync` reports the latest run only, so this means the step completed in the latest run, dated by that run's finish time). If there is no successful single relevant step, then show nothing in place of it. Style it with a green checkmark and a date, keep it minimal, right-aligned on the tab's description line. A few notes:
+- Dashboard - Playlists tab - list of playlists: show the top-level date like the other tabs; each playlist card also keeps its own last sync date, shown with the checkmark on the track-count line
 - Account - Listening History: don't show anything here, user can scroll up to see the latest state in the Daily Sync section.
 
 # Missing Data
 
 As mentioned earlier: if there is data then show it, end of story. Even on the concerts tab, if there are no suggested artists events and only known artists events (which are hidden by the default filter selection), just show a '<n> concerts hidden by filters' ghost box in the concerts grid, sized like the concert cards (it takes the slot after any visible concerts), and that's it. Only proceed if there is truly no data to show.
 
-In all cases, if there is no data to show, then show the ghost card with a relevant message in it. Exceptions:
+In all cases, if there is no data to show, then show the ghost card with a relevant message in it, sized like one result card in the same grid the results would use (not full width). Exceptions:
 - Dashboard - Playlists tab - tracklists within a playlist: show the 0 tracks dropdown with the error message within the dropdown, no card since it's already in a card.
 - Account - Listening History : just show the message, no card since it's already in a card
 

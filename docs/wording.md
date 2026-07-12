@@ -58,6 +58,9 @@ reports the latest run only.
 \<Optional guidance per scenario\>. \<Note that new data will appear as
 things change\>."
 
+Dashboard ghost boxes are one card wide, placed in the same grid the result
+cards would use; Listening History and tracklist messages are plain text.
+
 | Place | Step not completed | Step completed, list empty |
 | --- | --- | --- |
 | Listening History (account) | Run a sync above to import listening history. | No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will import new listening history as it appears. |
@@ -77,11 +80,12 @@ things change\>."
 
 ## Freshness markers
 
-The Artists and Concerts tabs show a green check with the time their step
-last succeeded, e.g. "Artists suggested Jul 10, 9:12 AM" and "Concerts found
-Jul 10, 9:12 AM"; nothing is shown when the latest run has not completed the
-step. The playlists list relies on each card's "synced {date}" label instead,
-and Listening History relies on the Daily Sync card above it.
+The Artists, Concerts, and Playlists tabs show a green check with the time
+their step last succeeded, right-aligned on the tab's description line:
+"Artists suggested {date}", "Concerts found {date}", "Playlists generated
+{date}"; nothing is shown when the latest run has not completed the step. Each playlist card also shows its own
+"Synced {date}" with the check, beside its track count. Listening History
+relies on the Daily Sync card above it.
 
 ## Section and tab names
 

@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/collapsible";
 import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
-import { EmptyState } from "./empty-state";
+import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SyncedNote } from "./synced-note";
 
 export type Playlist = {
   id: string;
@@ -52,15 +53,6 @@ const showDateFormat = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   timeZone: "UTC",
 });
-
-const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-const emptySubscribe = () => () => {};
 
 // Playlist cards stack per column (masonry-ish) so an expanded tracklist
 // only pushes down cards in its own column. The column count mirrors the
@@ -102,17 +94,6 @@ function useColumnCount(): number | null {
   );
 }
 
-function SyncedAtLabel({ iso }: { iso: string }) {
-  // Formats in the viewer's timezone, which the server can't know - render
-  // only after hydration so server and client HTML always match.
-  const hydrated = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
-  return hydrated && ` · synced ${syncedAtFormat.format(new Date(iso))}`;
-}
-
 export function PlaylistsPanel({
   synced,
   playlists,
@@ -130,10 +111,10 @@ export function PlaylistsPanel({
   // the playlists step); the run-a-sync hint is only for a truly empty panel.
   if (playlists.length === 0) {
     return synced ? (
-      <EmptyState>
+      <EmptyStateCell>
         No playlists generated. Set your home city in{" "}
         <InlineNav href="/dashboard/account">Account</InlineNav>.
-      </EmptyState>
+      </EmptyStateCell>
     ) : (
       <RunSyncMessage action="generate playlists" />
     );
@@ -210,23 +191,25 @@ function PlaylistCard({
                 <ExternalLink className="size-3.5" aria-hidden />
               </a>
             )}
-            {playlist.last_synced_at && (
-              <SyncedAtLabel iso={playlist.last_synced_at} />
-            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Collapsible>
-            <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
-              <span>
-                {playlist.tracks.length}{" "}
-                {playlist.tracks.length === 1 ? "track" : "tracks"}
-              </span>
-              <ChevronDown
-                className="size-3.5 transition-transform"
-                aria-hidden
-              />
-            </CollapsibleTrigger>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
+                <span>
+                  {playlist.tracks.length}{" "}
+                  {playlist.tracks.length === 1 ? "track" : "tracks"}
+                </span>
+                <ChevronDown
+                  className="size-3.5 transition-transform"
+                  aria-hidden
+                />
+              </CollapsibleTrigger>
+              {playlist.last_synced_at && (
+                <SyncedNote label="Synced" iso={playlist.last_synced_at} />
+              )}
+            </div>
             <CollapsibleContent>
               {playlist.tracks.length === 0 ? (
                 <p className="mt-2 text-xs text-muted-foreground">

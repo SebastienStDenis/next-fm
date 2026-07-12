@@ -10,9 +10,8 @@ import {
 } from "@/components/ui/card";
 
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
-import { EmptyState } from "./empty-state";
+import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
-import { SyncedNote } from "./synced-note";
 import type { Interest, UserArtist } from "./taste-panel";
 
 function suggestionOf(userArtist: UserArtist): Interest | undefined {
@@ -42,11 +41,9 @@ function reasonOf(userArtist: UserArtist): string | null {
 export function SuggestedArtistsPanel({
   suggestedArtists,
   synced,
-  syncedAt,
 }: {
   suggestedArtists: UserArtist[];
   synced: boolean;
-  syncedAt: string | null;
 }) {
   const sortedArtists = [...suggestedArtists].sort(
     (a, b) =>
@@ -55,18 +52,13 @@ export function SuggestedArtistsPanel({
 
   return (
     <div>
-      {syncedAt && (
-        <div className="mb-3 flex justify-end">
-          <SyncedNote label="Artists suggested" iso={syncedAt} />
-        </div>
-      )}
       {suggestedArtists.length === 0 ? (
         synced ? (
-          <EmptyState>
+          <EmptyStateCell>
             No artists suggested. If you just signed up for Last.fm, wait for
             Last.fm to capture future listening history. NextFM will suggest
             new artists as your listening history changes.
-          </EmptyState>
+          </EmptyStateCell>
         ) : (
           <RunSyncMessage action="suggest artists" />
         )
