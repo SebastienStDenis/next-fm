@@ -750,9 +750,7 @@ async def create_pinned_playlist(
     if any(playlist.city_id == city.geonameid for playlist in pinned):
         raise HTTPException(status_code=409, detail="A playlist for this city already exists")
     if len(pinned) >= PINNED_PLAYLIST_CAP:
-        raise HTTPException(
-            status_code=409, detail=f"At most {PINNED_PLAYLIST_CAP} pinned playlists per user"
-        )
+        raise HTTPException(status_code=409, detail="Pinned city limit reached")
 
     playlist = Playlist(
         user_id=user.id,

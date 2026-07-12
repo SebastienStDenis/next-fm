@@ -18,6 +18,7 @@ from app.models import (
     User,
 )
 from app.musicbrainz import MusicBrainzClient
+from app.playlist_sync import PINNED_PLAYLIST_CAP
 from app.spotify import SpotifyApiError, SpotifyClient, SpotifyPlaylistData
 from tests.helpers import (
     added_objects,
@@ -240,7 +241,7 @@ async def test_create_pinned_playlist_duplicate_city() -> None:
 
 
 async def test_create_pinned_playlist_at_cap() -> None:
-    pinned = [make_playlist(id=uuid.uuid7(), city_id=geonameid) for geonameid in (1000, 2000)]
+    pinned = [make_playlist(id=uuid.uuid7(), city_id=1000 + i) for i in range(PINNED_PLAYLIST_CAP)]
     session = make_session()
     session.get.return_value = make_city()
     session.execute.side_effect = [result_with_scalars(pinned)]
@@ -250,7 +251,7 @@ async def test_create_pinned_playlist_at_cap() -> None:
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "At most 2 pinned playlists per user"
+    assert response.json()["detail"] == "Pinned city limit reached"
     session.add.assert_not_called()
 
 
