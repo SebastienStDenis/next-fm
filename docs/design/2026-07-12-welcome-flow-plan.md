@@ -31,15 +31,18 @@ sync-fed and useless without one.
 ## Flow
 
 `/welcome` (`frontend/src/app/welcome/`) walks the three requirements in
-order, one active step at a time with completed steps collapsing to a
-check-marked summary line:
+order. Each step is a settings-style section card (heading, italic
+description, content): the active step carries the pulsing attention dot,
+completed ones a green check with the settings' own value display (city
+row, Last.fm avatar card), and steps not yet reached are dimmed:
 
 1. **Home City** - the same city search box the settings dialog uses;
    `PUT /me/city`.
-2. **Last.fm** - username input; `PUT /me/lastfm` validates the account and
-   the flow shows the linked username.
-3. **First Sync** - starts automatically once both are set
-   (`POST /me/sync`) and shows the four workflow steps live by polling
+2. **Last.fm** - the settings link form (input, ghost link button);
+   `PUT /me/lastfm` validates the account and the flow shows it.
+3. **First Sync** - a deliberate "Start first sync" button (not automatic:
+   pressing it is what teaches that playlists come from a sync) fires
+   `POST /me/sync`, then the four workflow steps play live by polling
    `GET /me/sync`, ending in a "Go to dashboard" button (or a retry on
    failure).
 

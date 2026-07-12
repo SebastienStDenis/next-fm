@@ -22,7 +22,7 @@ export default async function WelcomePage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center p-8">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center p-8">
       <span className="text-sm text-muted-foreground">NextFM</span>
       <h1 className="mt-2 text-2xl font-semibold">Welcome, {user.name}</h1>
       <IntroText className="mt-1 text-xs text-muted-foreground italic" />

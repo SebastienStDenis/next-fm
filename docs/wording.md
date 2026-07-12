@@ -97,13 +97,13 @@ Listening History relies on the Daily Sync card above it.
 
 The dashboard requires a home city and a sync on record (even a failed
 one); anyone short of that is redirected to `/welcome`, a guided,
-non-skippable flow that sets the home city, links Last.fm, then runs the
-first sync and shows its steps live (see
+non-skippable flow that sets the home city, links Last.fm, then has the
+user start the first sync and watch its steps live (see
 `docs/design/2026-07-12-welcome-flow-plan.md`). Step headings reuse the
 settings vocabulary, except the sync step: in the flow it is **First Sync**
-(the guided one-off; the daily schedule takes over afterwards). Two fixed
-sentences:
+(the guided one-off; the daily schedule takes over afterwards). Fixed copy:
 
+- The start button: "Start first sync".
 - While the run plays: "The first sync can take a few minutes. It keeps
   running if you leave."
 - On completion: "All set. Playlists update daily."
