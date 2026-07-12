@@ -98,8 +98,8 @@ Listening History relies on the Daily Sync card above it.
 The dashboard requires a home city and a sync on record (even a failed
 one); anyone short of that is redirected to `/welcome`, a guided,
 non-skippable page that reuses the settings cards unchanged - **Last.fm**,
-**Home City**, then **First Sync**, the Daily Sync card retitled for the
-one-off (the daily schedule takes over afterwards). A pulsing attention dot
+**Home City**, then **Daily Sync**, named for the cadence even on the first
+run (the manual run just starts what then repeats). A pulsing attention dot
 on the section heading marks the next step and completed steps carry a
 green check, the sync card runs and plays back the first sync, and a
 successful run reveals the completion footer - "All set. Playlists update
@@ -112,7 +112,8 @@ daily." beside a go-to-dashboard button (see
   a live count, e.g. "Artists (12)").
 - Settings sections: **Daily Sync**, **Last.fm**, **Home City**,
   **Pinned Cities**, **Options**, **Listening History**, **Account**.
-- Welcome flow sections: **Last.fm**, **Home City**, **First Sync**.
+- Welcome flow sections: **Last.fm**, **Home City**, **Daily Sync** - the
+  settings names exactly.
 
 ## Canonical sentences
 

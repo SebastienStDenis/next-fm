@@ -61,7 +61,7 @@ export default async function WelcomePage() {
           <CityPanel city={city} />
         </Section>
         <Section
-          heading="First Sync"
+          heading="Daily Sync"
           state={stateFor("sync", synced)}
           description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
