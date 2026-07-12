@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 
 import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
-import { EmptyState } from "./empty-state";
+import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 import type { Interest, UserArtist } from "./taste-panel";
 
@@ -54,10 +54,11 @@ export function SuggestedArtistsPanel({
     <div>
       {suggestedArtists.length === 0 ? (
         synced ? (
-          <EmptyState>
+          <EmptyStateCell>
             No artists suggested. If you just signed up for Last.fm, wait for
-            Last.fm to capture future listening history.
-          </EmptyState>
+            Last.fm to capture future listening history. NextFM will suggest
+            new artists as your listening history changes.
+          </EmptyStateCell>
         ) : (
           <RunSyncMessage action="suggest artists" />
         )

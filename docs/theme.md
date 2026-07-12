@@ -45,6 +45,12 @@ shaped the values, and should shape future adjustments:
   section (the intro paragraph, dashboard tab descriptions, account section
   descriptions, listener counts) renders `text-xs text-muted-foreground
   italic`, so it reads as a quiet aside rather than body copy.
+- **Empty-state messages are small and quiet.** Missing-data messages render
+  `text-xs leading-5 text-muted-foreground`, centered - in the dashed ghost
+  box on the dashboard (one card wide, in the results grid), as plain text in
+  panels that are already cards. The `leading-5` line height matches the
+  `h-5` inline-nav pill, so an inline Account button sits flush in the line
+  instead of pushing it apart.
 
 ## Interactive affordances
 

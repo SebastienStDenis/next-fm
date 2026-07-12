@@ -187,9 +187,9 @@ export function TastePanel({
       {userArtists.length === 0 ? (
         // Already inside the section's bordered panel, so no dashed box here -
         // just the centered empty-state text.
-        <p className="px-6 py-8 text-center text-sm text-muted-foreground">
+        <p className="px-6 py-8 text-center text-xs leading-5 text-muted-foreground">
           {synced
-            ? "No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history."
+            ? "No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will import new listening history as it appears."
             : "Run a sync above to import listening history."}
         </p>
       ) : (

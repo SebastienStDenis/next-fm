@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 
 // Inline reference to another page inside prose. Internal navigation renders
 // as a small button; underlined links are reserved for external targets.
+// The pill is one leading-5 line tall so it sits flush inside the small
+// prose it appears in (intro text, empty-state messages).
 export function InlineNav({
   href,
   className,
@@ -21,7 +23,7 @@ export function InlineNav({
       asChild
       variant="outline"
       size="xs"
-      className={cn("align-middle", className)}
+      className={cn("h-5 px-1.5 align-middle", className)}
     >
       <Link href={href}>
         {children}

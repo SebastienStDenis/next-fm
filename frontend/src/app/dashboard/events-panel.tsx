@@ -18,7 +18,7 @@ import { Toggle } from "@/components/ui/toggle";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { InlineNav } from "../inline-nav";
-import { EmptyState } from "./empty-state";
+import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 
 export type UserEvent = {
@@ -88,7 +88,9 @@ export function EventsPanel({
   const [editingCity, setEditingCity] = useState(false);
   const [loading, startTransition] = useTransition();
 
-  if (!synced) {
+  // Existing data always shows (even if the latest run didn't complete the
+  // events step); the run-a-sync hint is only for a truly empty panel.
+  if (events.length === 0 && !synced) {
     return <RunSyncMessage action="find concerts" />;
   }
 
@@ -196,11 +198,11 @@ export function EventsPanel({
             <span>Upcoming concerts in</span>
             {cityField}
           </h3>
-          <EmptyState className="mt-4">
+          <EmptyStateCell className="mt-4">
             Set your home city in{" "}
             <InlineNav href="/dashboard/account">Account</InlineNav> to see
             local concerts.
-          </EmptyState>
+          </EmptyStateCell>
         </div>
       ) : (
         <>
@@ -227,14 +229,12 @@ export function EventsPanel({
               Artists you listen to
             </Toggle>
           </div>
-          {visibleEvents.length === 0 ? (
-            hiddenCount === 0 && (
-              <EmptyState className="mt-4">
-                {viewCity
-                  ? "No concerts found. Try a different city."
-                  : `No concerts found near ${city?.name}.`}
-              </EmptyState>
-            )
+          {visibleEvents.length === 0 && hiddenCount === 0 ? (
+            <EmptyStateCell className="mt-4">
+              {viewCity
+                ? "No concerts found. Try a different city."
+                : `No concerts found near ${city?.name}. NextFM will find new concerts as they're announced.`}
+            </EmptyStateCell>
           ) : (
             <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleEvents.map(({ event, url, artists }) => (
@@ -288,13 +288,17 @@ export function EventsPanel({
                   </Card>
                 </li>
               ))}
+              {/* Filtered-out concerts keep a slot in the grid: a ghost cell
+                  sized like the cards it stands in for. */}
+              {hiddenCount > 0 && (
+                <li className="flex">
+                  <EmptyState className="flex-1 content-center">
+                    {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
+                    hidden by filters.
+                  </EmptyState>
+                </li>
+              )}
             </ul>
-          )}
-          {hiddenCount > 0 && (
-            <p className="mt-3 text-xs text-muted-foreground italic">
-              {hiddenCount} {hiddenCount === 1 ? "concert is" : "concerts are"}{" "}
-              hidden by filters.
-            </p>
           )}
         </>
       )}
