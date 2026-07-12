@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import {
   Card,
   CardContent,
@@ -9,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { HomeLink } from "../home-link";
+import { InlineNav } from "../inline-nav";
 import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
@@ -27,13 +26,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter>
           <p className="text-sm text-muted-foreground">
-            No account?{" "}
-            <Link
-              href="/signup"
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              Sign up
-            </Link>
+            No account? <InlineNav href="/signup">Sign up</InlineNav>
           </p>
         </CardFooter>
       </Card>

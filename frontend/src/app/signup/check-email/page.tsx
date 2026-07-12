@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import {
   Card,
   CardContent,
@@ -9,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { HomeLink } from "../../home-link";
+import { InlineNav } from "../../inline-nav";
 
 export default function CheckEmailPage() {
   return (
@@ -29,13 +28,7 @@ export default function CheckEmailPage() {
         </CardContent>
         <CardFooter>
           <p className="text-sm text-muted-foreground">
-            Already confirmed?{" "}
-            <Link
-              href="/login"
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              Log in
-            </Link>
+            Already confirmed? <InlineNav href="/login">Log in</InlineNav>
           </p>
         </CardFooter>
       </Card>
