@@ -23,7 +23,7 @@ export function SettingsContent({
 }: {
   user: User;
   email: string | null;
-  lastfm: LastfmAccount | null;
+  lastfm: LastfmAccount;
   city: City;
   knownArtists: UserArtist[];
   pinnedPlaylists: Playlist[];
@@ -33,16 +33,12 @@ export function SettingsContent({
     <div className="space-y-6">
       <Section
         heading="Daily Sync"
-        alert={lastfm === null}
-        alertText="Disabled, link Last.fm account"
         description="Imports listening history, suggests artists, finds concerts and generates playlists."
       >
-        <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
+        <SyncCard lastfmLinked citySet />
       </Section>
       <Section
         heading="Last.fm"
-        alert={lastfm === null}
-        alertText="Link Last.fm account to enable sync"
         description="Listening history is imported from your Last.fm account."
       >
         <LastfmPanel account={lastfm} />

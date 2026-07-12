@@ -124,13 +124,9 @@ function useColumnCount(): number | null {
 export function PlaylistsPanel({
   synced,
   playlists,
-  maintained,
 }: {
   synced: boolean;
   playlists: Playlist[];
-  // Whether the nightly sync is keeping these playlists up to date; drives
-  // the pulsing "live" dot on each card.
-  maintained: boolean;
 }) {
   const columnCount = useColumnCount();
 
@@ -157,11 +153,7 @@ export function PlaylistsPanel({
     return (
       <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((playlist) => (
-          <PlaylistCard
-            key={playlist.id}
-            playlist={playlist}
-            maintained={maintained}
-          />
+          <PlaylistCard key={playlist.id} playlist={playlist} />
         ))}
       </ul>
     );
@@ -175,11 +167,7 @@ export function PlaylistsPanel({
       {columns.map((column, index) => (
         <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
           {column.map((playlist) => (
-            <PlaylistCard
-              key={playlist.id}
-              playlist={playlist}
-              maintained={maintained}
-            />
+            <PlaylistCard key={playlist.id} playlist={playlist} />
           ))}
         </ul>
       ))}
@@ -187,23 +175,15 @@ export function PlaylistsPanel({
   );
 }
 
-function PlaylistCard({
-  playlist,
-  maintained,
-}: {
-  playlist: Playlist;
-  maintained: boolean;
-}) {
+function PlaylistCard({ playlist }: { playlist: Playlist }) {
   return (
     <li className="flex">
       <Card size="sm" className="flex-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {maintained && (
-              <span className="shrink-0 animate-fade-in" aria-hidden>
-                <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
-              </span>
-            )}
+            <span className="shrink-0 animate-fade-in" aria-hidden>
+              <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
+            </span>
             {playlist.name}
           </CardTitle>
           <CardDescription>

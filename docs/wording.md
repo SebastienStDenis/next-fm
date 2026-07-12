@@ -77,9 +77,10 @@ fixed messages:
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
 
-There is no "no home city" state: the dashboard requires a home city and a
-sync on record (see Welcome flow), and the home city can be changed but
-never cleared.
+There is no "no home city" or "unlinked Last.fm" state: the dashboard
+requires a linked Last.fm account, a home city and a sync on record (see
+Welcome flow), and both the account and the city can be changed but never
+cleared.
 
 ## Freshness markers
 
@@ -95,8 +96,9 @@ Listening History relies on the Daily Sync card above it.
 
 ## Welcome flow
 
-The dashboard requires a home city and a sync on record (even a failed
-one); anyone short of that is redirected to `/welcome`, a guided,
+The dashboard requires a linked Last.fm account, a home city and a sync on
+record (even a failed one); anyone short of that is redirected to `/welcome`,
+a guided,
 non-skippable page that reuses the settings cards unchanged - **Last.fm**,
 **Home City**, then **Daily Sync**, named for the cadence even on the first
 run (the manual run just starts what then repeats). A pulsing attention dot

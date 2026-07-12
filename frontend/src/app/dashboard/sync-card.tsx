@@ -126,8 +126,8 @@ export function SyncCard({
   // requirement looks unmet - never replace an active run with the setup hint.
   const showSteps = (running || settling) && status !== null;
 
-  // Client-side gate only (no backend change yet): a sync needs both a
-  // linked Last.fm account and a home city, each set from its own section.
+  // A sync needs both a linked Last.fm account and a home city, each set
+  // from its own section; the API refuses to start one without them too.
   const missing = [
     !lastfmLinked && "link Last.fm account",
     !citySet && "set home city",

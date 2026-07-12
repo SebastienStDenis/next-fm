@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
-import { AttentionDot } from "./attention-dot";
 import { type City } from "./city-panel";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { type LastfmAccount } from "./lastfm-panel";
@@ -40,21 +39,18 @@ export default async function DashboardPage() {
       loadSyncStatus(),
       loadEmail(),
     ]);
-  // The dashboard requires a home city and a sync on record (even a failed
-  // one); anyone short of that goes through the welcome flow instead.
-  // Temporal retention can expire an old run, so last_synced_at also counts
-  // as proof a sync ran, and an unknown status (null) never bounces.
+  // The dashboard requires a linked Last.fm account, a home city and a sync
+  // on record (even a failed one); anyone short of that goes through the
+  // welcome flow instead. Temporal retention can expire an old run, so
+  // last_synced_at also counts as proof a sync ran, and an unknown status
+  // (null) never bounces.
   if (
+    lastfm === null ||
     city === null ||
     (sync?.status === "none" && user.last_synced_at === null)
   ) {
     redirect("/welcome");
   }
-
-  // Also gates the "continually updated" pulse on playlists: with a home
-  // city guaranteed, a missing Last.fm link is the one thing that stops the
-  // nightly sync from maintaining them.
-  const syncDisabled = lastfm === null;
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
@@ -107,7 +103,6 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <a href={SETTINGS_HASH}>
-            {syncDisabled && <AttentionDot pulse />}
             <SettingsIcon aria-hidden />
             Settings
           </a>
@@ -152,7 +147,7 @@ export default async function DashboardPage() {
               key: "playlists",
               label: (
                 <>
-                  {!syncDisabled && linkedPlaylists.length > 0 && (
+                  {linkedPlaylists.length > 0 && (
                     <span className="shrink-0 animate-fade-in" aria-hidden>
                       <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
                     </span>
@@ -169,7 +164,6 @@ export default async function DashboardPage() {
                 <PlaylistsPanel
                   synced={syncStepCompleted(sync, "playlists")}
                   playlists={linkedPlaylists}
-                  maintained={!syncDisabled}
                 />
               ),
             },

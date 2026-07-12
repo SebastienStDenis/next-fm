@@ -69,8 +69,11 @@ export default async function WelcomePage() {
         </Section>
       </div>
       {/* The grow-in wrapper opens up the footer's room gradually; without
-          it the centered page re-centers in one frame and visibly jumps. */}
-      {user.last_synced_at !== null && (
+          it the centered page re-centers in one frame and visibly jumps.
+          Synced alone isn't enough to reveal it: a user bounced back here
+          (say, an unlinked Last.fm) has a sync on record but an open step,
+          and the dashboard would only bounce them again. */}
+      {activeStep === null && synced && (
         <div className="grid animate-grow-in grid-rows-[1fr]">
           <div className="min-h-0 overflow-hidden">
             <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-fade-in-delayed">
