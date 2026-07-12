@@ -259,23 +259,13 @@ export function SyncCard({
               {finalOutcome === "none" && !statusLoading && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={onSync}
                   disabled={starting || !canSync}
-                  // -ml-2.5 cancels the ghost padding so the label stays
-                  // optically aligned with the card content edge; the height
-                  // and whitespace overrides let the label wrap on narrow
-                  // screens.
-                  className="-ml-2.5 h-auto min-h-7 animate-fade-in justify-start text-left whitespace-normal text-muted-foreground"
+                  className="animate-fade-in"
                 >
-                  {canSync && (
-                    <span
-                      className="size-1.5 shrink-0 rounded-full bg-primary"
-                      aria-hidden
-                    />
-                  )}
-                  Get started by running a manual sync.
+                  Run a manual sync
                 </Button>
               )}
             </div>
