@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { Link2, Pencil, X } from "lucide-react";
 
 import { linkLastfm } from "./actions";
+import { AnimatedHeight } from "./animated-height";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,15 +46,18 @@ export function LastfmPanel({
     setEditing(false);
   }
 
-  if (account === null || editing) {
-    return (
-      <LinkForm
-        hasAccount={account !== null}
-        onDone={() => setEditing(false)}
-      />
-    );
-  }
-  return <AccountCard account={account} onEdit={() => setEditing(true)} />;
+  return (
+    <AnimatedHeight>
+      {account === null || editing ? (
+        <LinkForm
+          hasAccount={account !== null}
+          onDone={() => setEditing(false)}
+        />
+      ) : (
+        <AccountCard account={account} onEdit={() => setEditing(true)} />
+      )}
+    </AnimatedHeight>
+  );
 }
 
 function LinkForm({
@@ -69,7 +73,7 @@ function LinkForm({
   });
 
   return (
-    <form action={formAction} className="space-y-2">
+    <form action={formAction} className="animate-fade-in space-y-2">
       <div className="flex items-center gap-2">
         <Label htmlFor="lastfm-username" className="sr-only">
           Last.fm username
@@ -129,7 +133,7 @@ function AccountCard({
     // Below 25rem the account details drop to a full-width row under the
     // avatar; squeezed between the avatar and the icon buttons they'd
     // overflow into overlapping columns.
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
+    <div className="grid animate-fade-in grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
       <Avatar className="col-start-1 row-start-1 size-16">
         {account.avatar_url && <AvatarImage src={account.avatar_url} alt="" />}
         <AvatarFallback className="text-xl">
