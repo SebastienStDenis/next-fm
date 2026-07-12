@@ -3,7 +3,6 @@
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
-  CardAction,
   CardContent,
   CardHeader,
   CardTitle,
@@ -67,22 +66,20 @@ export function SuggestedArtistsPanel({
           {sortedArtists.map((userArtist) => (
             <li key={userArtist.artist.id} className="min-w-0">
               <Card size="sm" className="h-full">
-                <CardHeader>
+                <CardHeader className="flex items-center justify-between gap-2">
                   <CardTitle className="min-w-0 break-words">
                     {userArtist.artist.name}
                   </CardTitle>
-                  <CardAction>
-                    <Badge
-                      variant="outline"
-                      className="px-1.5 text-muted-foreground"
-                    >
-                      <span
-                        className="size-1.5 rounded-full bg-primary"
-                        aria-hidden
-                      />
-                      score {scoreOf(userArtist).toFixed(2)}
-                    </Badge>
-                  </CardAction>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 px-1.5 text-muted-foreground"
+                  >
+                    <span
+                      className="size-1.5 rounded-full bg-primary"
+                      aria-hidden
+                    />
+                    score {scoreOf(userArtist).toFixed(2)}
+                  </Badge>
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col gap-1">
                   {reasonOf(userArtist) && (
