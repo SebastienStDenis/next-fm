@@ -152,7 +152,7 @@ export default async function DashboardPage() {
                 </>
               ),
               description:
-                "Spotify playlists tracking suggested concerts in your cities.",
+                "Spotify playlists tracking suggested concerts in your cities, updated daily.",
               note: playlistsSyncedAt && (
                 <SyncedNote label="Generate playlists" iso={playlistsSyncedAt} />
               ),

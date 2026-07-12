@@ -111,7 +111,7 @@ Keep these exactly as written:
 - Artists tab: "Artists you might like based on your listening history."
 - Concerts tab: "Upcoming concerts near you by suggested artists."
 - Playlists tab: "Spotify playlists tracking suggested concerts in your
-  cities."
+  cities, updated daily."
 - About page, playlist section: "Tracklists are automatically updated every
   day as your listening history and upcoming concerts change."
 - Listening History section: "Your listening history is used to suggest
