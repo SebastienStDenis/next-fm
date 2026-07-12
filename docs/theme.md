@@ -80,3 +80,15 @@ dashboard tab is a solid primary pill (chestnut in light, champagne in dark),
 the sliding tab indicator carries it between tabs, and primary buttons and
 focus rings use the same token. Badges, hovers, and muted text use the tinted
 neutral tokens, so the whole page reads warm without competing accents.
+
+## Email
+
+Auth emails (`supabase/templates/*.html`) can't use the `oklch()` tokens
+above - mail clients need plain hex - so they carry a converted hex snapshot
+of the same palette (background/card/foreground/primary/muted/border, light
+and dark) instead of importing `globals.css`. The dark border token is
+translucent; its hex is the value composited over the dark card. Dark mode is
+a `prefers-color-scheme: dark` media query overriding classed elements,
+guarded by a `color-scheme` meta tag; light-mode inline styles are the
+fallback for clients that ignore both. If the token values in `globals.css`
+change meaningfully, re-derive the hex snapshot here too.
