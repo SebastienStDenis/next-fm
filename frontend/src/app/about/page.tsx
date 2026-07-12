@@ -9,10 +9,10 @@ export default function AboutPage() {
         <section>
           <h2 className="text-sm font-medium">What NextFM does</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            It finds live music you would love but do not know yet. Your
+            NextFM finds live music you would love but don&rsquo;t know yet. Your
             Last.fm listening history tells NextFM what you like, concert
             listings tell it who is playing near you, and the overlap becomes
-            a Spotify playlist of artists worth discovering while they are in
+            a Spotify playlist of artists worth discovering while they&rsquo;re in
             town.
           </p>
         </section>
@@ -21,8 +21,8 @@ export default function AboutPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             NextFM looks at who sounds similar to the artists you listen to
             most and keeps the strongest matches - each one shows its reason, like
-            &ldquo;because you listen to Slowdive&rdquo;. Artists you already
-            know are left out; an artist you have only played a few times can
+            &ldquo;because you listen to DIIV&rdquo;. Artists you already
+            know are left out, but an artist you&rsquo;ve only played a few times can
             still be suggested.
           </p>
         </section>
@@ -31,7 +31,7 @@ export default function AboutPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             A few top tracks from each suggested artist playing near your city,
             soonest concert first. You can pin extra cities to follow concerts
-            where you travel. Tracklists are automatically updated every day
+            where you travel. Tracklists are automatically updated daily
             as your listening history and upcoming concerts change.
           </p>
         </section>
