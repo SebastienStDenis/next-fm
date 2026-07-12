@@ -97,26 +97,20 @@ Listening History relies on the Daily Sync card above it.
 
 The dashboard requires a home city and a sync on record (even a failed
 one); anyone short of that is redirected to `/welcome`, a guided,
-non-skippable flow that links Last.fm, sets the home city, then has the
-user start the first sync and watch its steps live (see
-`docs/design/2026-07-12-welcome-flow-plan.md`). Step headings reuse the
-settings vocabulary, except the sync step: in the flow it is **First Sync**
-(the guided one-off; the daily schedule takes over afterwards). Fixed copy:
-
-- The start button: "Start first sync".
-- While the run plays: "The first sync can take a few minutes. It keeps
-  running if you leave."
-- On completion: "All set. Playlists update daily."
+non-skippable page that reuses the settings cards unchanged - **Last.fm**,
+**Home City**, then **First Sync**, the Daily Sync card retitled for the
+one-off (the daily schedule takes over afterwards). The cards' attention
+badges walk the user through setup, the sync card runs and plays back the
+first sync with its step list kept expanded, and a successful run hands the
+user to the dashboard (see `docs/design/2026-07-12-welcome-flow-plan.md`).
 
 ## Section and tab names
 
 - Dashboard tabs: **Artists**, **Concerts**, **Playlists** (each label carries
   a live count, e.g. "Artists (12)").
-- Settings sections: **Daily Sync**, **Last.fm**, **Pinned Cities**,
-  **Options**, **Listening History**, **Account** (the home city lives in
-  Account as a quiet field - onboarding guarantees it, so it no longer earns
-  its own section).
-- Welcome flow steps: **Last.fm**, **Home City**, **First Sync**.
+- Settings sections: **Daily Sync**, **Last.fm**, **Home City**,
+  **Pinned Cities**, **Options**, **Listening History**, **Account**.
+- Welcome flow sections: **Last.fm**, **Home City**, **First Sync**.
 
 ## Canonical sentences
 

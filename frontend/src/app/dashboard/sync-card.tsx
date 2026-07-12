@@ -30,7 +30,17 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-export function SyncCard({ lastfmLinked }: { lastfmLinked: boolean }) {
+export function SyncCard({
+  lastfmLinked,
+  citySet,
+  defaultStepsExpanded = false,
+}: {
+  lastfmLinked: boolean;
+  citySet: boolean;
+  // The welcome flow keeps the post-run step list open so the results stay
+  // in view; settings collapses it behind the last-synced line.
+  defaultStepsExpanded?: boolean;
+}) {
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
   // True until the first status fetch resolves: we don't yet know whether a
@@ -39,7 +49,7 @@ export function SyncCard({ lastfmLinked }: { lastfmLinked: boolean }) {
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultStepsExpanded);
   const [starting, startTransition] = useTransition();
 
   // Loaded client-side so the page never waits on Temporal to render.
@@ -120,13 +130,18 @@ export function SyncCard({ lastfmLinked }: { lastfmLinked: boolean }) {
   // requirement looks unmet - never replace an active run with the setup hint.
   const showSteps = (running || settling) && status !== null;
 
-  // Client-side gate only (no backend change yet): with a home city
-  // guaranteed by onboarding, a sync just needs a linked Last.fm account,
-  // set from the section below.
-  const canSync = lastfmLinked;
+  // Client-side gate only (no backend change yet): a sync needs both a
+  // linked Last.fm account and a home city, each set from its own section.
+  const missing = [
+    !lastfmLinked && "link Last.fm account",
+    !citySet && "set home city",
+  ].filter((item): item is string => item !== false);
+  const canSync = missing.length === 0;
   const missingNote = canSync
     ? null
-    : "Link Last.fm account below to enable sync.";
+    : `${missing.join(" and ")} to enable sync.`.replace(/^./, (c) =>
+        c.toUpperCase(),
+      );
 
   function onSync() {
     if (!canSync) {

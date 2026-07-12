@@ -31,24 +31,26 @@ sync-fed and useless without one.
 
 ## Flow
 
-`/welcome` (`frontend/src/app/welcome/`) walks the three requirements in
-order. Each step is a settings-style section card (heading, italic
-description, content): the active step carries the pulsing attention dot,
-completed ones a green check with the settings' own value display (city
-row, Last.fm avatar card), and steps not yet reached are dimmed:
+`/welcome` (`frontend/src/app/welcome/page.tsx`) is the settings cards,
+unchanged, in setup order - the guided feel comes from the shared section
+chrome (attention badges on what is missing), not custom machinery:
 
-1. **Last.fm** - the settings link form with a labeled link button;
-   `PUT /me/lastfm` validates the account and the flow shows it.
-2. **Home City** - the same city search box the settings dialog uses;
-   `PUT /me/city`.
-3. **First Sync** - a deliberate "Start first sync" button (not automatic:
-   pressing it is what teaches that playlists come from a sync) fires
-   `POST /me/sync`, then the steps play back one line at a time (the sync
-   card's playback, polling `GET /me/sync`); when the run settles the full
-   step list with summaries takes over, ending in a "Go to dashboard"
-   button (or a retry on failure).
+1. **Last.fm** - the settings panel; `PUT /me/lastfm` validates the
+   account and the card shows it.
+2. **Home City** - the settings panel and its city search; `PUT /me/city`.
+3. **First Sync** - the Daily Sync card retitled for the one-off: its
+   manual run control starts the sync (deliberately not automatic -
+   pressing it is what teaches that playlists come from a sync), the
+   one-line playback shows the run live, and afterwards the step list -
+   kept expanded on this page - shows the summaries or the failure. A
+   re-run after a failure is the card's normal retry.
 
-Copy and step names follow `docs/wording.md` (Welcome flow section).
+Shared actions revalidate the root layout so the welcome and dashboard
+server payloads both refresh as setup progresses. When a run finishes the
+card refreshes the route: a successful first sync passes the redirect
+guard below and hands the user straight to the dashboard.
+
+Copy and section names follow `docs/wording.md` (Welcome flow section).
 
 ## Routing
 
@@ -62,15 +64,15 @@ Copy and step names follow `docs/wording.md` (Welcome flow section).
 ## Details
 
 - No backend changes: first-run state is inferred from existing endpoints,
-  and the sync-start guards (404 without Last.fm or city) are satisfied by
-  the step order.
-- The sync step pieces (types, marks, list, one-line playback, status
-  fetch) moved from `sync-card.tsx` into
-  `frontend/src/app/dashboard/sync-steps.tsx`, shared by the settings sync
-  card and the welcome flow. Both play a live run back one line at a time
-  (`CurrentStep`); the flow additionally reveals the full list once the run
-  settles.
-- A sync already on record is never auto-restarted: a running one is
-  attached to and watched, a failed one shows "Try again".
-- Corrections during setup reopen a completed step (pencil), but only until
-  the first sync starts; after that, changes belong to the settings dialog.
+  and the sync-start guards (404 without Last.fm or city) hold because the
+  sync card disables its control until both are set.
+- The settings section card lives in
+  `frontend/src/app/dashboard/section.tsx` and the sync step pieces (types,
+  marks, list, one-line playback, status fetch) in
+  `frontend/src/app/dashboard/sync-steps.tsx`, both shared by the settings
+  dialog and the welcome page.
+- Nothing auto-starts: the sync card's manual control is the only trigger,
+  and the backend attaches to an in-flight run rather than stacking one.
+- Corrections are the panels' own change controls, the same as in
+  settings; the Last.fm link and home city can be changed but never
+  removed.

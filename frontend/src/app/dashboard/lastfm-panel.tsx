@@ -87,14 +87,12 @@ function LinkForm({
         />
         <Button
           type="submit"
-          variant="ghost"
-          size="icon-sm"
+          size="sm"
           disabled={pending || username.trim() === ""}
-          aria-label="Link account"
-          title="Link"
-          className="text-muted-foreground"
+          className="shrink-0"
         >
           {pending ? <Spinner /> : <Link2 aria-hidden />}
+          Link account
         </Button>
         {hasAccount && (
           <Button

@@ -19,7 +19,7 @@ export type City = {
   longitude: number;
 };
 
-export function CityPanel({ city }: { city: City }) {
+export function CityPanel({ city }: { city: City | null }) {
   const [editing, setEditing] = useState(false);
   // The set-city action resolves before the revalidated server payload
   // commits, so the prop is stale for a moment; show the picked city until a
@@ -48,16 +48,23 @@ export function CityPanel({ city }: { city: City }) {
     });
   }
 
-  if (!editing) {
+  const shown = optimisticCity ?? city;
+  if (shown !== null && !editing) {
     return (
       <CityCard
-        city={optimisticCity ?? city}
+        city={shown}
         saving={pending && optimisticCity !== null}
         onEdit={() => setEditing(true)}
       />
     );
   }
-  return <CitySearch onSelect={pick} onCancel={() => setEditing(false)} />;
+  return (
+    <CitySearch
+      hasCity={shown !== null}
+      onSelect={pick}
+      onCancel={() => setEditing(false)}
+    />
+  );
 }
 
 // The home city can be changed but never cleared: the dashboard requires
@@ -96,9 +103,11 @@ function CityCard({
 }
 
 function CitySearch({
+  hasCity,
   onSelect,
   onCancel,
 }: {
+  hasCity: boolean;
   onSelect: (city: City) => void;
   onCancel: () => void;
 }) {
@@ -107,24 +116,26 @@ function CitySearch({
       <div className="min-w-0 flex-1">
         <CitySearchBox
           placeholder="Search for a city"
-          autoFocus
+          autoFocus={hasCity}
           onSelect={onSelect}
         />
       </div>
-      {/* mt-0.5 centers the icon on the input's height while staying
-          self-start, so it doesn't move when the search box's error line
-          appears below. */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        onClick={onCancel}
-        aria-label="Cancel"
-        title="Cancel"
-        className="mt-0.5 self-start text-muted-foreground"
-      >
-        <X aria-hidden />
-      </Button>
+      {hasCity && (
+        // mt-0.5 centers the icon on the input's height while staying
+        // self-start, so it doesn't move when the search box's error line
+        // appears below.
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onCancel}
+          aria-label="Cancel"
+          title="Cancel"
+          className="mt-0.5 self-start text-muted-foreground"
+        >
+          <X aria-hidden />
+        </Button>
+      )}
     </div>
   );
 }

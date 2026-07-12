@@ -46,6 +46,8 @@ export async function linkLastfm(
     return { error: "Enter a Last.fm username." };
   }
 
+  // Root-layout revalidation: the panel is shared by the settings dialog
+  // and the welcome flow, and both pages' server payloads must refresh.
   return callApi(
     `/me/lastfm`,
     {
@@ -54,7 +56,8 @@ export async function linkLastfm(
       body: JSON.stringify({ username: username.trim() }),
     },
     "Failed to link Last.fm account.",
-    `/dashboard`,
+    `/`,
+    "layout",
   );
 }
 
@@ -68,6 +71,8 @@ export async function refreshLastfm(): Promise<ActionState> {
 }
 
 export async function setCity(geonameid: number): Promise<ActionState> {
+  // Root-layout revalidation: the panel is shared by the settings dialog
+  // and the welcome flow, and both pages' server payloads must refresh.
   return callApi(
     `/me/city`,
     {
@@ -76,7 +81,7 @@ export async function setCity(geonameid: number): Promise<ActionState> {
       body: JSON.stringify({ geonameid }),
     },
     "Failed to set city.",
-    `/dashboard`,
+    `/`,
     "layout",
   );
 }
