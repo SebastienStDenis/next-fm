@@ -122,7 +122,8 @@ Keep these exactly as written:
 - Tagline: "Live-music discovery through listening."
 - Intro: "NextFM finds upcoming concerts near you by artists that match your
   listening history, and generates Spotify playlists for you to discover
-  them. Playlists update daily."
+  them." (The daily cadence isn't in the intro; the Daily Sync section name
+  and the welcome completion footer carry it.)
 - Daily Sync section: "Imports listening history, suggests artists, finds
   concerts and generates playlists."
 - Artists tab: "Artists you might like based on your listening history."
