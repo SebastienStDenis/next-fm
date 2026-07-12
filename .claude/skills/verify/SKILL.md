@@ -50,7 +50,7 @@ Playwright works with the locally cached Chromium (`npm install playwright` in
 a scratch dir, no browser download needed if `~/Library/Caches/ms-playwright`
 is populated). Form fields use `input[name="email"]` / `input[name="password"]`;
 buttons and links are reachable by role and visible text ("Log in", "Sign up",
-"Sign out" on /dashboard/account).
+"Sign out" in the settings dialog at /dashboard#settings).
 
 Gotchas:
 

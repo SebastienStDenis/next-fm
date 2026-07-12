@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import { createClient } from "@/lib/supabase/server";
 import type { SyncStatus } from "./sync-card";
 
 export type User = {
@@ -19,6 +20,15 @@ export async function loadMe(): Promise<User> {
     throw new Error(`Failed to load user: ${res.status}`);
   }
   return res.json();
+}
+
+// The signed-in email lives in Supabase Auth, not the API's user record.
+export async function loadEmail(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.email ?? null;
 }
 
 export async function fetchJson<T>(path: string, what: string): Promise<T> {

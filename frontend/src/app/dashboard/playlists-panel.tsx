@@ -19,6 +19,7 @@ import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
 import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SETTINGS_HASH } from "./settings-dialog";
 
 export type Playlist = {
   id: string;
@@ -141,7 +142,7 @@ export function PlaylistsPanel({
     return synced ? (
       <EmptyStateCell>
         No playlists generated. Set your home city in{" "}
-        <InlineNav href="/dashboard/account">Account</InlineNav>.
+        <InlineNav href={SETTINGS_HASH}>Settings</InlineNav>.
       </EmptyStateCell>
     ) : (
       <RunSyncMessage action="generate playlists" />

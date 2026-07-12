@@ -54,7 +54,7 @@ export async function linkLastfm(
       body: JSON.stringify({ username: username.trim() }),
     },
     "Failed to link Last.fm account.",
-    `/dashboard/account`,
+    `/dashboard`,
   );
 }
 
@@ -63,7 +63,7 @@ export async function refreshLastfm(): Promise<ActionState> {
     `/me/lastfm/refresh`,
     { method: "POST" },
     "Failed to refresh Last.fm account.",
-    `/dashboard/account`,
+    `/dashboard`,
   );
 }
 
@@ -72,7 +72,7 @@ export async function unlinkLastfm(): Promise<ActionState> {
     `/me/lastfm`,
     { method: "DELETE" },
     "Failed to unlink Last.fm account.",
-    `/dashboard/account`,
+    `/dashboard`,
   );
 }
 

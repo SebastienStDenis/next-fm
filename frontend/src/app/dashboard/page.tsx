@@ -1,6 +1,5 @@
-import { ArrowRight } from "lucide-react";
+import { Settings as SettingsIcon } from "lucide-react";
 import { cookies } from "next/headers";
-import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +9,8 @@ import { type City } from "./city-panel";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
+import { SettingsContent } from "./settings-content";
+import { SettingsDialog, SETTINGS_HASH } from "./settings-dialog";
 import { SuggestedArtistsPanel } from "./suggested-artists-panel";
 import { SyncedNote } from "./synced-note";
 import { TAB_COOKIE } from "./tab-cookie";
@@ -18,6 +19,7 @@ import { type UserArtist } from "./taste-panel";
 import {
   fetchJson,
   fetchOptional,
+  loadEmail,
   loadMe,
   loadSyncStatus,
   syncStepCompleted,
@@ -28,13 +30,15 @@ export default async function DashboardPage() {
   const user = await loadMe();
   const lastTab = (await cookies()).get(TAB_COOKIE)?.value;
 
-  const [lastfm, city, userArtists, playlists, sync] = await Promise.all([
-    fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
-    fetchOptional<City>("/me/city", "city"),
-    fetchJson<UserArtist[]>("/me/artists", "user artists"),
-    fetchJson<Playlist[]>("/me/playlists", "playlists"),
-    loadSyncStatus(),
-  ]);
+  const [lastfm, city, userArtists, playlists, sync, email] =
+    await Promise.all([
+      fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
+      fetchOptional<City>("/me/city", "city"),
+      fetchJson<UserArtist[]>("/me/artists", "user artists"),
+      fetchJson<Playlist[]>("/me/playlists", "playlists"),
+      loadSyncStatus(),
+      loadEmail(),
+    ]);
   // Also gates the "continually updated" pulse on playlists: a missing
   // Last.fm link or home city is what stops the nightly sync from
   // maintaining them.
@@ -73,9 +77,12 @@ export default async function DashboardPage() {
   const eventsSyncedAt = syncStepCompletedAt(sync, "events");
   const playlistsSyncedAt = syncStepCompletedAt(sync, "playlists");
   // Playlists appear only once they exist on Spotify; pins awaiting their
-  // first sync are managed on the account page, not shown here.
+  // first sync are managed in Settings, not shown here.
   const linkedPlaylists = playlists.filter(
     (playlist) => playlist.spotify_url !== null,
+  );
+  const pinnedPlaylists = playlists.filter(
+    (playlist) => playlist.city !== null,
   );
   // The tab count matches the panel's default view: suggested artists only.
   const suggestedEventCount = events.filter((userEvent) =>
@@ -90,11 +97,11 @@ export default async function DashboardPage() {
       <div className="mt-2 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
         <Button asChild variant="outline" size="sm" className="shrink-0">
-          <Link href="/dashboard/account">
+          <a href={SETTINGS_HASH}>
             {syncDisabled && <AttentionDot pulse />}
-            Account
-            <ArrowRight aria-hidden />
-          </Link>
+            <SettingsIcon aria-hidden />
+            Settings
+          </a>
         </Button>
       </div>
       <section className="mt-6">
@@ -160,6 +167,17 @@ export default async function DashboardPage() {
           ]}
         />
       </section>
+      <SettingsDialog>
+        <SettingsContent
+          user={user}
+          email={email}
+          lastfm={lastfm}
+          city={city}
+          knownArtists={knownArtists}
+          pinnedPlaylists={pinnedPlaylists}
+          sync={sync}
+        />
+      </SettingsDialog>
     </main>
   );
 }

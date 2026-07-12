@@ -20,6 +20,7 @@ import { CitySearchBox } from "./city-search-box";
 import { InlineNav } from "../inline-nav";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SETTINGS_HASH } from "./settings-dialog";
 
 export type UserEvent = {
   event: {
@@ -200,7 +201,7 @@ export function EventsPanel({
           </h3>
           <EmptyStateCell className="mt-4">
             Set your home city in{" "}
-            <InlineNav href="/dashboard/account">Account</InlineNav> to see
+            <InlineNav href={SETTINGS_HASH}>Settings</InlineNav> to see
             local concerts.
           </EmptyStateCell>
         </div>
