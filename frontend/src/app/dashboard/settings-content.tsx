@@ -1,3 +1,5 @@
+import { ChangeEmailButton } from "./change-email-button";
+import { ChangePasswordButton } from "./change-password-button";
 import { CityPanel, type City } from "./city-panel";
 import { DeleteAccountButton } from "./delete-account-button";
 import { DiscoveryToggle } from "./discovery-toggle";
@@ -75,7 +77,9 @@ export function SettingsContent({
               <p className="truncate text-sm text-muted-foreground">{email}</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <ChangeEmailButton />
+            <ChangePasswordButton />
             <SignOutButton />
             <DeleteAccountButton userName={user.name} />
           </div>
