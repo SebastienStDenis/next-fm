@@ -42,9 +42,10 @@ row, Last.fm avatar card), and steps not yet reached are dimmed:
    `PUT /me/lastfm` validates the account and the flow shows it.
 3. **First Sync** - a deliberate "Start first sync" button (not automatic:
    pressing it is what teaches that playlists come from a sync) fires
-   `POST /me/sync`, then the four workflow steps play live by polling
-   `GET /me/sync`, ending in a "Go to dashboard" button (or a retry on
-   failure).
+   `POST /me/sync`, then the steps play back one line at a time (the sync
+   card's playback, polling `GET /me/sync`); when the run settles the full
+   step list with summaries takes over, ending in a "Go to dashboard"
+   button (or a retry on failure).
 
 Copy and step names follow `docs/wording.md` (Welcome flow section).
 
@@ -62,10 +63,12 @@ Copy and step names follow `docs/wording.md` (Welcome flow section).
 - No backend changes: first-run state is inferred from existing endpoints,
   and the sync-start guards (404 without Last.fm or city) are satisfied by
   the step order.
-- The sync step list (types, marks, list, status fetch) moved from
-  `sync-card.tsx` into `frontend/src/app/dashboard/sync-steps.tsx`, shared
-  by the settings sync card and the welcome flow. The card's one-line
-  playback (`CurrentStep`) stays in the card; the flow shows the full list.
+- The sync step pieces (types, marks, list, one-line playback, status
+  fetch) moved from `sync-card.tsx` into
+  `frontend/src/app/dashboard/sync-steps.tsx`, shared by the settings sync
+  card and the welcome flow. Both play a live run back one line at a time
+  (`CurrentStep`); the flow additionally reveals the full list once the run
+  settles.
 - A sync already on record is never auto-restarted: a running one is
   attached to and watched, a failed one shows "Try again".
 - Corrections during setup reopen a completed step (pencil), but only until

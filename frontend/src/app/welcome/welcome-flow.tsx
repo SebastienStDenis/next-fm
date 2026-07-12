@@ -19,6 +19,7 @@ import { type City } from "../dashboard/city-panel";
 import { CitySearchBox, cityLabel } from "../dashboard/city-search-box";
 import { type LastfmAccount } from "../dashboard/lastfm-panel";
 import {
+  CurrentStep,
   fetchStatus,
   POLL_INTERVAL_MS,
   StepList,
@@ -56,6 +57,10 @@ export function WelcomeFlow({
   // A completed setup step reopened for correction; cleared on save.
   const [editing, setEditing] = useState<"city" | "lastfm" | null>(null);
   const [polling, setPolling] = useState(initialSync?.status === "running");
+  // True from the end of a watched run until its step playback catches up,
+  // so the finish doesn't cut the playback short (same as the sync card).
+  const [settling, setSettling] = useState(false);
+  const [runSeq, setRunSeq] = useState(0);
   const [starting, startTransition] = useTransition();
   const [pendingCity, setPendingCity] = useState<City | null>(null);
   const [, startCityTransition] = useTransition();
@@ -71,6 +76,8 @@ export function WelcomeFlow({
   function begin() {
     // Show the run as started right away; the first poll replaces this with
     // real state, and a failed start reverts to the button.
+    setSettling(false);
+    setRunSeq((seq) => seq + 1);
     setSync((prev) => ({
       status: "running",
       started_at: null,
@@ -114,6 +121,9 @@ export function WelcomeFlow({
       setSync(next);
       if (next.status !== "running") {
         setPolling(false);
+        // Let the playback finish showing the remaining steps before the
+        // final list takes over.
+        setSettling(true);
       }
     }
     tick();
@@ -146,8 +156,15 @@ export function WelcomeFlow({
     step === "city" ? "active" : city !== null ? "done" : "todo";
   const lastfmState: StepState =
     step === "lastfm" ? "active" : lastfm !== null ? "done" : "todo";
+  // A live run (or its settle animation) always shows the playback; the
+  // final list with the run's summaries takes over once it catches up.
+  const showPlayback = syncActive || settling;
   const syncState: StepState =
-    outcome === "completed" ? "done" : step === "sync" ? "active" : "todo";
+    outcome === "completed" && !showPlayback
+      ? "done"
+      : step === "sync"
+        ? "active"
+        : "todo";
 
   return (
     <div className="space-y-6">
@@ -235,9 +252,37 @@ export function WelcomeFlow({
         state={syncState}
         description="Imports listening history, suggests artists, finds concerts and generates playlists."
       >
-        <div className="space-y-4">
-          <StepList steps={sync?.steps ?? []} />
-          {outcome === "completed" ? (
+        {showPlayback ? (
+          <div className="space-y-3">
+            {/* The playback line reserves its two-line height so the card
+                doesn't jump as steps come and go. */}
+            <div className="flex min-h-9 items-center">
+              <CurrentStep
+                key={runSeq}
+                steps={sync?.steps ?? []}
+                finished={!polling && outcome !== "running"}
+                onSettled={() => setSettling(false)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground italic">
+              The first sync can take a few minutes. It keeps running if you
+              leave.
+            </p>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="-ml-2.5 text-muted-foreground"
+            >
+              <Link href="/dashboard">
+                Go to dashboard
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          </div>
+        ) : outcome === "completed" ? (
+          <div className="animate-fade-in space-y-4">
+            <StepList steps={sync?.steps ?? []} />
             <div className="animate-slide-in-up space-y-3">
               <p className="text-sm">All set. Playlists update daily.</p>
               <Button asChild size="sm">
@@ -247,8 +292,11 @@ export function WelcomeFlow({
                 </Link>
               </Button>
             </div>
-          ) : outcome === "failed" && !syncActive ? (
-            <div className="flex flex-wrap items-center gap-2 animate-fade-in">
+          </div>
+        ) : outcome === "failed" ? (
+          <div className="animate-fade-in space-y-4">
+            <StepList steps={sync?.steps ?? []} />
+            <div className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="outline" size="sm" onClick={begin}>
                 <RefreshCw aria-hidden />
                 Try again
@@ -265,30 +313,12 @@ export function WelcomeFlow({
                 </Link>
               </Button>
             </div>
-          ) : syncActive ? (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground italic">
-                The first sync can take a few minutes. It keeps running if you
-                leave.
-              </p>
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className="-ml-2.5 text-muted-foreground"
-              >
-                <Link href="/dashboard">
-                  Go to dashboard
-                  <ArrowRight aria-hidden />
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <Button type="button" size="sm" onClick={begin}>
-              Start first sync
-            </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <Button type="button" size="sm" onClick={begin}>
+            Start first sync
+          </Button>
+        )}
       </StepSection>
     </div>
   );
@@ -414,16 +444,9 @@ function LinkForm({
           autoFocus
           className="flex-1"
         />
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon-sm"
-          disabled={pending}
-          aria-label="Link account"
-          title="Link"
-          className="text-muted-foreground"
-        >
+        <Button type="submit" size="sm" disabled={pending} className="shrink-0">
           {pending ? <Spinner /> : <Link2 aria-hidden />}
+          Link account
         </Button>
         {onCancel && (
           <Button
