@@ -90,8 +90,9 @@ Auth emails (`supabase/templates/*.html`) can't use the `oklch()` tokens
 above - mail clients need plain hex - so they carry a converted hex snapshot
 of the same palette (card/foreground/primary/muted/border, light and dark)
 instead of importing `globals.css`. The outer background around the card is
-the exception: it stays neutral (`#ffffff` light, `#1e1e1e` dark) so the
-email blends into the mail client's own chrome rather than the site theme.
+the exception: it is left transparent so the mail client's own canvas shows
+through and the frame matches the client exactly in both modes; the card's
+border keeps it defined when the canvas matches the card.
 The dark border token is
 translucent; its hex is the value composited over the dark card. Dark mode is
 a `prefers-color-scheme: dark` media query overriding classed elements,
