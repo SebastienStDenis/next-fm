@@ -52,6 +52,12 @@ shaped the values, and should shape future adjustments:
   control by name (Spotify's "Date added" sort), set it in
   `<b className="font-medium">` - no quote marks. Full bold would shout;
   medium matches the section headings.
+- **Empty-state messages are small and quiet.** Missing-data messages render
+  `text-xs leading-5 text-muted-foreground`, centered - in the dashed ghost
+  box on the dashboard (one card wide, in the results grid), as plain text in
+  panels that are already cards. The `leading-5` line height matches the
+  `h-5` inline-nav pill, so an inline Account button sits flush in the line
+  instead of pushing it apart.
 
 ## Interactive affordances
 

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/collapsible";
 import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
-import { EmptyState } from "./empty-state";
+import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 
 export type Playlist = {
@@ -62,6 +62,26 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
 
 const emptySubscribe = () => () => {};
 
+// The playlist's own last write, distinct from the step markers on the tab
+// description line - plain text, no check (see docs/wording.md). Formats in
+// the viewer's timezone, which the server can't know - renders only after
+// hydration so server and client HTML always match.
+function SyncedAtLabel({ iso }: { iso: string }) {
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  if (!hydrated) {
+    return null;
+  }
+  return (
+    <span className="animate-fade-in text-xs text-muted-foreground">
+      Synced {syncedAtFormat.format(new Date(iso))}
+    </span>
+  );
+}
+
 // Playlist cards stack per column (masonry-ish) so an expanded tracklist
 // only pushes down cards in its own column. The column count mirrors the
 // grid breakpoints the other tabs use; ordered by matchMedia specificity.
@@ -102,17 +122,6 @@ function useColumnCount(): number | null {
   );
 }
 
-function SyncedAtLabel({ iso }: { iso: string }) {
-  // Formats in the viewer's timezone, which the server can't know - render
-  // only after hydration so server and client HTML always match.
-  const hydrated = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
-  return hydrated && ` · synced ${syncedAtFormat.format(new Date(iso))}`;
-}
-
 export function PlaylistsPanel({
   synced,
   playlists,
@@ -126,16 +135,16 @@ export function PlaylistsPanel({
 }) {
   const columnCount = useColumnCount();
 
-  if (!synced) {
-    return <RunSyncMessage action="generate playlists" />;
-  }
-
+  // Existing playlists always show (even if the latest run didn't complete
+  // the playlists step); the run-a-sync hint is only for a truly empty panel.
   if (playlists.length === 0) {
-    return (
-      <EmptyState>
+    return synced ? (
+      <EmptyStateCell>
         No playlists generated. Set your home city in{" "}
         <InlineNav href="/dashboard/account">Account</InlineNav>.
-      </EmptyState>
+      </EmptyStateCell>
+    ) : (
+      <RunSyncMessage action="generate playlists" />
     );
   }
 
@@ -199,7 +208,7 @@ function PlaylistCard({
             {playlist.name}
           </CardTitle>
           <CardDescription>
-            {playlist.spotify_url ? (
+            {playlist.spotify_url && (
               <a
                 href={playlist.spotify_url}
                 target="_blank"
@@ -209,29 +218,29 @@ function PlaylistCard({
                 Open in Spotify
                 <ExternalLink className="size-3.5" aria-hidden />
               </a>
-            ) : (
-              "Not on Spotify yet - sync to generate it."
-            )}
-            {playlist.last_synced_at && (
-              <SyncedAtLabel iso={playlist.last_synced_at} />
             )}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Collapsible>
-            <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
-              <span>
-                {playlist.tracks.length}{" "}
-                {playlist.tracks.length === 1 ? "track" : "tracks"}
-              </span>
-              <ChevronDown
-                className="size-3.5 transition-transform"
-                aria-hidden
-              />
-            </CollapsibleTrigger>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
+                <span>
+                  {playlist.tracks.length}{" "}
+                  {playlist.tracks.length === 1 ? "track" : "tracks"}
+                </span>
+                <ChevronDown
+                  className="size-3.5 transition-transform"
+                  aria-hidden
+                />
+              </CollapsibleTrigger>
+              {playlist.last_synced_at && (
+                <SyncedAtLabel iso={playlist.last_synced_at} />
+              )}
+            </div>
             <CollapsibleContent>
               {playlist.tracks.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   No tracks found. NextFM will add new ones as your listening
                   history and upcoming concerts change.
                 </p>

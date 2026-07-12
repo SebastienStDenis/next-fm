@@ -56,6 +56,15 @@ export function syncStepCompleted(
   );
 }
 
+// When the latest sync run completed the given step, the run's finish time -
+// the closest thing to a per-step success time /me/sync reports.
+export function syncStepCompletedAt(
+  sync: SyncStatus | null,
+  key: string,
+): string | null {
+  return syncStepCompleted(sync, key) ? (sync?.finished_at ?? null) : null;
+}
+
 export async function fetchOptional<T>(
   path: string,
   what: string,

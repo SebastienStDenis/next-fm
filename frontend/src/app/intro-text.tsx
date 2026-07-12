@@ -6,9 +6,7 @@ export function IntroText({ className }: { className?: string }) {
       NextFM finds upcoming concerts near you by artists that match your
       listening history, and generates Spotify playlists for you to discover
       them. Playlists update daily. See{" "}
-      <InlineNav href="/about" className="h-5 px-1.5">
-        About
-      </InlineNav>{" "}
+      <InlineNav href="/about">About</InlineNav>{" "}
       for more details.
     </p>
   );
