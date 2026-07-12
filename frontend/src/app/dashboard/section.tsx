@@ -34,11 +34,17 @@ export function Section({
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {state === "active" && <AttentionDot pulse />}
+          {/* The dot pulses (its own animation), so the fade lives on a
+              wrapper instead. */}
+          {state === "active" && (
+            <span className="flex animate-fade-in">
+              <AttentionDot pulse />
+            </span>
+          )}
           {state === "done" && (
             <Check
               aria-hidden
-              className="size-3.5 text-green-600 dark:text-green-500"
+              className="size-3.5 animate-fade-in text-green-600 dark:text-green-500"
               strokeWidth={2.5}
             />
           )}

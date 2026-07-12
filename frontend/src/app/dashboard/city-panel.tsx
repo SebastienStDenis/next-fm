@@ -79,7 +79,7 @@ function CityCard({
   onEdit: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex animate-fade-in items-center justify-between gap-4">
       <p className="min-w-0 font-medium">{cityLabel(city)}</p>
       {saving ? (
         <span className="flex size-7 items-center justify-center text-muted-foreground">
@@ -112,7 +112,7 @@ function CitySearch({
   onCancel: () => void;
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex animate-fade-in gap-2">
       <div className="min-w-0 flex-1">
         <CitySearchBox
           placeholder="Search for a city"

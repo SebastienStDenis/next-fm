@@ -69,7 +69,7 @@ function LinkForm({
   });
 
   return (
-    <form action={formAction} className="space-y-2">
+    <form action={formAction} className="animate-fade-in space-y-2">
       <div className="flex items-center gap-2">
         <Label htmlFor="lastfm-username" className="sr-only">
           Last.fm username
@@ -129,7 +129,7 @@ function AccountCard({
     // Below 25rem the account details drop to a full-width row under the
     // avatar; squeezed between the avatar and the icon buttons they'd
     // overflow into overlapping columns.
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
+    <div className="grid animate-fade-in grid-cols-[auto_minmax(0,1fr)] items-start gap-4 min-[25rem]:grid-cols-[auto_minmax(0,1fr)_auto]">
       <Avatar className="col-start-1 row-start-1 size-16">
         {account.avatar_url && <AvatarImage src={account.avatar_url} alt="" />}
         <AvatarFallback className="text-xl">

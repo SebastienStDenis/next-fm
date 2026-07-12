@@ -51,6 +51,7 @@
   --animate-fade-in: fade-in 250ms ease-out;
   --animate-slide-in-up: slide-in-up 250ms ease-out;
   --animate-slide-out-up: slide-out-up 250ms ease-out forwards;
+  --animate-grow-in: grow-in 250ms ease-out;
   --animate-collapsible-down: collapsible-down 250ms ease-out;
   --animate-collapsible-up: collapsible-up 250ms ease-out;
 
@@ -71,6 +72,15 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  /* For a single-row grid wrapper (grid-rows-[1fr]) around a min-h-0
+     overflow-hidden child: the row grows from nothing, so revealed content
+     opens up room smoothly instead of snapping the layout around it. */
+  @keyframes grow-in {
+    from {
+      grid-template-rows: 0fr;
     }
   }
 
