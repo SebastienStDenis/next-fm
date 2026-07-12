@@ -17,10 +17,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
-import { InlineNav } from "../inline-nav";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
-import { SETTINGS_HASH } from "./settings-dialog";
 
 export type UserEvent = {
   event: {
@@ -77,7 +75,7 @@ export function EventsPanel({
   artistRelations,
   events,
 }: {
-  city: City | null;
+  city: City;
   synced: boolean;
   artistRelations: Record<string, ArtistRelation>;
   events: UserEvent[];
@@ -98,7 +96,7 @@ export function EventsPanel({
   function selectCity(selected: City) {
     // Picking the home city is a return home, not a city view - the home
     // events are already loaded and the back control should disappear.
-    if (city && selected.geonameid === city.geonameid) {
+    if (selected.geonameid === city.geonameid) {
       setViewCity(null);
       setEditingCity(false);
       return;
@@ -172,7 +170,7 @@ export function EventsPanel({
         title="See concerts in another city"
         className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
       >
-        {shownCity && <span className="min-w-0">{shownCity.name}</span>}
+        <span className="min-w-0">{shownCity.name}</span>
         <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
       </Button>
       {viewCity && (
@@ -181,8 +179,8 @@ export function EventsPanel({
           variant="ghost"
           size="icon-sm"
           onClick={() => setViewCity(null)}
-          aria-label={city ? `Back to ${city.name}` : "Back"}
-          title={city ? `Back to ${city.name}` : "Back"}
+          aria-label={`Back to ${city.name}`}
+          title={`Back to ${city.name}`}
           className="text-muted-foreground"
         >
           <Undo2 aria-hidden />
@@ -193,115 +191,99 @@ export function EventsPanel({
 
   return (
     <div>
-      {!city && !viewCity ? (
-        <div>
-          <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
-            <span>Upcoming concerts in</span>
-            {cityField}
-          </h3>
-          <EmptyStateCell className="mt-4">
-            Set your home city in{" "}
-            <InlineNav href={SETTINGS_HASH}>Settings</InlineNav> to see
-            local concerts.
-          </EmptyStateCell>
-        </div>
+      <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
+        <span>Upcoming concerts in</span>
+        {cityField}
+        <span>({visibleEvents.length})</span>
+      </h3>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Toggle
+          variant="outline"
+          size="sm"
+          pressed={showSuggested}
+          onPressedChange={setShowSuggested}
+        >
+          Suggested artists
+        </Toggle>
+        <Toggle
+          variant="outline"
+          size="sm"
+          pressed={showKnown}
+          onPressedChange={setShowKnown}
+        >
+          Artists you listen to
+        </Toggle>
+      </div>
+      {visibleEvents.length === 0 && hiddenCount === 0 ? (
+        <EmptyStateCell className="mt-4">
+          {viewCity
+            ? "No concerts found. Try a different city."
+            : `No concerts found near ${city.name}. NextFM will find new concerts as they're announced.`}
+        </EmptyStateCell>
       ) : (
-        <>
-          <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
-            <span>Upcoming concerts in</span>
-            {cityField}
-            <span>({visibleEvents.length})</span>
-          </h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Toggle
-              variant="outline"
-              size="sm"
-              pressed={showSuggested}
-              onPressedChange={setShowSuggested}
-            >
-              Suggested artists
-            </Toggle>
-            <Toggle
-              variant="outline"
-              size="sm"
-              pressed={showKnown}
-              onPressedChange={setShowKnown}
-            >
-              Artists you listen to
-            </Toggle>
-          </div>
-          {visibleEvents.length === 0 && hiddenCount === 0 ? (
-            <EmptyStateCell className="mt-4">
-              {viewCity
-                ? "No concerts found. Try a different city."
-                : `No concerts found near ${city?.name}. NextFM will find new concerts as they're announced.`}
-            </EmptyStateCell>
-          ) : (
-            <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleEvents.map(({ event, url, artists }) => (
-                <li key={event.id} className="flex">
-                  <Card size="sm" className="flex-1">
-                    <CardHeader>
-                      {/* gap-y-1 matches the header gap, so a wrapped date
-                          sits as close to the title above as to the venue
-                          line below. */}
-                      <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                        <span className="min-w-0">
-                          {event.title ??
-                            artists.map((artist) => artist.name).join(", ")}
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {visibleEvents.map(({ event, url, artists }) => (
+            <li key={event.id} className="flex">
+              <Card size="sm" className="flex-1">
+                <CardHeader>
+                  {/* gap-y-1 matches the header gap, so a wrapped date
+                      sits as close to the title above as to the venue
+                      line below. */}
+                  <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                    <span className="min-w-0">
+                      {event.title ??
+                        artists.map((artist) => artist.name).join(", ")}
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {dateFormat.format(new Date(event.starts_at))}
+                    </span>
+                  </CardTitle>
+                  <CardDescription>
+                    {event.venue_name} · {placeLabel(event)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="mt-auto flex flex-wrap items-center gap-2">
+                  {artists.map((artist) => {
+                    const suggested =
+                      artistRelations[artist.id] === "suggested";
+                    return (
+                      <Badge
+                        key={artist.id}
+                        variant={suggested ? "secondary" : "outline"}
+                        className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
+                      >
+                        <span className="truncate">
+                          {artistChipLabel(artist, artistRelations)}
                         </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {dateFormat.format(new Date(event.starts_at))}
-                        </span>
-                      </CardTitle>
-                      <CardDescription>
-                        {event.venue_name} · {placeLabel(event)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-                      {artists.map((artist) => {
-                        const suggested =
-                          artistRelations[artist.id] === "suggested";
-                        return (
-                          <Badge
-                            key={artist.id}
-                            variant={suggested ? "secondary" : "outline"}
-                            className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
-                          >
-                            <span className="truncate">
-                              {artistChipLabel(artist, artistRelations)}
-                            </span>
-                          </Badge>
-                        );
-                      })}
-                      {url && (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
-                        >
-                          Tickets
-                          <ExternalLink className="size-3.5" aria-hidden />
-                        </a>
-                      )}
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
-              {/* Filtered-out concerts keep a slot in the grid: a ghost cell
-                  sized like the cards it stands in for. */}
-              {hiddenCount > 0 && (
-                <li className="flex">
-                  <EmptyState className="flex-1 content-center">
-                    {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
-                    hidden by filters.
-                  </EmptyState>
-                </li>
-              )}
-            </ul>
+                      </Badge>
+                    );
+                  })}
+                  {url && (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+                    >
+                      Tickets
+                      <ExternalLink className="size-3.5" aria-hidden />
+                    </a>
+                  )}
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+          {/* Filtered-out concerts keep a slot in the grid: a ghost cell
+              sized like the cards it stands in for. */}
+          {hiddenCount > 0 && (
+            <li className="flex">
+              <EmptyState className="flex-1 content-center">
+                {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
+                hidden by filters.
+              </EmptyState>
+            </li>
           )}
-        </>
+        </ul>
       )}
     </div>
   );

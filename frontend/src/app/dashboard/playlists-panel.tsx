@@ -15,11 +15,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
 import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
-import { SETTINGS_HASH } from "./settings-dialog";
 
 export type Playlist = {
   id: string;
@@ -141,8 +139,8 @@ export function PlaylistsPanel({
   if (playlists.length === 0) {
     return synced ? (
       <EmptyStateCell>
-        No playlists generated. Set your home city in{" "}
-        <InlineNav href={SETTINGS_HASH}>Settings</InlineNav>.
+        No playlists generated. NextFM will generate them on the next daily
+        sync.
       </EmptyStateCell>
     ) : (
       <RunSyncMessage action="generate playlists" />

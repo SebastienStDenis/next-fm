@@ -1,5 +1,6 @@
 import { Settings as SettingsIcon } from "lucide-react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 
@@ -39,20 +40,28 @@ export default async function DashboardPage() {
       loadSyncStatus(),
       loadEmail(),
     ]);
-  // Also gates the "continually updated" pulse on playlists: a missing
-  // Last.fm link or home city is what stops the nightly sync from
-  // maintaining them.
-  const syncDisabled = lastfm === null || city === null;
+  // The dashboard requires a home city and a sync on record (even a failed
+  // one); anyone short of that goes through the welcome flow instead.
+  // Temporal retention can expire an old run, so last_synced_at also counts
+  // as proof a sync ran, and an unknown status (null) never bounces.
+  if (
+    city === null ||
+    (sync?.status === "none" && user.last_synced_at === null)
+  ) {
+    redirect("/welcome");
+  }
+
+  // Also gates the "continually updated" pulse on playlists: with a home
+  // city guaranteed, a missing Last.fm link is the one thing that stops the
+  // nightly sync from maintaining them.
+  const syncDisabled = lastfm === null;
 
   // Known-artist events are fetched regardless of the user's global setting;
   // the events panel hides them behind its own view-side filter.
-  const events =
-    city !== null
-      ? await fetchJson<UserEvent[]>(
-          "/me/events?include_known_artists=true",
-          "events",
-        )
-      : [];
+  const events = await fetchJson<UserEvent[]>(
+    "/me/events?include_known_artists=true",
+    "events",
+  );
 
   // The lists overlap on purpose: an artist can hold a known-kind interest
   // below the engine's playcount floor and still be an active suggestion.

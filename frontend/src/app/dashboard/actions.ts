@@ -46,6 +46,8 @@ export async function linkLastfm(
     return { error: "Enter a Last.fm username." };
   }
 
+  // Root-layout revalidation: the panel is shared by the settings dialog
+  // and the welcome flow, and both pages' server payloads must refresh.
   return callApi(
     `/me/lastfm`,
     {
@@ -54,7 +56,8 @@ export async function linkLastfm(
       body: JSON.stringify({ username: username.trim() }),
     },
     "Failed to link Last.fm account.",
-    `/dashboard`,
+    `/`,
+    "layout",
   );
 }
 
@@ -67,16 +70,9 @@ export async function refreshLastfm(): Promise<ActionState> {
   );
 }
 
-export async function unlinkLastfm(): Promise<ActionState> {
-  return callApi(
-    `/me/lastfm`,
-    { method: "DELETE" },
-    "Failed to unlink Last.fm account.",
-    `/dashboard`,
-  );
-}
-
 export async function setCity(geonameid: number): Promise<ActionState> {
+  // Root-layout revalidation: the panel is shared by the settings dialog
+  // and the welcome flow, and both pages' server payloads must refresh.
   return callApi(
     `/me/city`,
     {
@@ -85,17 +81,7 @@ export async function setCity(geonameid: number): Promise<ActionState> {
       body: JSON.stringify({ geonameid }),
     },
     "Failed to set city.",
-    `/dashboard`,
-    "layout",
-  );
-}
-
-export async function clearCity(): Promise<ActionState> {
-  return callApi(
-    `/me/city`,
-    { method: "DELETE" },
-    "Failed to clear city.",
-    `/dashboard`,
+    `/`,
     "layout",
   );
 }
@@ -112,6 +98,9 @@ export async function startSync(): Promise<ActionState> {
     return { error: await errorMessage(res, "Failed to start sync.") };
   }
 
+  // The welcome page's step marks read the run state server-side; refresh
+  // them so the sync step's dot clears while the run is in flight.
+  revalidatePath(`/`, "layout");
   return { error: null };
 }
 

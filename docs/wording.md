@@ -66,18 +66,20 @@ cards would use; Listening History and tracklist messages are plain text.
 | Listening History (settings) | Run a sync above to import listening history. | No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will import new listening history as it appears. |
 | Artists tab | Run a sync in [Settings] to suggest artists. | No artists suggested. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will suggest new artists as your listening history changes. |
 | Concerts tab | Run a sync in [Settings] to find concerts. | Home view: "No concerts found near {city}. NextFM will find new concerts as they're announced." Browsing another city: "No concerts found. Try a different city." |
-| Playlists tab | Run a sync in [Settings] to generate playlists. | No playlists generated. Set your home city in [Settings]. (No new-data note - nothing flows in without a home city.) |
+| Playlists tab | Run a sync in [Settings] to generate playlists. | No playlists generated. NextFM will generate them on the next daily sync. |
 
-`[Settings]` opens the settings dialog (`/dashboard#settings`). Three related
+`[Settings]` opens the settings dialog (`/dashboard#settings`). Two related
 fixed messages:
 
-- Concerts tab with no home city set (regardless of sync state): "Set your
-  home city in [Settings] to see local concerts."
 - Concerts hidden by the filter toggles: a card-sized ghost box in the
   concerts grid, after any visible concerts: "{n} concert(s) hidden by
   filters."
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
+
+There is no "no home city" state: the dashboard requires a home city and a
+sync on record (see Welcome flow), and the home city can be changed but
+never cleared.
 
 ## Freshness markers
 
@@ -91,12 +93,27 @@ playlist card also shows its own last write beside its track count as plain
 text - "Synced {date}", no check, since it isn't a sync-step marker.
 Listening History relies on the Daily Sync card above it.
 
+## Welcome flow
+
+The dashboard requires a home city and a sync on record (even a failed
+one); anyone short of that is redirected to `/welcome`, a guided,
+non-skippable page that reuses the settings cards unchanged - **Last.fm**,
+**Home City**, then **Daily Sync**, named for the cadence even on the first
+run (the manual run just starts what then repeats). A pulsing attention dot
+on the section heading marks the next step and completed steps carry a
+green check, the sync card runs and plays back the first sync, and a
+successful run reveals the completion footer - "All set. Playlists update
+daily." beside a go-to-dashboard button (see
+`docs/design/2026-07-12-welcome-flow-plan.md`).
+
 ## Section and tab names
 
 - Dashboard tabs: **Artists**, **Concerts**, **Playlists** (each label carries
   a live count, e.g. "Artists (12)").
 - Settings sections: **Daily Sync**, **Last.fm**, **Home City**,
   **Pinned Cities**, **Options**, **Listening History**, **Account**.
+- Welcome flow sections: **Last.fm**, **Home City**, **Daily Sync** - the
+  settings names exactly.
 
 ## Canonical sentences
 
@@ -105,7 +122,8 @@ Keep these exactly as written:
 - Tagline: "Live-music discovery through listening."
 - Intro: "NextFM finds upcoming concerts near you by artists that match your
   listening history, and generates Spotify playlists for you to discover
-  them. Playlists update daily."
+  them." (The daily cadence isn't in the intro; the Daily Sync section name
+  and the welcome completion footer carry it.)
 - Daily Sync section: "Imports listening history, suggests artists, finds
   concerts and generates playlists."
 - Artists tab: "Artists you might like based on your listening history."

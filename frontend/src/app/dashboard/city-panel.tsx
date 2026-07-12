@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { clearCity, setCity } from "./actions";
+import { setCity } from "./actions";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -67,6 +67,8 @@ export function CityPanel({ city }: { city: City | null }) {
   );
 }
 
+// The home city can be changed but never cleared: the dashboard requires
+// one, so the only way out is a different city.
 function CityCard({
   city,
   saving,
@@ -76,17 +78,6 @@ function CityCard({
   saving: boolean;
   onEdit: () => void;
 }) {
-  const [pending, startTransition] = useTransition();
-
-  function clear() {
-    startTransition(async () => {
-      const result = await clearCity();
-      if (result.error) {
-        toast.error(result.error);
-      }
-    });
-  }
-
   return (
     <div className="flex items-center justify-between gap-4">
       <p className="min-w-0 font-medium">{cityLabel(city)}</p>
@@ -95,31 +86,17 @@ function CityCard({
           <Spinner />
         </span>
       ) : (
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onEdit}
-            aria-label="Change home city"
-            title="Change"
-            className="text-muted-foreground"
-          >
-            <Pencil aria-hidden />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={clear}
-            disabled={pending}
-            aria-label="Clear home city"
-            title="Clear"
-            className="text-destructive hover:text-destructive"
-          >
-            {pending ? <Spinner className="text-muted-foreground" /> : <X aria-hidden />}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onEdit}
+          aria-label="Change home city"
+          title="Change"
+          className="text-muted-foreground"
+        >
+          <Pencil aria-hidden />
+        </Button>
       )}
     </div>
   );

@@ -1,62 +1,16 @@
-import { AttentionDot } from "./attention-dot";
 import { CityPanel, type City } from "./city-panel";
 import { DeleteAccountButton } from "./delete-account-button";
 import { DiscoveryToggle } from "./discovery-toggle";
 import { LastfmPanel, type LastfmAccount } from "./lastfm-panel";
 import { PinnedCitiesPanel } from "./pinned-cities-panel";
 import { type Playlist } from "./playlists-panel";
+import { Section } from "./section";
 import { SignOutButton } from "./sign-out-button";
-import { SyncCard, type SyncStatus } from "./sync-card";
+import { SyncCard } from "./sync-card";
+import { type SyncStatus } from "./sync-steps";
 import { TastePanel, type UserArtist } from "./taste-panel";
 import { type User } from "./user-api";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { syncStepCompleted } from "./user-api";
-
-function Section({
-  heading,
-  alert,
-  alertText,
-  description,
-  children,
-}: {
-  heading: string;
-  alert?: boolean;
-  alertText?: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <h2>{heading}</h2>
-          {alert && alertText && (
-            <Badge
-              variant="secondary"
-              className="h-auto min-h-5 px-1.5 font-normal whitespace-normal"
-            >
-              <AttentionDot />
-              {alertText}
-            </Badge>
-          )}
-        </CardTitle>
-        {description && (
-          <CardDescription className="text-xs italic">
-            {description}
-          </CardDescription>
-        )}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
 
 export function SettingsContent({
   user,
@@ -70,22 +24,17 @@ export function SettingsContent({
   user: User;
   email: string | null;
   lastfm: LastfmAccount | null;
-  city: City | null;
+  city: City;
   knownArtists: UserArtist[];
   pinnedPlaylists: Playlist[];
   sync: SyncStatus | null;
 }) {
-  const missingSyncActions = [
-    lastfm === null && "link Last.fm account",
-    city === null && "set home city",
-  ].filter((item): item is string => item !== false);
-
   return (
     <div className="space-y-6">
       <Section
         heading="Daily Sync"
-        alert={missingSyncActions.length > 0}
-        alertText={`Disabled, ${missingSyncActions.join(" and ")}`}
+        alert={lastfm === null}
+        alertText="Disabled, link Last.fm account"
         description="Imports listening history, suggests artists, finds concerts and generates playlists."
       >
         <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
@@ -100,8 +49,6 @@ export function SettingsContent({
       </Section>
       <Section
         heading="Home City"
-        alert={city === null}
-        alertText="Set home city to enable sync"
         description="A playlist is generated for concerts in your home city."
       >
         <CityPanel city={city} />
