@@ -240,7 +240,7 @@ function PlaylistCard({
             </div>
             <CollapsibleContent>
               {playlist.tracks.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   No tracks found. NextFM will add new ones as your listening
                   history and upcoming concerts change.
                 </p>
