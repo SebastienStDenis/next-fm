@@ -99,10 +99,12 @@ The dashboard requires a home city and a sync on record (even a failed
 one); anyone short of that is redirected to `/welcome`, a guided,
 non-skippable page that reuses the settings cards unchanged - **Last.fm**,
 **Home City**, then **First Sync**, the Daily Sync card retitled for the
-one-off (the daily schedule takes over afterwards). The cards' attention
-badges walk the user through setup, the sync card runs and plays back the
-first sync with its step list kept expanded, and a successful run hands the
-user to the dashboard (see `docs/design/2026-07-12-welcome-flow-plan.md`).
+one-off (the daily schedule takes over afterwards). A pulsing attention dot
+on the section heading marks the next step and completed steps carry a
+green check, the sync card runs and plays back the first sync with its step
+list kept expanded, and a successful run reveals the completion footer -
+"All set. Playlists update daily." beside a go-to-dashboard button (see
+`docs/design/2026-07-12-welcome-flow-plan.md`).
 
 ## Section and tab names
 

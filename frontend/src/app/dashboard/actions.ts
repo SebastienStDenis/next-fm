@@ -98,6 +98,9 @@ export async function startSync(): Promise<ActionState> {
     return { error: await errorMessage(res, "Failed to start sync.") };
   }
 
+  // The welcome page's step marks read the run state server-side; refresh
+  // them so the sync step's dot clears while the run is in flight.
+  revalidatePath(`/`, "layout");
   return { error: null };
 }
 

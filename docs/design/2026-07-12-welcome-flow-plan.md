@@ -32,8 +32,9 @@ sync-fed and useless without one.
 ## Flow
 
 `/welcome` (`frontend/src/app/welcome/page.tsx`) is the settings cards,
-unchanged, in setup order - the guided feel comes from the shared section
-chrome (attention badges on what is missing), not custom machinery:
+unchanged, in setup order - the guided feel comes from state marks on the
+section headings (one pulsing attention dot on the step to do now, a green
+check on completed ones), not custom machinery:
 
 1. **Last.fm** - the settings panel; `PUT /me/lastfm` validates the
    account and the card shows it.
@@ -47,8 +48,10 @@ chrome (attention badges on what is missing), not custom machinery:
 
 Shared actions revalidate the root layout so the welcome and dashboard
 server payloads both refresh as setup progresses. When a run finishes the
-card refreshes the route: a successful first sync passes the redirect
-guard below and hands the user straight to the dashboard.
+card refreshes the route, and a successful sync reveals the completion
+footer: "All set. Playlists update daily." beside a go-to-dashboard button.
+The handoff is deliberately a click, not a redirect - the user gets a
+moment with the finished step list before moving on.
 
 Copy and section names follow `docs/wording.md` (Welcome flow section).
 
@@ -57,9 +60,10 @@ Copy and section names follow `docs/wording.md` (Welcome flow section).
 - The dashboard redirects to `/welcome` whenever the invariant fails. All
   post-login entry points funnel through the dashboard, so no auth redirect
   changes.
-- `/welcome` itself bounces fully onboarded users (setup complete and a
-  completed sync on record) to the dashboard, so the flow stays resumable
-  mid-setup or mid-first-sync but never reappears afterwards.
+- `/welcome` never redirects away: mid-setup and mid-first-sync it resumes
+  where the user left off, and once a sync has succeeded it shows the
+  completion footer. Nothing links to it afterwards, so onboarded users
+  only see it again by typing the URL.
 
 ## Details
 
