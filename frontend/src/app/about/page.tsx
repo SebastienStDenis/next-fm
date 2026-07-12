@@ -21,7 +21,7 @@ export default function AboutPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             NextFM looks at who sounds similar to the artists you listen to
             most and keeps the strongest matches - each one shows its reason, like
-            “because you listen to DIIV”. Artists you already
+            <q>because you listen to DIIV</q>. Artists you already
             know are left out, but an artist you’ve only played a few times can
             still be suggested.
           </p>

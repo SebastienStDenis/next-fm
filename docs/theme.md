@@ -45,6 +45,10 @@ shaped the values, and should shape future adjustments:
   section (the intro paragraph, dashboard tab descriptions, account section
   descriptions, listener counts) renders `text-xs text-muted-foreground
   italic`, so it reads as a quiet aside rather than body copy.
+- **Quoted phrases use `<q>`.** Genuine quotations in prose (e.g. the sample
+  suggestion reason on the about page) are marked up with the `q` element; the
+  base layer in `globals.css` supplies curly quote marks and italics. Names of
+  UI labels ("Date added") stay as plain text with literal curly quotes.
 
 ## Interactive affordances
 
