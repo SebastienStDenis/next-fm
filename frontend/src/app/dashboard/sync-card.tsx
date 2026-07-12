@@ -33,13 +33,9 @@ const syncedAtFormat = new Intl.DateTimeFormat("en-US", {
 export function SyncCard({
   lastfmLinked,
   citySet,
-  defaultStepsExpanded = false,
 }: {
   lastfmLinked: boolean;
   citySet: boolean;
-  // The welcome flow keeps the post-run step list open so the results stay
-  // in view; settings collapses it behind the last-synced line.
-  defaultStepsExpanded?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
@@ -49,7 +45,7 @@ export function SyncCard({
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
   const [runSeq, setRunSeq] = useState(0);
-  const [expanded, setExpanded] = useState(defaultStepsExpanded);
+  const [expanded, setExpanded] = useState(false);
   const [starting, startTransition] = useTransition();
 
   // Loaded client-side so the page never waits on Temporal to render.

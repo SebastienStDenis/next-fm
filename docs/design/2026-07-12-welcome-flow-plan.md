@@ -42,9 +42,9 @@ check on completed ones), not custom machinery:
 3. **First Sync** - the Daily Sync card retitled for the one-off: its
    manual run control starts the sync (deliberately not automatic -
    pressing it is what teaches that playlists come from a sync), the
-   one-line playback shows the run live, and afterwards the step list -
-   kept expanded on this page - shows the summaries or the failure. A
-   re-run after a failure is the card's normal retry.
+   one-line playback shows the run live, and afterwards the expandable
+   step list holds the summaries or the failure. A re-run after a failure
+   is the card's normal retry.
 
 Shared actions revalidate the root layout so the welcome and dashboard
 server payloads both refresh as setup progresses. When a run finishes the

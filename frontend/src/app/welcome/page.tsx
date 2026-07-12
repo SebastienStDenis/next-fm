@@ -65,15 +65,11 @@ export default async function WelcomePage() {
           state={stateFor("sync", synced)}
           description="Imports listening history, suggests artists, finds concerts and generates playlists."
         >
-          <SyncCard
-            lastfmLinked={lastfm !== null}
-            citySet={city !== null}
-            defaultStepsExpanded
-          />
+          <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
         </Section>
       </div>
       {user.last_synced_at !== null && (
-        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 animate-slide-in-up">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-slide-in-up">
           <p className="text-sm">All set. Playlists update daily.</p>
           <Button asChild size="sm">
             <Link href="/dashboard">
