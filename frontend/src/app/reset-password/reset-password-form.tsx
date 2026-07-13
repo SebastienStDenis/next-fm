@@ -40,6 +40,7 @@ export function ResetPasswordForm() {
           onChange={(e) => setPassword(e.target.value)}
         />
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          At least 6 characters.
           <Check
             aria-hidden
             className={cn(
@@ -48,7 +49,6 @@ export function ResetPasswordForm() {
             )}
             strokeWidth={2.5}
           />
-          At least 6 characters.
         </p>
       </div>
       <div className="grid gap-2">
