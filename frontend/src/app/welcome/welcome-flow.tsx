@@ -21,6 +21,14 @@ export function WelcomeFlow({
   const [active, setActive] = useState(false);
   const report = useCallback((next: boolean) => setActive(next), []);
 
+  // Once the first sync's steps have played out, the footer stays put: a
+  // manual re-run (or one that fails, leaving the earlier sync on record)
+  // shouldn't collapse the "go to dashboard" prompt and replay its reveal.
+  const [revealed, setRevealed] = useState(false);
+  if (ready && !active && !revealed) {
+    setRevealed(true);
+  }
+
   return (
     <SyncActivityProvider value={report}>
       {children}
@@ -28,7 +36,7 @@ export function WelcomeFlow({
           it the centered page re-centers in one frame and visibly jumps.
           Held back until the sync card has finished replaying each step, so
           the "go to dashboard" prompt lands after the run reads as done. */}
-      {ready && !active && (
+      {ready && (revealed || !active) && (
         <div className="grid animate-grow-in grid-rows-[1fr]">
           <div className="min-h-0 overflow-hidden">
             <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-fade-in-delayed">
