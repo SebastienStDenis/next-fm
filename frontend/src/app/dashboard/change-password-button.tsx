@@ -104,10 +104,12 @@ export function ChangePasswordButton() {
               value={confirmation}
               onChange={(e) => setConfirmation(e.target.value)}
             />
+            {mismatch && (
+              <p className="text-xs text-destructive">
+                Passwords do not match.
+              </p>
+            )}
           </div>
-          {mismatch && (
-            <p className="text-sm text-destructive">Passwords do not match.</p>
-          )}
           {state.error && (
             <p className="text-sm text-destructive">{state.error}</p>
           )}
