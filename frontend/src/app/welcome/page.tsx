@@ -4,6 +4,7 @@ import { Section } from "../dashboard/section";
 import { SyncCard } from "../dashboard/sync-card";
 import { fetchOptional, loadMe } from "../dashboard/user-api";
 import { IntroText } from "../intro-text";
+import { DailySyncSection } from "./daily-sync-section";
 import { WelcomeFlow } from "./welcome-flow";
 
 export default async function WelcomePage() {
@@ -63,13 +64,12 @@ export default async function WelcomePage() {
           >
             <CityPanel city={city} />
           </Section>
-          <Section
-            heading="Daily Sync"
-            state={stateFor("sync", synced)}
-            description="Imports listening history, suggests artists, finds concerts and generates playlists."
+          <DailySyncSection
+            synced={synced}
+            reached={synced || activeStep === "sync"}
           >
             <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
-          </Section>
+          </DailySyncSection>
         </div>
       </WelcomeFlow>
     </main>
