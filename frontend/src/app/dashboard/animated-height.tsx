@@ -15,8 +15,11 @@ export function AnimatedHeight({ children }: { children: React.ReactNode }) {
     if (!content) {
       return;
     }
+    // offsetHeight is the layout size: unlike getBoundingClientRect it
+    // ignores transforms, so a scale animation on an ancestor (the dialog's
+    // zoom-in) can't bake a too-small height into the wrapper.
     const observer = new ResizeObserver(() => {
-      setHeight(content.getBoundingClientRect().height);
+      setHeight(content.offsetHeight);
     });
     observer.observe(content);
     return () => observer.disconnect();

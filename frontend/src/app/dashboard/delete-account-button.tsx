@@ -29,7 +29,7 @@ export function DeleteAccountButton({ userName }: { userName: string }) {
       <form id="delete-account" action={formAction} />
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button variant="destructive" disabled={pending}>
+          <Button variant="destructive" size="sm" disabled={pending}>
             {pending && <Spinner />}
             Delete account
           </Button>
