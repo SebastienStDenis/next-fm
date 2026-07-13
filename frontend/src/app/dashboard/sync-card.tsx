@@ -38,6 +38,9 @@ export function SyncCard({
   const [statusLoading, setStatusLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
+  // Progress ring fraction, reported by the step playback so the ring tracks
+  // the step on screen rather than the (often further-ahead) real workflow.
+  const [progress, setProgress] = useState<number | null>(null);
   const [runSeq, setRunSeq] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [starting, startTransition] = useTransition();
@@ -99,15 +102,6 @@ export function SyncCard({
   }, [polling, router]);
 
   const running = status?.status === "running";
-  // Fraction of the run already done, for the button's progress ring: each
-  // completed step is a full share, the in-flight step counts as half. The
-  // floor keeps a just-started run from showing a dead, empty ring.
-  const steps = status?.steps ?? [];
-  const completedShare =
-    steps.filter((step) => step.status === "completed").length +
-    (steps.some((step) => step.status === "running") ? 0.5 : 0);
-  const progress =
-    steps.length > 0 ? Math.max(completedShare / steps.length, 0.04) : null;
   // The button shows a spinner while checking for an existing run, while one is
   // in progress, and while the step playback is still catching up after the run
   // finished behind the scenes (settling).
@@ -143,6 +137,7 @@ export function SyncCard({
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
+    setProgress(null);
     setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
@@ -199,7 +194,7 @@ export function SyncCard({
             {busy && (
               <span className="absolute inset-0 flex items-center justify-center">
                 {(running || settling) && progress !== null ? (
-                  <SyncProgressRing fraction={settling ? 1 : progress} />
+                  <SyncProgressRing fraction={progress} />
                 ) : (
                   <Spinner />
                 )}
@@ -215,6 +210,7 @@ export function SyncCard({
                 steps={status.steps}
                 finished={!running}
                 onSettled={() => setSettling(false)}
+                onProgress={setProgress}
               />
             </div>
           ) : (
