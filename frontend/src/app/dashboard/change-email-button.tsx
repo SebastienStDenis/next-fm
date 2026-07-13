@@ -5,7 +5,7 @@ import { Pencil } from "lucide-react";
 
 import { changeEmail } from "./actions";
 import type { ActionState } from "./actions";
-import { AnimatedHeight } from "./animated-height";
+import { Collapse } from "../collapse";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -65,24 +65,27 @@ export function ChangeEmailButton() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
-        <AnimatedHeight>
-          <div className="grid gap-4">
-            <DialogHeader>
-              <DialogTitle>Change email</DialogTitle>
-              <DialogDescription className="text-xs italic">
-                Confirmation links are sent to both the current and the new
-                address. The change applies once both are confirmed.
-              </DialogDescription>
-            </DialogHeader>
-            {sentTo ? (
-              <p className="text-sm text-muted-foreground">
-                Check the inboxes of {sentTo} and your current address to
-                confirm the change.
-              </p>
-            ) : (
-              <form action={formAction} className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="new-email">New email</Label>
+        <DialogHeader>
+          <DialogTitle>Change email</DialogTitle>
+          <DialogDescription className="text-xs italic">
+            Confirmation links are sent to both the current and the new
+            address. The change applies once both are confirmed.
+          </DialogDescription>
+        </DialogHeader>
+        {/* The two states collapse in opposite directions, so the swap and
+            the dialog frame move together instead of snapping. */}
+        <div>
+          <Collapse show={sentTo !== null}>
+            <p className="text-sm text-muted-foreground">
+              Check the inboxes of {sentTo} and your current address to
+              confirm the change.
+            </p>
+          </Collapse>
+          <Collapse show={sentTo === null}>
+            <form action={formAction} className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="new-email">New email</Label>
+                <div>
                   <Input
                     id="new-email"
                     name="email"
@@ -93,15 +96,23 @@ export function ChangeEmailButton() {
                     onChange={(e) => setEmail(e.target.value)}
                     onBlur={() => setEmailTouched(true)}
                   />
-                  {emailTouched && email !== "" && !EMAIL_SHAPE.test(email) && (
-                    <p className="text-xs text-destructive">
+                  <Collapse
+                    show={
+                      emailTouched && email !== "" && !EMAIL_SHAPE.test(email)
+                    }
+                  >
+                    <p className="pt-2 text-xs text-destructive">
                       Enter a valid email address.
                     </p>
-                  )}
+                  </Collapse>
                 </div>
-                {state.error && (
-                  <p className="text-sm text-destructive">{state.error}</p>
-                )}
+              </div>
+              <div className="grid">
+                <Collapse show={state.error !== null}>
+                  <p className="pb-3 text-sm text-destructive">
+                    {state.error}
+                  </p>
+                </Collapse>
                 <Button
                   type="submit"
                   disabled={pending || !EMAIL_SHAPE.test(email)}
@@ -109,10 +120,10 @@ export function ChangeEmailButton() {
                   {pending && <Spinner />}
                   Send confirmation links
                 </Button>
-              </form>
-            )}
-          </div>
-        </AnimatedHeight>
+              </div>
+            </form>
+          </Collapse>
+        </div>
       </DialogContent>
     </Dialog>
   );

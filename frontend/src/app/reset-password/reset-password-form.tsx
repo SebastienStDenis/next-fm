@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Check } from "lucide-react";
 
+import { Collapse } from "../collapse";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,26 +54,32 @@ export function ResetPasswordForm() {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="confirm-password">Confirm new password</Label>
-        <Input
-          id="confirm-password"
-          type="password"
-          required
-          autoComplete="new-password"
-          value={confirmation}
-          onChange={(e) => setConfirmation(e.target.value)}
-          onBlur={() => setConfirmationTouched(true)}
-        />
-        {mismatch && (
-          <p className="text-xs text-destructive">Passwords do not match.</p>
-        )}
+        <div>
+          <Input
+            id="confirm-password"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={confirmation}
+            onChange={(e) => setConfirmation(e.target.value)}
+            onBlur={() => setConfirmationTouched(true)}
+          />
+          <Collapse show={mismatch}>
+            <p className="pt-2 text-xs text-destructive">
+              Passwords do not match.
+            </p>
+          </Collapse>
+        </div>
       </div>
-      {state.error && (
-        <p className="text-sm text-destructive">{state.error}</p>
-      )}
-      <Button type="submit" disabled={pending || !valid} className="w-full">
-        {pending && <Spinner />}
-        Set new password
-      </Button>
+      <div className="grid">
+        <Collapse show={state.error !== null}>
+          <p className="pb-3 text-sm text-destructive">{state.error}</p>
+        </Collapse>
+        <Button type="submit" disabled={pending || !valid} className="w-full">
+          {pending && <Spinner />}
+          Set new password
+        </Button>
+      </div>
     </form>
   );
 }

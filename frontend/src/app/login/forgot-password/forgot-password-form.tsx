@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { Collapse } from "../../collapse";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,33 +24,37 @@ export function ForgotPasswordForm() {
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-2">
         <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onBlur={() => setEmailTouched(true)}
-        />
-        {emailTouched && email !== "" && !EMAIL_SHAPE.test(email) && (
-          <p className="text-xs text-destructive">
-            Enter a valid email address.
-          </p>
-        )}
+        <div>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
+          />
+          <Collapse show={emailTouched && email !== "" && !EMAIL_SHAPE.test(email)}>
+            <p className="pt-2 text-xs text-destructive">
+              Enter a valid email address.
+            </p>
+          </Collapse>
+        </div>
       </div>
-      {state.error && (
-        <p className="text-sm text-destructive">{state.error}</p>
-      )}
-      <Button
-        type="submit"
-        disabled={pending || !EMAIL_SHAPE.test(email)}
-        className="w-full"
-      >
-        {pending && <Spinner />}
-        Send reset link
-      </Button>
+      <div className="grid">
+        <Collapse show={state.error !== null}>
+          <p className="pb-3 text-sm text-destructive">{state.error}</p>
+        </Collapse>
+        <Button
+          type="submit"
+          disabled={pending || !EMAIL_SHAPE.test(email)}
+          className="w-full"
+        >
+          {pending && <Spinner />}
+          Send reset link
+        </Button>
+      </div>
     </form>
   );
 }
