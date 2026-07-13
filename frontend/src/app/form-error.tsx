@@ -14,12 +14,19 @@ export function FormError({
   className?: string;
 }) {
   return (
-    <p className={cn("flex items-start gap-1.5 text-sm text-foreground", className)}>
-      <X
-        aria-hidden
-        strokeWidth={2.5}
-        className="mt-0.5 size-3.5 shrink-0 text-destructive"
-      />
+    <p
+      className={cn(
+        "flex items-start gap-1.5 text-sm text-foreground",
+        className,
+      )}
+    >
+      <span className="flex h-5 shrink-0 items-center">
+        <X
+          aria-hidden
+          strokeWidth={2.5}
+          className="size-3.5 text-destructive"
+        />
+      </span>
       <span>{children}</span>
     </p>
   );

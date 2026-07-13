@@ -23,6 +23,40 @@ import { cn } from "@/lib/utils";
 
 export function ChangePasswordButton() {
   const [open, setOpen] = useState(false);
+  // Bumped on each open so the form remounts fresh: field state and the
+  // useActionState error (which has no reset) don't linger from a prior open.
+  const [session, setSession] = useState(0);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) setSession((n) => n + 1);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Change password"
+          title="Change password"
+          className="text-muted-foreground"
+        >
+          <Pencil aria-hidden />
+        </Button>
+      </DialogTrigger>
+      <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Change password</DialogTitle>
+        </DialogHeader>
+        <ChangePasswordForm key={session} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -49,114 +83,85 @@ export function ChangePasswordButton() {
   const valid =
     currentPassword !== "" && password.length >= 6 && confirmation === password;
 
-  const onOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (nextOpen) {
-      setCurrentPassword("");
-      setPassword("");
-      setConfirmation("");
-      setConfirmationTouched(false);
-      setSucceeded(false);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Change password"
-          title="Change password"
-          className="text-muted-foreground"
-        >
-          <Pencil aria-hidden />
-        </Button>
-      </DialogTrigger>
-      <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Change password</DialogTitle>
-        </DialogHeader>
-        <AnimatedHeight>
-          {succeeded ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm">
+    <AnimatedHeight>
+      {succeeded ? (
+        <div className="flex items-center justify-center gap-2 py-8 text-sm">
+          <Check
+            aria-hidden
+            className="size-3.5 text-green-600 dark:text-green-500"
+            strokeWidth={2.5}
+          />
+          Password changed
+        </div>
+      ) : (
+        <form action={formAction} className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="current-password">Current password</Label>
+            <Input
+              id="current-password"
+              name="currentPassword"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="new-password">New password</Label>
+            <Input
+              id="new-password"
+              name="password"
+              type="password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              At least 6 characters.
               <Check
                 aria-hidden
-                className="size-3.5 text-green-600 dark:text-green-500"
+                className={cn(
+                  "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
+                  password.length >= 6 ? "opacity-100" : "opacity-0",
+                )}
                 strokeWidth={2.5}
               />
-              Password changed
-            </div>
-          ) : (
-            <form action={formAction} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="current-password">Current password</Label>
-                <Input
-                  id="current-password"
-                  name="currentPassword"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="new-password">New password</Label>
-                <Input
-                  id="new-password"
-                  name="password"
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                  At least 6 characters.
-                  <Check
-                    aria-hidden
-                    className={cn(
-                      "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
-                      password.length >= 6 ? "opacity-100" : "opacity-0",
-                    )}
-                    strokeWidth={2.5}
-                  />
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="confirm-password">Confirm new password</Label>
+            <div>
+              <Input
+                id="confirm-password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={confirmation}
+                onChange={(e) => setConfirmation(e.target.value)}
+                onBlur={() => setConfirmationTouched(true)}
+              />
+              <Collapse show={mismatch}>
+                <p className="pt-2 text-xs text-destructive">
+                  Passwords do not match.
                 </p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="confirm-password">Confirm new password</Label>
-                <div>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    value={confirmation}
-                    onChange={(e) => setConfirmation(e.target.value)}
-                    onBlur={() => setConfirmationTouched(true)}
-                  />
-                  <Collapse show={mismatch}>
-                    <p className="pt-2 text-xs text-destructive">
-                      Passwords do not match.
-                    </p>
-                  </Collapse>
-                </div>
-              </div>
-              <div className="grid">
-                <Collapse show={state.error !== null}>
-                  <FormError className="pb-3">{state.error}</FormError>
-                </Collapse>
-                <Button type="submit" disabled={pending || !valid}>
-                  {pending && <Spinner />}
-                  Change password
-                </Button>
-              </div>
-            </form>
-          )}
-        </AnimatedHeight>
-      </DialogContent>
-    </Dialog>
+              </Collapse>
+            </div>
+          </div>
+          <div className="grid">
+            <Collapse show={state.error !== null}>
+              <FormError className="pb-3">{state.error}</FormError>
+            </Collapse>
+            <Button type="submit" disabled={pending || !valid}>
+              {pending && <Spinner />}
+              Change password
+            </Button>
+          </div>
+        </form>
+      )}
+    </AnimatedHeight>
   );
 }
