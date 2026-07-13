@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { toast } from "sonner";
 
 import { createCityPlaylist, deletePlaylist } from "./actions";
+import { AnimatedHeight } from "./animated-height";
 import type { City } from "./city-panel";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import type { Playlist } from "./playlists-panel";
@@ -47,22 +48,24 @@ export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
   }
 
   return (
-    <div className="space-y-3">
-      {(pinned.length > 0 || (pending && adding)) && (
-        <ul className="space-y-1">
-          {pinned.map((playlist) => (
-            <PinnedCityRow key={playlist.id} playlist={playlist} />
-          ))}
-          {pending && adding && (
-            <li className="flex items-center justify-between gap-x-2 text-sm">
-              <span className="min-w-0">{cityLabel(adding)}</span>
-              <span className="flex size-7 items-center justify-center text-muted-foreground">
-                <Spinner />
-              </span>
-            </li>
-          )}
-        </ul>
-      )}
+    <div>
+      <AnimatedHeight>
+        {(pinned.length > 0 || (pending && adding)) && (
+          <ul className="space-y-1 pb-3">
+            {pinned.map((playlist) => (
+              <PinnedCityRow key={playlist.id} playlist={playlist} />
+            ))}
+            {pending && adding && (
+              <li className="flex items-center justify-between gap-x-2 text-sm">
+                <span className="min-w-0">{cityLabel(adding)}</span>
+                <span className="flex size-7 items-center justify-center text-muted-foreground">
+                  <Spinner />
+                </span>
+              </li>
+            )}
+          </ul>
+        )}
+      </AnimatedHeight>
       <CitySearchBox
         placeholder={
           atCap
