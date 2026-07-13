@@ -104,10 +104,12 @@ export function CurrentStep({
   steps,
   finished,
   onSettled,
+  onProgress,
 }: {
   steps: SyncStep[];
   finished: boolean;
   onSettled: () => void;
+  onProgress: (fraction: number) => void;
 }) {
   // Polling only snapshots the workflow, so a fast step can finish between
   // polls without ever being seen running. Instead of mirroring the latest
@@ -151,6 +153,21 @@ export function CurrentStep({
         : null,
     [step, index, cursor.phase],
   );
+
+  // Drive the button's progress ring off the played-back cursor, not the raw
+  // status, so the ring advances in lockstep with the step shown here: the
+  // displayed step counts as half a share while it plays live, a full share
+  // once it settles into its final state.
+  const total = steps.length;
+  const fraction =
+    total > 0 && step
+      ? Math.max((index + (cursor.phase === "final" ? 1 : 0.5)) / total, 0.04)
+      : null;
+  useEffect(() => {
+    if (fraction !== null) {
+      onProgress(fraction);
+    }
+  }, [fraction, onProgress]);
 
   useEffect(() => {
     if (!step || !snapshot) {

@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
-const PINNED_PLAYLIST_CAP = 2;
+const PINNED_PLAYLIST_CAP = 4;
 
 export function PinnedCitiesPanel({ pinned }: { pinned: Playlist[] }) {
   const [pending, startTransition] = useTransition();
@@ -106,7 +106,7 @@ function PinnedCityRow({ playlist }: { playlist: Playlist }) {
         disabled={pending}
         aria-label={`Remove ${playlist.city?.name ?? "pinned city"}`}
         title="Remove"
-        className="text-destructive hover:text-destructive"
+        className="text-muted-foreground"
       >
         {pending ? <Spinner className="text-muted-foreground" /> : <X aria-hidden />}
       </Button>
