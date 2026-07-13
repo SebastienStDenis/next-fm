@@ -13,3 +13,16 @@ export const SyncActivityProvider = SyncActivityContext.Provider;
 export function useReportSyncActivity() {
   return useContext(SyncActivityContext);
 }
+
+// Whether the welcome flow's sync playback has settled - the same signal that
+// gates its completion footer. The Daily Sync section reads it to hold its
+// green check back until the simulated steps finish, so the check and the
+// footer land together. Defaults to settled (true) so a consumer without a
+// provider just reflects the plain synced state.
+const SyncSettledContext = createContext<boolean>(true);
+
+export const SyncSettledProvider = SyncSettledContext.Provider;
+
+export function useSyncSettled() {
+  return useContext(SyncSettledContext);
+}
