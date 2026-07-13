@@ -5,7 +5,6 @@ import { Check, Pencil } from "lucide-react";
 
 import { changePassword } from "./actions";
 import type { ActionState } from "./actions";
-import { AnimatedHeight } from "./animated-height";
 import { Collapse } from "../collapse";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,17 +75,11 @@ export function ChangePasswordButton() {
         <DialogHeader>
           <DialogTitle>Change password</DialogTitle>
         </DialogHeader>
-        <AnimatedHeight>
-          {succeeded ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm">
-              <Check
-                aria-hidden
-                className="size-3.5 text-green-600 dark:text-green-500"
-                strokeWidth={2.5}
-              />
-              Password changed
-            </div>
-          ) : (
+        {/* The two states collapse in opposite directions, so the swap and
+            the dialog frame move together, and a hint expanding inside the
+            form grows the layout instead of being clipped. */}
+        <div>
+          <Collapse show={!succeeded}>
             <form action={formAction} className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="current-password">Current password</Label>
@@ -153,8 +146,18 @@ export function ChangePasswordButton() {
                 </Button>
               </div>
             </form>
-          )}
-        </AnimatedHeight>
+          </Collapse>
+          <Collapse show={succeeded}>
+            <div className="flex items-center justify-center gap-2 py-8 text-sm">
+              <Check
+                aria-hidden
+                className="size-3.5 text-green-600 dark:text-green-500"
+                strokeWidth={2.5}
+              />
+              Password changed
+            </div>
+          </Collapse>
+        </div>
       </DialogContent>
     </Dialog>
   );
