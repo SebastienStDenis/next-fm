@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 
 import { AttentionDot } from "./attention-dot";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -28,19 +29,34 @@ export function Section({
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {/* The dot pulses (its own animation), so the fade lives on a
-              wrapper instead. */}
-          {state === "active" && (
-            <span className="flex animate-fade-in">
-              <AttentionDot pulse />
+          {/* Crossfade the pulsing dot (active) and the check (done) in one
+              fixed-size slot: completing a step reads as a single smooth swap
+              with no pop and no sideways nudge of the heading. The slot fades
+              in on first appearance; the layers trade opacity thereafter. */}
+          {state && (
+            <span className="relative flex size-3.5 shrink-0 animate-fade-in">
+              <span
+                aria-hidden={state !== "active"}
+                className={cn(
+                  "absolute inset-0 flex items-center justify-center transition-opacity duration-[250ms] ease-out motion-reduce:transition-none",
+                  state === "active"
+                    ? "opacity-100"
+                    : "opacity-0 pointer-events-none",
+                )}
+              >
+                <AttentionDot pulse={state === "active"} />
+              </span>
+              <Check
+                aria-hidden
+                strokeWidth={2.5}
+                className={cn(
+                  "absolute inset-0 size-3.5 text-green-600 transition-opacity duration-[250ms] ease-out motion-reduce:transition-none dark:text-green-500",
+                  state === "done"
+                    ? "opacity-100"
+                    : "opacity-0 pointer-events-none",
+                )}
+              />
             </span>
-          )}
-          {state === "done" && (
-            <Check
-              aria-hidden
-              className="size-3.5 animate-fade-in text-green-600 dark:text-green-500"
-              strokeWidth={2.5}
-            />
           )}
           <h2>{heading}</h2>
         </CardTitle>
