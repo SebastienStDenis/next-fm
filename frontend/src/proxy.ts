@@ -6,8 +6,6 @@ import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 const PUBLIC_PATHS = new Set([
   "/",
   "/login",
-  "/login/forgot-password",
-  "/login/forgot-password/check-email",
   "/signup",
   "/signup/check-email",
   "/about",
