@@ -10,7 +10,7 @@ A website for live-music discovery that works through listening instead of listi
 
 ## Stack
 
-Full-stack monorepo: FastAPI backend, Next.js frontend, Postgres database, Docker for local development.
+Full-stack monorepo: FastAPI backend, Next.js frontend, Supabase (Postgres and auth) via its CLI, Docker Compose for the app services and Temporal.
 
 ### Backend (`backend/`)
 - Python 3.14, dependencies and environments managed with [uv](https://docs.astral.sh/uv/)
@@ -24,19 +24,28 @@ Full-stack monorepo: FastAPI backend, Next.js frontend, Postgres database, Docke
 ### Frontend (`frontend/`)
 - Next.js (App Router, TypeScript, Tailwind CSS, ESLint)
 
-### Database
-- PostgreSQL 18 (Docker)
+### Database and auth
+- PostgreSQL 17 and Supabase Auth, run locally by the [Supabase CLI](https://supabase.com/docs/guides/local-development) (`supabase start`)
 
 ## Running locally
 
 ```sh
-docker compose up --build
+supabase start                  # database, auth, Studio, Mailpit
+docker compose up --build       # API, web, Temporal, worker
 ```
 
-This starts:
-- Postgres on `localhost:5432` (user/password `postgres`, database `app`)
+`supabase start` runs the data and auth layer (it must be up before `docker compose up`):
+- Postgres on `localhost:54322` (user/password `postgres`, database `postgres`)
+- Supabase API and Auth on <http://localhost:54321>
+- Supabase Studio on <http://localhost:54323>
+- Mailpit on <http://localhost:54324> - captures all email sent locally (signup confirmation, password reset, email change); open it to click the links
+
+`docker compose up` runs the app services:
 - API on <http://localhost:8000> (applies migrations and seeds on startup, hot reload)
 - Web on <http://localhost:3000> (hot reload)
+- Temporal on `localhost:7233` (UI on <http://localhost:8080>) and the sync worker
+
+Tear down with `docker compose down` and, when done, `supabase stop`.
 
 Source directories are bind-mounted into the containers, so code edits hot-reload. Dependency and config-file changes (lockfiles, `pyproject.toml`, `next.config.ts`, ...) are baked into the images: rebuild with `docker compose up -d --build`.
 
@@ -57,20 +66,21 @@ All configuration lives in a single `.env` at the repo root (`cp .env.example .e
 ### Managing the stack
 
 ```sh
-docker compose up -d            # start in the background
-docker compose down             # stop everything (data persists)
-docker compose down -v          # stop and wipe the database volume
-docker compose logs -f api      # tail logs (api, web, or db)
+docker compose up -d            # start the app services in the background
+docker compose down             # stop the app services (app data lives in Supabase)
+docker compose down -v          # stop and wipe the Temporal volume
+docker compose logs -f api      # tail logs (api, web, temporal, or worker)
 docker compose up -d --build    # rebuild after dependency or config changes
-docker compose up -d db         # start only Postgres (for running apps outside Docker)
-docker compose exec db psql -U postgres app   # psql shell into the database
+supabase stop                   # stop the data and auth layer (data persists)
+supabase db reset               # wipe the database (restart the api container to re-migrate and re-seed)
+psql postgresql://postgres:postgres@127.0.0.1:54322/postgres   # psql shell into the database
 ```
 
-Host ports are configurable, so a second stack (e.g. from a git worktree) can run alongside the main one under its own project name:
+Host ports are configurable, so a second app stack (e.g. from a git worktree) can run alongside the main one under its own project name; both share the single Supabase stack:
 
 ```sh
-DB_PORT=5433 API_PORT=8001 WEB_PORT=3001 docker compose -p my-branch up -d --build
-docker compose -p my-branch down -v           # tear it down, including its database volume
+API_PORT=8001 WEB_PORT=3001 TEMPORAL_PORT=7234 TEMPORAL_UI_PORT=8081 docker compose -p my-branch up -d --build
+docker compose -p my-branch down -v           # tear it down
 ```
 
 ### Running the backend outside Docker
@@ -83,7 +93,7 @@ uv run python -m app.seed
 uv run uvicorn app.main:app --reload
 ```
 
-Requires Postgres running (e.g. `docker compose up -d db`) and the root `.env` (see above).
+Requires `supabase start` running, the Temporal service (`docker compose up -d temporal`), and the root `.env` (see above).
 
 ### Backend checks
 
