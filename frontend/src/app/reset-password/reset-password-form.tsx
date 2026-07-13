@@ -11,16 +11,16 @@ import { resetPassword } from "./actions";
 export function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  // Punish late: the mismatch hint waits for the confirm field's first
-  // blur, then revalidates live so it clears as soon as the fields agree.
-  // Clearing the field starts the attempt over, grace period included.
-  const [confirmationTouched, setConfirmationTouched] = useState(false);
+  // Punish late: the mismatch hint never judges the confirmation while
+  // it's being edited, only once the user leaves the field. The submit
+  // button enabling still gives live match feedback.
+  const [confirmationFocused, setConfirmationFocused] = useState(false);
   const [state, formAction, pending] = useActionState(resetPassword, {
     error: null,
   });
 
   const mismatch =
-    confirmationTouched && confirmation !== "" && confirmation !== password;
+    !confirmationFocused && confirmation !== "" && confirmation !== password;
   const valid = password.length >= 6 && confirmation === password;
 
   return (
@@ -47,13 +47,9 @@ export function ResetPasswordForm() {
           required
           autoComplete="new-password"
           value={confirmation}
-          onChange={(e) => {
-            setConfirmation(e.target.value);
-            if (e.target.value === "") {
-              setConfirmationTouched(false);
-            }
-          }}
-          onBlur={() => setConfirmationTouched(true)}
+          onChange={(e) => setConfirmation(e.target.value)}
+          onFocus={() => setConfirmationFocused(true)}
+          onBlur={() => setConfirmationFocused(false)}
         />
         {mismatch && (
           <p className="text-xs text-destructive">Passwords do not match.</p>
