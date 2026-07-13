@@ -20,7 +20,7 @@ export default function CheckEmailPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            You have been sent a password reset link. Click it to choose a new
+            You have been sent a password reset link. Open it to set a new
             password.
           </p>
         </CardContent>

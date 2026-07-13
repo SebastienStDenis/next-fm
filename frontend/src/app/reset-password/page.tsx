@@ -1,7 +1,6 @@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -17,9 +16,6 @@ export default function ResetPasswordPage() {
           <CardTitle className="text-xl">
             <h1>Choose a new password</h1>
           </CardTitle>
-          <CardDescription>
-            It replaces your old password right away.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <ResetPasswordForm />
