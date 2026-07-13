@@ -13,16 +13,16 @@ import { resetPassword } from "./actions";
 export function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  // Punish late: the mismatch hint never judges the confirmation while
-  // it's being edited, only once the user leaves the field. The submit
-  // button enabling still gives live match feedback.
-  const [confirmationFocused, setConfirmationFocused] = useState(false);
+  // Punish late, revalidate eagerly: the mismatch hint waits for the
+  // confirm field's first blur, then tracks every edit until resolved.
+  // An empty field shows nothing - it makes no mismatch claim yet.
+  const [confirmationTouched, setConfirmationTouched] = useState(false);
   const [state, formAction, pending] = useActionState(resetPassword, {
     error: null,
   });
 
   const mismatch =
-    !confirmationFocused && confirmation !== "" && confirmation !== password;
+    confirmationTouched && confirmation !== "" && confirmation !== password;
   const valid = password.length >= 6 && confirmation === password;
 
   return (
@@ -60,8 +60,7 @@ export function ResetPasswordForm() {
           autoComplete="new-password"
           value={confirmation}
           onChange={(e) => setConfirmation(e.target.value)}
-          onFocus={() => setConfirmationFocused(true)}
-          onBlur={() => setConfirmationFocused(false)}
+          onBlur={() => setConfirmationTouched(true)}
         />
         {mismatch && (
           <p className="text-xs text-destructive">Passwords do not match.</p>

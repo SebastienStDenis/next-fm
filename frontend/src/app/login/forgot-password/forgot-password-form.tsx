@@ -12,9 +12,9 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
-  // Punish late: the format hint only judges the address once the user
-  // leaves the field, never while it's being edited.
-  const [emailFocused, setEmailFocused] = useState(false);
+  // Punish late, revalidate eagerly: the format hint waits for the field's
+  // first blur, then tracks every edit until resolved.
+  const [emailTouched, setEmailTouched] = useState(false);
   const [state, formAction, pending] = useActionState(requestPasswordReset, {
     error: null,
   });
@@ -31,10 +31,9 @@ export function ForgotPasswordForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          onFocus={() => setEmailFocused(true)}
-          onBlur={() => setEmailFocused(false)}
+          onBlur={() => setEmailTouched(true)}
         />
-        {!emailFocused && email !== "" && !EMAIL_SHAPE.test(email) && (
+        {emailTouched && email !== "" && !EMAIL_SHAPE.test(email) && (
           <p className="text-xs text-destructive">
             Enter a valid email address.
           </p>

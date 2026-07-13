@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 
 import { changeEmail } from "./actions";
 import type { ActionState } from "./actions";
+import { AnimatedHeight } from "./animated-height";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,9 +24,9 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function ChangeEmailButton() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  // Punish late: the format hint only judges the address once the user
-  // leaves the field, never while it's being edited.
-  const [emailFocused, setEmailFocused] = useState(false);
+  // Punish late, revalidate eagerly: the format hint waits for the field's
+  // first blur, then tracks every edit until resolved.
+  const [emailTouched, setEmailTouched] = useState(false);
   // The address the confirmation links went to; set on success, swaps the
   // form for the check-your-inboxes note.
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function ChangeEmailButton() {
     setOpen(nextOpen);
     if (nextOpen) {
       setEmail("");
+      setEmailTouched(false);
       setSentTo(null);
     }
   };
@@ -63,48 +65,54 @@ export function ChangeEmailButton() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Change email</DialogTitle>
-          <DialogDescription>
-            Confirmation links are sent to both the current and the new
-            address. The change applies once both are confirmed.
-          </DialogDescription>
-        </DialogHeader>
-        {sentTo ? (
-          <p className="text-sm text-muted-foreground">
-            Check the inboxes of {sentTo} and your current address to confirm
-            the change.
-          </p>
-        ) : (
-          <form action={formAction} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="new-email">New email</Label>
-              <Input
-                id="new-email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
-              />
-              {!emailFocused && email !== "" && !EMAIL_SHAPE.test(email) && (
-                <p className="text-xs text-destructive">
-                  Enter a valid email address.
-                </p>
-              )}
-            </div>
-            {state.error && (
-              <p className="text-sm text-destructive">{state.error}</p>
+        <AnimatedHeight>
+          <div className="grid gap-4">
+            <DialogHeader>
+              <DialogTitle>Change email</DialogTitle>
+              <DialogDescription>
+                Confirmation links are sent to both the current and the new
+                address. The change applies once both are confirmed.
+              </DialogDescription>
+            </DialogHeader>
+            {sentTo ? (
+              <p className="text-sm text-muted-foreground">
+                Check the inboxes of {sentTo} and your current address to
+                confirm the change.
+              </p>
+            ) : (
+              <form action={formAction} className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="new-email">New email</Label>
+                  <Input
+                    id="new-email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => setEmailTouched(true)}
+                  />
+                  {emailTouched && email !== "" && !EMAIL_SHAPE.test(email) && (
+                    <p className="text-xs text-destructive">
+                      Enter a valid email address.
+                    </p>
+                  )}
+                </div>
+                {state.error && (
+                  <p className="text-sm text-destructive">{state.error}</p>
+                )}
+                <Button
+                  type="submit"
+                  disabled={pending || !EMAIL_SHAPE.test(email)}
+                >
+                  {pending && <Spinner />}
+                  Send confirmation links
+                </Button>
+              </form>
             )}
-            <Button type="submit" disabled={pending || !EMAIL_SHAPE.test(email)}>
-              {pending && <Spinner />}
-              Send confirmation links
-            </Button>
-          </form>
-        )}
+          </div>
+        </AnimatedHeight>
       </DialogContent>
     </Dialog>
   );
