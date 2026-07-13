@@ -7,7 +7,6 @@ import { ChevronDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { startSync } from "./actions";
-import { useReportSyncActivity } from "./sync-activity";
 import {
   CurrentStep,
   fetchStatus,
@@ -39,9 +38,6 @@ export function SyncCard({
   const [statusLoading, setStatusLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [settling, setSettling] = useState(false);
-  // Progress ring fraction, reported by the step playback so the ring tracks
-  // the step on screen rather than the (often further-ahead) real workflow.
-  const [progress, setProgress] = useState<number | null>(null);
   const [runSeq, setRunSeq] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [starting, startTransition] = useTransition();
@@ -103,6 +99,15 @@ export function SyncCard({
   }, [polling, router]);
 
   const running = status?.status === "running";
+  // Fraction of the run already done, for the button's progress ring: each
+  // completed step is a full share, the in-flight step counts as half. The
+  // floor keeps a just-started run from showing a dead, empty ring.
+  const steps = status?.steps ?? [];
+  const completedShare =
+    steps.filter((step) => step.status === "completed").length +
+    (steps.some((step) => step.status === "running") ? 0.5 : 0);
+  const progress =
+    steps.length > 0 ? Math.max(completedShare / steps.length, 0.04) : null;
   // The button shows a spinner while checking for an existing run, while one is
   // in progress, and while the step playback is still catching up after the run
   // finished behind the scenes (settling).
@@ -114,14 +119,6 @@ export function SyncCard({
   // A live run (or its settle animation) always wins the status area, even if a
   // requirement looks unmet - never replace an active run with the setup hint.
   const showSteps = (running || settling) && status !== null;
-
-  // Tell a surrounding welcome flow (if any) while the step display is up, so
-  // it can defer revealing its completion footer until playback settles.
-  const reportActivity = useReportSyncActivity();
-  useEffect(() => {
-    reportActivity(showSteps);
-    return () => reportActivity(false);
-  }, [reportActivity, showSteps]);
 
   // A sync needs both a linked Last.fm account and a home city, each set
   // from its own section; the API refuses to start one without them too.
@@ -146,7 +143,6 @@ export function SyncCard({
     // A click during the settle window starts a fresh run; drop the old
     // playback (keyed by runSeq) instead of letting it resume mid-list.
     setSettling(false);
-    setProgress(null);
     setRunSeq((seq) => seq + 1);
     setStatus({
       status: "running",
@@ -203,7 +199,7 @@ export function SyncCard({
             {busy && (
               <span className="absolute inset-0 flex items-center justify-center">
                 {(running || settling) && progress !== null ? (
-                  <SyncProgressRing fraction={progress} />
+                  <SyncProgressRing fraction={settling ? 1 : progress} />
                 ) : (
                   <Spinner />
                 )}
@@ -219,7 +215,6 @@ export function SyncCard({
                 steps={status.steps}
                 finished={!running}
                 onSettled={() => setSettling(false)}
-                onProgress={setProgress}
               />
             </div>
           ) : (

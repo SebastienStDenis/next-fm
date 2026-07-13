@@ -10,15 +10,7 @@ import { HomeLink } from "../home-link";
 import { InlineNav } from "../inline-nav";
 import { LoginForm } from "./login-form";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  // /auth/confirm redirects here when an emailed link's token is invalid
-  // or expired.
-  const { error } = await searchParams;
-
+export default function LoginPage() {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-8">
       <HomeLink href="/" />
@@ -29,24 +21,13 @@ export default async function LoginPage({
           </CardTitle>
           <CardDescription>Welcome back to NextFM.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          {error === "confirm" && (
-            <p className="text-sm text-destructive">
-              That email link is invalid or has expired.
-            </p>
-          )}
+        <CardContent>
           <LoginForm />
         </CardContent>
         <CardFooter>
-          <div className="grid gap-1">
-            <p className="text-sm text-muted-foreground">
-              No account? <InlineNav href="/signup">Sign up</InlineNav>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Forgot your password?{" "}
-              <InlineNav href="/login/forgot-password">Reset it</InlineNav>
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            No account? <InlineNav href="/signup">Sign up</InlineNav>
+          </p>
         </CardFooter>
       </Card>
     </main>
