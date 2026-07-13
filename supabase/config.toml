@@ -56,10 +56,22 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = true
 
-# The confirmation link points at the frontend's /auth/confirm route (token-hash
+# The emailed links point at the frontend's /auth/confirm route (token-hash
 # flow), which verifies the OTP server-side and sets the session cookies. Locally
 # the mail is captured by Mailpit (http://127.0.0.1:54324); production needs a
 # custom SMTP provider (the built-in sender allows only a few emails/hour).
+# These templates only apply to the local stack; a hosted project takes them
+# in the dashboard (Auth > Email Templates) or via the Management API.
 [auth.email.template.confirmation]
 subject = "Confirm your email for NextFM"
 content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your password for NextFM"
+content_path = "./supabase/templates/recovery.html"
+
+# With double_confirm_changes, this goes to both the current and the new
+# address, each with its own token; both must be confirmed.
+[auth.email.template.email_change]
+subject = "Confirm your new email for NextFM"
+content_path = "./supabase/templates/email_change.html"

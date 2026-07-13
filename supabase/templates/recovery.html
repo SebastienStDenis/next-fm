@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <style>
+      @media (prefers-color-scheme: dark) {
+        .email-card { background: #201713 !important; border-color: #3b3028 !important; }
+        .email-brand, .email-heading, .email-body { color: #d9cfc3 !important; }
+        .email-muted { color: #b3a393 !important; }
+        .email-hr { border-color: #3b3028 !important; }
+        .email-button { background: #cfaa7f !important; }
+        .email-button-text { color: #291910 !important; }
+        .email-link { color: #cfaa7f !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:480px;background:#fcf9f6;border-radius:12px;border:1px solid #e2d7cb;">
+            <tr>
+              <td style="padding:32px 40px;">
+                <p class="email-brand" style="margin:0 0 24px;font-size:15px;font-weight:600;letter-spacing:-0.01em;color:#201511;">NextFM</p>
+                <h1 class="email-heading" style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#201511;">Reset your password</h1>
+                <p class="email-body" style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#201511;">
+                  A password reset was requested for your NextFM account. Follow the link to choose a new password.
+                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+                  <tr>
+                    <td class="email-button" style="border-radius:8px;background:#6c4939;">
+                      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password" class="email-button-text" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#f5ede4;text-decoration:none;border-radius:8px;">Reset password</a>
+                    </td>
+                  </tr>
+                </table>
+                <p class="email-muted" style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6e5c50;">Or paste this link into your browser:</p>
+                <p class="email-muted" style="margin:0 0 24px;font-size:13px;line-height:1.6;word-break:break-all;color:#6e5c50;">
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password" class="email-link" style="color:#6c4939;text-decoration:underline;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password</a>
+                </p>
+                <hr class="email-hr" style="border:none;border-top:1px solid #e2d7cb;margin:0 0 20px;">
+                <p class="email-muted" style="margin:0;font-size:13px;line-height:1.6;color:#6e5c50;">
+                  This link expires in one hour. If you didn't request a password reset, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

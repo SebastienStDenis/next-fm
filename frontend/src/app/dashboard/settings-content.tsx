@@ -1,3 +1,5 @@
+import { ChangeEmailButton } from "./change-email-button";
+import { ChangePasswordButton } from "./change-password-button";
 import { CityPanel, type City } from "./city-panel";
 import { DeleteAccountButton } from "./delete-account-button";
 import { DiscoveryToggle } from "./discovery-toggle";
@@ -68,14 +70,30 @@ export function SettingsContent({
         />
       </Section>
       <Section heading="Account">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="space-y-4">
           <div className="min-w-0">
             <p className="font-medium">{user.name}</p>
-            {email && (
-              <p className="truncate text-sm text-muted-foreground">{email}</p>
-            )}
+            <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+              {email && (
+                <>
+                  <dt className="self-center text-muted-foreground">Email</dt>
+                  <dd className="flex min-w-0 items-center gap-1">
+                    <span className="truncate">{email}</span>
+                    <ChangeEmailButton />
+                  </dd>
+                </>
+              )}
+              <dt className="self-center text-muted-foreground">Password</dt>
+              <dd className="flex items-center gap-1">
+                <span
+                  aria-hidden
+                  className="h-4 w-24 rounded-sm bg-muted-foreground/15"
+                />
+                <ChangePasswordButton />
+              </dd>
+            </dl>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <SignOutButton />
             <DeleteAccountButton userName={user.name} />
           </div>

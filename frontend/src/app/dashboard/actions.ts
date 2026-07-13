@@ -172,6 +172,62 @@ export async function deletePlaylist(playlistId: string): Promise<ActionState> {
   );
 }
 
+export async function changePassword(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const currentPassword = formData.get("currentPassword");
+  const password = formData.get("password");
+  if (typeof currentPassword !== "string" || !currentPassword) {
+    return { error: "Enter your current password." };
+  }
+  if (typeof password !== "string" || !password) {
+    return { error: "Enter a new password." };
+  }
+
+  // updateUser alone accepts any live session; re-checking the current
+  // password keeps someone at an unlocked device from taking the account.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) {
+    return { error: "Failed to change password." };
+  }
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (signInError) {
+    return { error: "Current password is incorrect." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+export async function changeEmail(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const email = formData.get("email");
+  if (typeof email !== "string" || !email) {
+    return { error: "Enter a new email." };
+  }
+
+  // Sends confirmation links to both the current and the new address
+  // (double_confirm_changes); the change applies once both are clicked.
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ email });
+  if (error) {
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
