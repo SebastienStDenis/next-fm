@@ -7,6 +7,7 @@ import { ChevronDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { startSync } from "./actions";
+import { useReportSyncActivity } from "./sync-activity";
 import {
   CurrentStep,
   fetchStatus,
@@ -113,6 +114,14 @@ export function SyncCard({
   // A live run (or its settle animation) always wins the status area, even if a
   // requirement looks unmet - never replace an active run with the setup hint.
   const showSteps = (running || settling) && status !== null;
+
+  // Tell a surrounding welcome flow (if any) while the step display is up, so
+  // it can defer revealing its completion footer until playback settles.
+  const reportActivity = useReportSyncActivity();
+  useEffect(() => {
+    reportActivity(showSteps);
+    return () => reportActivity(false);
+  }, [reportActivity, showSteps]);
 
   // A sync needs both a linked Last.fm account and a home city, each set
   // from its own section; the API refuses to start one without them too.
