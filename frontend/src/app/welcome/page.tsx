@@ -2,29 +2,28 @@ import { CityPanel, type City } from "../dashboard/city-panel";
 import { LastfmPanel, type LastfmAccount } from "../dashboard/lastfm-panel";
 import { Section } from "../dashboard/section";
 import { SyncCard } from "../dashboard/sync-card";
-import { fetchOptional, loadMe, loadSyncStatus } from "../dashboard/user-api";
+import { fetchOptional, loadMe } from "../dashboard/user-api";
 import { IntroText } from "../intro-text";
 import { WelcomeFlow } from "./welcome-flow";
 
 export default async function WelcomePage() {
   const user = await loadMe();
 
-  const [lastfm, city, sync] = await Promise.all([
+  const [lastfm, city] = await Promise.all([
     fetchOptional<LastfmAccount>("/me/lastfm", "Last.fm account"),
     fetchOptional<City>("/me/city", "city"),
-    loadSyncStatus(),
   ]);
 
   // One pulsing dot marks the next step; completed steps get a check. The
-  // sync step holds its check for a successful run, and shows no dot while
-  // a run is already in progress (nothing to act on).
+  // sync step keeps its dot until the first sync lands - through a run in
+  // progress too - then crossfades to the check.
   const synced = user.last_synced_at !== null;
   const activeStep =
     lastfm === null
       ? "lastfm"
       : city === null
         ? "city"
-        : !synced && sync?.status !== "running"
+        : !synced
           ? "sync"
           : null;
   const stateFor = (
