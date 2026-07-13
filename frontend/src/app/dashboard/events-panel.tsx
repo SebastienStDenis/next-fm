@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
+import { AnimatedHeight } from "./animated-height";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { EmptyState, EmptyStateCell } from "./empty-state";
@@ -214,77 +215,81 @@ export function EventsPanel({
           Artists you listen to
         </Toggle>
       </div>
-      {visibleEvents.length === 0 && hiddenCount === 0 ? (
-        <EmptyStateCell className="mt-4">
-          {viewCity
-            ? "No concerts found. Try a different city."
-            : `No concerts found near ${city.name}. NextFM will find new concerts as they're announced.`}
-        </EmptyStateCell>
-      ) : (
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleEvents.map(({ event, url, artists }) => (
-            <li key={event.id} className="flex">
-              <Card size="sm" className="flex-1">
-                <CardHeader>
-                  {/* gap-y-1 matches the header gap, so a wrapped date
-                      sits as close to the title above as to the venue
-                      line below. */}
-                  <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                    <span className="min-w-0">
-                      {event.title ??
-                        artists.map((artist) => artist.name).join(", ")}
-                    </span>
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {dateFormat.format(new Date(event.starts_at))}
-                    </span>
-                  </CardTitle>
-                  <CardDescription>
-                    {event.venue_name} · {placeLabel(event)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-                  {artists.map((artist) => {
-                    const suggested =
-                      artistRelations[artist.id] === "suggested";
-                    return (
-                      <Badge
-                        key={artist.id}
-                        variant={suggested ? "secondary" : "outline"}
-                        className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
-                      >
-                        <span className="truncate">
-                          {artistChipLabel(artist, artistRelations)}
+      <div className="mt-3">
+        <AnimatedHeight>
+          {visibleEvents.length === 0 && hiddenCount === 0 ? (
+            <EmptyStateCell>
+              {viewCity
+                ? "No concerts found. Try a different city."
+                : `No concerts found near ${city.name}. NextFM will find new concerts as they're announced.`}
+            </EmptyStateCell>
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleEvents.map(({ event, url, artists }) => (
+                <li key={event.id} className="flex">
+                  <Card size="sm" className="flex-1">
+                    <CardHeader>
+                      {/* gap-y-1 matches the header gap, so a wrapped date
+                          sits as close to the title above as to the venue
+                          line below. */}
+                      <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                        <span className="min-w-0">
+                          {event.title ??
+                            artists.map((artist) => artist.name).join(", ")}
                         </span>
-                      </Badge>
-                    );
-                  })}
-                  {url && (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
-                    >
-                      Tickets
-                      <ExternalLink className="size-3.5" aria-hidden />
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-          {/* Filtered-out concerts keep a slot in the grid: a ghost cell
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {dateFormat.format(new Date(event.starts_at))}
+                        </span>
+                      </CardTitle>
+                      <CardDescription>
+                        {event.venue_name} · {placeLabel(event)}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="mt-auto flex flex-wrap items-center gap-2">
+                      {artists.map((artist) => {
+                        const suggested =
+                          artistRelations[artist.id] === "suggested";
+                        return (
+                          <Badge
+                            key={artist.id}
+                            variant={suggested ? "secondary" : "outline"}
+                            className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
+                          >
+                            <span className="truncate">
+                              {artistChipLabel(artist, artistRelations)}
+                            </span>
+                          </Badge>
+                        );
+                      })}
+                      {url && (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+                        >
+                          Tickets
+                          <ExternalLink className="size-3.5" aria-hidden />
+                        </a>
+                      )}
+                    </CardContent>
+                  </Card>
+                </li>
+              ))}
+              {/* Filtered-out concerts keep a slot in the grid: a ghost cell
               sized like the cards it stands in for. */}
-          {hiddenCount > 0 && (
-            <li className="flex">
-              <EmptyState className="flex-1 content-center">
-                {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
-                hidden by filters.
-              </EmptyState>
-            </li>
+              {hiddenCount > 0 && (
+                <li className="flex">
+                  <EmptyState className="flex-1 content-center">
+                    {hiddenCount} {hiddenCount === 1 ? "concert" : "concerts"}{" "}
+                    hidden by filters.
+                  </EmptyState>
+                </li>
+              )}
+            </ul>
           )}
-        </ul>
-      )}
+        </AnimatedHeight>
+      </div>
     </div>
   );
 }

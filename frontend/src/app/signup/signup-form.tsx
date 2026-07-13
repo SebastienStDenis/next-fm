@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { Collapse } from "../collapse";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,11 +40,15 @@ export function SignupForm() {
           autoComplete="new-password"
         />
       </div>
-      {state.error && <FormError>{state.error}</FormError>}
-      <Button type="submit" disabled={pending} className="w-full">
-        {pending && <Spinner />}
-        Sign up
-      </Button>
+      <div className="grid">
+        <Collapse show={state.error !== null}>
+          <FormError className="pb-3">{state.error}</FormError>
+        </Collapse>
+        <Button type="submit" disabled={pending} className="w-full">
+          {pending && <Spinner />}
+          Sign up
+        </Button>
+      </div>
     </form>
   );
 }
