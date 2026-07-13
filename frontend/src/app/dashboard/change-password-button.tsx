@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Pencil } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { changePassword } from "./actions";
@@ -60,9 +60,11 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  // Punish late, revalidate eagerly: the mismatch hint waits for the
-  // confirm field's first blur, then tracks every edit until resolved.
-  // An empty field shows nothing - it makes no mismatch claim yet.
+  // Punish late, revalidate eagerly: the requirement mark and mismatch hint
+  // wait for their field's first blur with content, then track every edit
+  // until resolved. Blurring an empty field makes no claim, so it leaves the
+  // grace period intact instead of spending it while passing through.
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmationTouched, setConfirmationTouched] = useState(false);
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
@@ -77,10 +79,12 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
     { error: null },
   );
 
+  const passwordMet = password.length >= 6;
+  const passwordUnmet = passwordTouched && password !== "" && !passwordMet;
   const mismatch =
     confirmationTouched && confirmation !== "" && confirmation !== password;
   const valid =
-    currentPassword !== "" && password.length >= 6 && confirmation === password;
+    currentPassword !== "" && passwordMet && confirmation === password;
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -107,17 +111,32 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onBlur={() => {
+            if (password !== "") setPasswordTouched(true);
+          }}
         />
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           At least 6 characters.
-          <Check
-            aria-hidden
-            className={cn(
-              "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
-              password.length >= 6 ? "opacity-100" : "opacity-0",
-            )}
-            strokeWidth={2.5}
-          />
+          {/* Check and X share one fixed slot and trade opacity, so
+              the state swap crossfades without nudging the text. */}
+          <span className="relative flex size-3 shrink-0">
+            <Check
+              aria-hidden
+              className={cn(
+                "absolute inset-0 size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
+                passwordMet ? "opacity-100" : "opacity-0",
+              )}
+              strokeWidth={2.5}
+            />
+            <X
+              aria-hidden
+              className={cn(
+                "absolute inset-0 size-3 text-destructive transition-opacity duration-300",
+                passwordUnmet ? "opacity-100" : "opacity-0",
+              )}
+              strokeWidth={2.5}
+            />
+          </span>
         </p>
       </div>
       <div className="grid gap-2">
@@ -130,7 +149,9 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
             autoComplete="new-password"
             value={confirmation}
             onChange={(e) => setConfirmation(e.target.value)}
-            onBlur={() => setConfirmationTouched(true)}
+            onBlur={() => {
+              if (confirmation !== "") setConfirmationTouched(true);
+            }}
           />
           <Collapse show={mismatch}>
             <p className="pt-2 text-xs text-destructive">
