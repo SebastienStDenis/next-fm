@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Pencil } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 
 import { changePassword } from "./actions";
 import type { ActionState } from "./actions";
@@ -25,9 +25,10 @@ export function ChangePasswordButton() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  // Punish late, revalidate eagerly: the mismatch hint waits for the
-  // confirm field's first blur, then tracks every edit until resolved.
-  // An empty field shows nothing - it makes no mismatch claim yet.
+  // Punish late, revalidate eagerly: the requirement mark and mismatch hint
+  // wait for their field's first blur, then track every edit until resolved.
+  // An empty field shows nothing - it makes no claim yet.
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmationTouched, setConfirmationTouched] = useState(false);
   // On success the dialog stays open and swaps the form for a confirmation
   // panel instead of closing and firing a toast.
@@ -43,10 +44,12 @@ export function ChangePasswordButton() {
     { error: null },
   );
 
+  const passwordMet = password.length >= 6;
+  const passwordUnmet = passwordTouched && password !== "" && !passwordMet;
   const mismatch =
     confirmationTouched && confirmation !== "" && confirmation !== password;
   const valid =
-    currentPassword !== "" && password.length >= 6 && confirmation === password;
+    currentPassword !== "" && passwordMet && confirmation === password;
 
   const onOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -54,6 +57,7 @@ export function ChangePasswordButton() {
       setCurrentPassword("");
       setPassword("");
       setConfirmation("");
+      setPasswordTouched(false);
       setConfirmationTouched(false);
       setSucceeded(false);
     }
@@ -111,17 +115,30 @@ export function ChangePasswordButton() {
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onBlur={() => setPasswordTouched(true)}
                 />
                 <p className="flex items-center gap-1 text-xs text-muted-foreground">
                   At least 6 characters.
-                  <Check
-                    aria-hidden
-                    className={cn(
-                      "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
-                      password.length >= 6 ? "opacity-100" : "opacity-0",
-                    )}
-                    strokeWidth={2.5}
-                  />
+                  {/* Check and X share one fixed slot and trade opacity, so
+                      the state swap crossfades without nudging the text. */}
+                  <span className="relative flex size-3 shrink-0">
+                    <Check
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-0 size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
+                        passwordMet ? "opacity-100" : "opacity-0",
+                      )}
+                      strokeWidth={2.5}
+                    />
+                    <X
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-0 size-3 text-destructive transition-opacity duration-300",
+                        passwordUnmet ? "opacity-100" : "opacity-0",
+                      )}
+                      strokeWidth={2.5}
+                    />
+                  </span>
                 </p>
               </div>
               <div className="grid gap-2">
