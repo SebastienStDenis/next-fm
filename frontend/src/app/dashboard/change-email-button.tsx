@@ -5,6 +5,7 @@ import { Check, Pencil } from "lucide-react";
 
 import { changeEmail } from "./actions";
 import type { ActionState } from "./actions";
+import { AnimatedHeight } from "./animated-height";
 import { Collapse } from "../collapse";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,11 +68,23 @@ export function ChangeEmailButton() {
         <DialogHeader>
           <DialogTitle>Change email</DialogTitle>
         </DialogHeader>
-        {/* The two states collapse in opposite directions, so the swap and
-            the dialog frame move together, and a hint expanding inside the
-            form grows the layout instead of being clipped. */}
-        <div>
-          <Collapse show={sentTo === null}>
+        <AnimatedHeight>
+          {sentTo !== null ? (
+            <div className="grid gap-2 py-4 text-center">
+              <p className="flex items-center justify-center gap-2 text-sm">
+                <Check
+                  aria-hidden
+                  className="size-3.5 text-green-600 dark:text-green-500"
+                  strokeWidth={2.5}
+                />
+                Emails sent
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Check the inboxes of {sentTo} and your current address. The
+                change applies once both are confirmed.
+              </p>
+            </div>
+          ) : (
             <form action={formAction} className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="new-email">New email</Label>
@@ -110,24 +123,8 @@ export function ChangeEmailButton() {
                 </Button>
               </div>
             </form>
-          </Collapse>
-          <Collapse show={sentTo !== null}>
-            <div className="grid gap-2 py-4 text-center">
-              <p className="flex items-center justify-center gap-2 text-sm">
-                <Check
-                  aria-hidden
-                  className="size-3.5 text-green-600 dark:text-green-500"
-                  strokeWidth={2.5}
-                />
-                Emails sent
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Check the inboxes of {sentTo} and your current address. The
-                change applies once both are confirmed.
-              </p>
-            </div>
-          </Collapse>
-        </div>
+          )}
+        </AnimatedHeight>
       </DialogContent>
     </Dialog>
   );
