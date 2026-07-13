@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { changePassword } from "./actions";
@@ -35,14 +34,8 @@ export function ChangePasswordButton() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Change password"
-          title="Change password"
-          className="text-muted-foreground"
-        >
-          <Pencil aria-hidden />
+        <Button variant="ghost" size="sm" className="text-muted-foreground">
+          Change password
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
