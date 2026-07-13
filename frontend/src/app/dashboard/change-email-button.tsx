@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,7 +80,18 @@ function ChangeEmailForm({ onDone }: { onDone: () => void }) {
   );
 
   return (
-    <form action={formAction} className="grid gap-4">
+    // Drive the action manually rather than via the form's `action` prop: on a
+    // successful `<form action>` React auto-resets the form, which blanks these
+    // controlled fields at the DOM level. Since the dialog stays mounted for its
+    // close animation, that blanked form would flash before it dismisses.
+    <form
+      className="grid gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+    >
       <div className="grid gap-2">
         <Label htmlFor="new-email">New email</Label>
         <div>
