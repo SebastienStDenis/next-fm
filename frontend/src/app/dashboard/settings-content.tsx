@@ -70,16 +70,27 @@ export function SettingsContent({
         />
       </Section>
       <Section heading="Account">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="space-y-4">
           <div className="min-w-0">
             <p className="font-medium">{user.name}</p>
-            {email && (
-              <p className="truncate text-sm text-muted-foreground">{email}</p>
-            )}
+            <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 text-sm">
+              {email && (
+                <>
+                  <dt className="text-muted-foreground">Email</dt>
+                  <dd className="flex min-w-0 items-center gap-1">
+                    <span className="truncate">{email}</span>
+                    <ChangeEmailButton />
+                  </dd>
+                </>
+              )}
+              <dt className="text-muted-foreground">Password</dt>
+              <dd className="flex items-center gap-1">
+                <span aria-hidden>••••••••</span>
+                <ChangePasswordButton />
+              </dd>
+            </dl>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <ChangeEmailButton />
-            <ChangePasswordButton />
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <SignOutButton />
             <DeleteAccountButton userName={user.name} />
           </div>

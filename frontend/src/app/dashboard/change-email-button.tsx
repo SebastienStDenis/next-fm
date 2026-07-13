@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Pencil } from "lucide-react";
 
 import { changeEmail } from "./actions";
 import type { ActionState } from "./actions";
@@ -44,8 +45,14 @@ export function ChangeEmailButton() {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-muted-foreground">
-          Change email
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Change email"
+          title="Change email"
+          className="text-muted-foreground"
+        >
+          <Pencil aria-hidden />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
