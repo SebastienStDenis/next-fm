@@ -87,10 +87,8 @@ export function SettingsContent({
               <dd className="flex items-center gap-1">
                 <span
                   aria-hidden
-                  className="font-mono text-xs tracking-[0.25em] text-muted-foreground select-none"
-                >
-                  ••••••
-                </span>
+                  className="h-4 w-24 rounded-sm bg-muted-foreground/15"
+                />
                 <ChangePasswordButton />
               </dd>
             </dl>
