@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,16 @@ export function ResetPasswordForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <p className="text-xs text-muted-foreground">At least 6 characters.</p>
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          {password.length >= 6 && (
+            <Check
+              aria-hidden
+              className="size-3 animate-fade-in text-green-600 dark:text-green-500"
+              strokeWidth={2.5}
+            />
+          )}
+          At least 6 characters.
+        </p>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="confirm-password">Confirm new password</Label>

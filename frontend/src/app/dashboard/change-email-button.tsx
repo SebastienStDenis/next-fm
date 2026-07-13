@@ -23,6 +23,9 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function ChangeEmailButton() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  // Punish late: the format hint only judges the address once the user
+  // leaves the field, never while it's being edited.
+  const [emailFocused, setEmailFocused] = useState(false);
   // The address the confirmation links went to; set on success, swaps the
   // form for the check-your-inboxes note.
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -84,7 +87,14 @@ export function ChangeEmailButton() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
               />
+              {!emailFocused && email !== "" && !EMAIL_SHAPE.test(email) && (
+                <p className="text-xs text-destructive">
+                  Enter a valid email address.
+                </p>
+              )}
             </div>
             {state.error && (
               <p className="text-sm text-destructive">{state.error}</p>

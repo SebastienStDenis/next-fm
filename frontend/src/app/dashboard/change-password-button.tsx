@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Check, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { changePassword } from "./actions";
@@ -95,7 +95,14 @@ export function ChangePasswordButton() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              {password.length >= 6 && (
+                <Check
+                  aria-hidden
+                  className="size-3 animate-fade-in text-green-600 dark:text-green-500"
+                  strokeWidth={2.5}
+                />
+              )}
               At least 6 characters.
             </p>
           </div>
