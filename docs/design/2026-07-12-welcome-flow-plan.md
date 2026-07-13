@@ -56,6 +56,48 @@ moment with the finished step list before moving on.
 
 Copy and section names follow `docs/wording.md` (Welcome flow section).
 
+## Completion footer
+
+The footer ("All set. Playlists update daily." beside a go-to-dashboard
+button) reveals only after a *successful* sync, and only once the sync card
+has finished replaying its steps - not the instant the finishing run's
+refresh lands.
+
+- **Never on a failed run.** The reveal keys off `last_synced_at`, which the
+  workflow stamps only after every step succeeds (the `record_sync_completed`
+  activity, reached only when no step raised); a failed run never stamps it
+  and never clears an existing stamp. So a failed *first* run shows no footer
+  - the user stays on `/welcome` and re-runs, the card's normal retry. A
+  failed *later* run leaves the earlier success's footer in place, since the
+  stamp still stands.
+- **Waits for playback.** When a run finishes the card sets a `settling` flag
+  and refreshes the route; the server re-renders with the stamp set, but the
+  footer holds back until the step playback settles. The welcome page learns
+  the card is mid-playback through a small `SyncActivityContext`
+  (`frontend/src/app/dashboard/sync-activity.tsx`) the card reports into - a
+  no-op on the dashboard, which has no footer. The reveal lives in
+  `frontend/src/app/welcome/welcome-flow.tsx`, a client wrapper around the
+  setup sections and the footer.
+- **Latched, so re-runs don't disturb it.** Once revealed the footer stays: a
+  manual re-run, or one that fails, must not collapse it and replay the
+  reveal. Two things guarantee this. The durable fact is `last_synced_at` in
+  the database, re-read on every render, so the footer survives soft refreshes
+  and full reloads alike. A client-side latch additionally holds it across the
+  card's in-session re-run playback (client state survives the soft
+  `router.refresh()`); it resets on a full reload, but harmlessly, since a
+  fresh load with no run replaying shows the footer straight away. The footer
+  hides again only if a setup step reopens (Last.fm or home city gone), which
+  the invariant's no-removal rule prevents in practice.
+
+The dashboard redirect uses a looser gate than the footer: it admits anyone
+with a sync *on record, even a failed one* (`sync.status !== "none"`, or a
+stamped `last_synced_at`), whereas the footer needs a stamped success. So a
+user whose only runs failed is not bounced back from the dashboard - they see
+it with per-step failure notes - even though the welcome footer never offered
+them the handoff. The asymmetry is deliberate: the dashboard is where a
+failure's fallout is meant to be seen, the footer is a "you're done"
+affordance that should appear only when they actually are.
+
 ## Routing
 
 - The dashboard redirects to `/welcome` whenever the invariant fails. All
