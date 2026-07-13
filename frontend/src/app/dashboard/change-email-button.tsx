@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -65,13 +64,9 @@ export function ChangeEmailButton() {
           <Pencil aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Change email</DialogTitle>
-          <DialogDescription className="text-xs italic">
-            Confirmation links are sent to both the current and the new address.
-            The change applies once both are confirmed.
-          </DialogDescription>
         </DialogHeader>
         <AnimatedHeight>
           {sentTo !== null ? (
@@ -85,8 +80,8 @@ export function ChangeEmailButton() {
                 Emails sent
               </p>
               <p className="text-sm text-muted-foreground">
-                Check the inboxes of {sentTo} and your current address to
-                confirm the change.
+                Check the inboxes of {sentTo} and your current address. The
+                change applies once both are confirmed.
               </p>
             </div>
           ) : (
