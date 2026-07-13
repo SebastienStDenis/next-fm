@@ -38,16 +38,14 @@ export default async function DashboardPage() {
       loadSyncStatus(),
       loadEmail(),
     ]);
-  // The dashboard requires a linked Last.fm account, a home city and a sync
-  // on record (even a failed one); anyone short of that goes through the
-  // welcome flow instead. Temporal retention can expire an old run, so
-  // last_synced_at also counts as proof a sync ran, and an unknown status
-  // (null) never bounces.
-  if (
-    lastfm === null ||
-    city === null ||
-    (sync?.status === "none" && user.last_synced_at === null)
-  ) {
+  // The dashboard requires a linked Last.fm account, a home city and a
+  // successful sync (`last_synced_at`, a durable DB stamp independent of
+  // Temporal retention); anyone short of that goes through the welcome flow
+  // instead. This is the exact inverse of the welcome footer's reveal gate,
+  // so the two never disagree on whether a user is onboarded. A failed-only
+  // run doesn't admit them: the dashboard is empty without a successful sync,
+  // and the welcome card is where the failure and its retry live.
+  if (lastfm === null || city === null || user.last_synced_at === null) {
     redirect("/welcome");
   }
 

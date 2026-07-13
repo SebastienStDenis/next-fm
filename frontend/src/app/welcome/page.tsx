@@ -33,10 +33,11 @@ export default async function WelcomePage() {
   ): "active" | "done" | undefined =>
     done ? "done" : activeStep === step ? "active" : undefined;
 
-  // Synced alone isn't enough to reveal the footer: a user bounced back here
-  // (say, an unlinked Last.fm) has a sync on record but an open step, and the
-  // dashboard would only bounce them again. WelcomeFlow holds the reveal
-  // further, until the sync card finishes replaying each step.
+  // Synced alone isn't enough to reveal the footer: a user still missing a
+  // setup step has an open activeStep, and offering the handoff would only
+  // bounce them off the dashboard again. WelcomeFlow holds the reveal
+  // further, until the sync card finishes replaying each step. This `ready`
+  // is the exact inverse of the dashboard's redirect gate.
   const ready = activeStep === null && synced;
 
   // The settings cards, unchanged, in setup order; the state marks walk the

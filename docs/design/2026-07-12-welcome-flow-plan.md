@@ -12,22 +12,31 @@ the half-set-up states it produced are ruled out entirely.
 
 ## Invariant
 
-The dashboard requires a home city and a sync on record - even a failed
-one. Anyone short of that is redirected to the welcome flow; there is no
-skipping. This lets the dashboard and settings drop every "no home city" and
-"never synced" half-state: events are always fetched, the concerts and
-playlists tabs lose their set-a-city empty states, the sync gate reduces to
-"is Last.fm linked", and the home city becomes a quiet, never-clearable
-field in the settings Account section instead of its own alert-bearing
-section. The Last.fm link is likewise change-only - no unlink control
-anywhere; only deleting the whole account removes it.
+The dashboard requires a linked Last.fm account, a home city and a
+successful sync. Anyone short of that is redirected to the welcome flow;
+there is no skipping. This lets the dashboard and settings drop every "no
+home city" and "never synced" half-state: events are always fetched, the
+concerts and playlists tabs lose their set-a-city empty states, the sync
+gate reduces to "is Last.fm linked", and the home city becomes a quiet,
+never-clearable field in the settings Account section instead of its own
+alert-bearing section. The Last.fm link is likewise change-only - no unlink
+control anywhere; only deleting the whole account removes it.
 
-"A sync on record" is read from `GET /me/sync`, with `last_synced_at` as a
-fallback: Temporal retention can expire an old run's history, so a stamped
-successful sync also counts, and an unknown status (Temporal unreachable)
-never bounces. The cost of the invariant: a visitor without a Last.fm
-account cannot get past onboarding - accepted, since every dashboard tab is
-sync-fed and useless without one.
+A *successful* sync, not merely a run on record, is the bar - read from
+`last_synced_at`, the durable DB stamp the workflow writes only after every
+step succeeds (see Completion footer). An earlier draft admitted anyone who
+had run a sync, even a failed one, but that readmits exactly the empty-
+dashboard half-state the flow exists to remove: a failed run syncs nothing,
+so a failed-only user gains an empty dashboard. Holding them on the welcome
+flow - where the card shows the failure and its retry - is both more honest
+and the flow's whole point. Keying off the stamp (not `GET /me/sync`) also
+sidesteps Temporal: retention can expire a run's history and the server can
+be unreachable, but the stamp stands regardless, and it makes the redirect
+the exact inverse of the welcome footer's reveal gate, so the two can never
+disagree on whether a user is onboarded. The cost of the invariant: a
+visitor without a Last.fm account or a working first sync cannot reach the
+dashboard - accepted, since every dashboard tab is sync-fed and useless
+without one.
 
 ## Flow
 
@@ -89,14 +98,12 @@ refresh lands.
   hides again only if a setup step reopens (Last.fm or home city gone), which
   the invariant's no-removal rule prevents in practice.
 
-The dashboard redirect uses a looser gate than the footer: it admits anyone
-with a sync *on record, even a failed one* (`sync.status !== "none"`, or a
-stamped `last_synced_at`), whereas the footer needs a stamped success. So a
-user whose only runs failed is not bounced back from the dashboard - they see
-it with per-step failure notes - even though the welcome footer never offered
-them the handoff. The asymmetry is deliberate: the dashboard is where a
-failure's fallout is meant to be seen, the footer is a "you're done"
-affordance that should appear only when they actually are.
+The dashboard redirect and this footer share one gate: both key off a
+Last.fm link, a home city and a stamped `last_synced_at`, and the footer's
+`ready` is the exact inverse of the redirect condition. So there is no window
+where one treats a user as onboarded and the other doesn't - a failed-only
+user is held on the welcome flow and shown no footer, never half-admitted to
+an empty dashboard. See the Invariant.
 
 ## Routing
 
