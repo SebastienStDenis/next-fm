@@ -25,11 +25,24 @@ export async function GET(request: NextRequest) {
 
   if (tokenHash && type) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
     if (!error) {
+      if (type === "email_change") {
+        // A secure email change is confirmed from two addresses. The first
+        // link returns no session (the change is still pending); the second
+        // establishes one and applies the change.
+        return NextResponse.redirect(
+          new URL(
+            data.session
+              ? "/dashboard?notice=email-changed"
+              : "/auth/email-change-pending",
+            request.url,
+          ),
+        );
+      }
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }
   }

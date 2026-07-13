@@ -23,5 +23,5 @@ export async function resetPassword(
   if (error) {
     return { error: authErrorMessage(error, "Failed to reset your password.") };
   }
-  redirect("/dashboard", RedirectType.replace);
+  redirect("/dashboard?notice=password-reset", RedirectType.replace);
 }
