@@ -25,6 +25,7 @@ export function ChangePasswordButton() {
   const [confirmation, setConfirmation] = useState("");
   // Punish late: the mismatch hint waits for the confirm field's first
   // blur, then revalidates live so it clears as soon as the fields agree.
+  // Clearing the field starts the attempt over, grace period included.
   const [confirmationTouched, setConfirmationTouched] = useState(false);
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
@@ -107,7 +108,12 @@ export function ChangePasswordButton() {
               required
               autoComplete="new-password"
               value={confirmation}
-              onChange={(e) => setConfirmation(e.target.value)}
+              onChange={(e) => {
+                setConfirmation(e.target.value);
+                if (e.target.value === "") {
+                  setConfirmationTouched(false);
+                }
+              }}
               onBlur={() => setConfirmationTouched(true)}
             />
             {mismatch && (
