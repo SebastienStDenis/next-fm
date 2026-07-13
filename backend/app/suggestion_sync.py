@@ -428,10 +428,18 @@ async def _fetch_info(
 
 async def _blocked_name_keys(lastfm: LastfmClient, username: str) -> set[str]:
     """The user's overall-period top artists above the playcount floor, as an
-    in-memory blocklist: catches artists known well but not played lately."""
-    top_artists = await lastfm.get_top_artists(
-        username, period="overall", limit=OVERALL_TOP_ARTISTS_LIMIT
-    )
+    in-memory blocklist: catches artists known well but not played lately.
+
+    A transient Last.fm failure here degrades to an empty blocklist for this
+    run instead of failing the whole step: known_ids still filters, and the
+    next sync rebuilds the list.
+    """
+    try:
+        top_artists = await lastfm.get_top_artists(
+            username, period="overall", limit=OVERALL_TOP_ARTISTS_LIMIT
+        )
+    except LastfmApiError, httpx.HTTPError, json.JSONDecodeError:
+        return set()
     return {
         name_key(artist.name)
         for artist in top_artists

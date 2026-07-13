@@ -12,22 +12,31 @@ the half-set-up states it produced are ruled out entirely.
 
 ## Invariant
 
-The dashboard requires a home city and a sync on record - even a failed
-one. Anyone short of that is redirected to the welcome flow; there is no
-skipping. This lets the dashboard and settings drop every "no home city" and
-"never synced" half-state: events are always fetched, the concerts and
-playlists tabs lose their set-a-city empty states, the sync gate reduces to
-"is Last.fm linked", and the home city becomes a quiet, never-clearable
-field in the settings Account section instead of its own alert-bearing
-section. The Last.fm link is likewise change-only - no unlink control
-anywhere; only deleting the whole account removes it.
+The dashboard requires a linked Last.fm account, a home city and a
+successful sync. Anyone short of that is redirected to the welcome flow;
+there is no skipping. This lets the dashboard and settings drop every "no
+home city" and "never synced" half-state: events are always fetched, the
+concerts and playlists tabs lose their set-a-city empty states, the sync
+gate reduces to "is Last.fm linked", and the home city becomes a quiet,
+never-clearable field in the settings Account section instead of its own
+alert-bearing section. The Last.fm link is likewise change-only - no unlink
+control anywhere; only deleting the whole account removes it.
 
-"A sync on record" is read from `GET /me/sync`, with `last_synced_at` as a
-fallback: Temporal retention can expire an old run's history, so a stamped
-successful sync also counts, and an unknown status (Temporal unreachable)
-never bounces. The cost of the invariant: a visitor without a Last.fm
-account cannot get past onboarding - accepted, since every dashboard tab is
-sync-fed and useless without one.
+A *successful* sync, not merely a run on record, is the bar - read from
+`last_synced_at`, the durable DB stamp the workflow writes only after every
+step succeeds (see Completion footer). An earlier draft admitted anyone who
+had run a sync, even a failed one, but that readmits exactly the empty-
+dashboard half-state the flow exists to remove: a failed run syncs nothing,
+so a failed-only user gains an empty dashboard. Holding them on the welcome
+flow - where the card shows the failure and its retry - is both more honest
+and the flow's whole point. Keying off the stamp (not `GET /me/sync`) also
+sidesteps Temporal: retention can expire a run's history and the server can
+be unreachable, but the stamp stands regardless, and it makes the redirect
+the exact inverse of the welcome footer's reveal gate, so the two can never
+disagree on whether a user is onboarded. The cost of the invariant: a
+visitor without a Last.fm account or a working first sync cannot reach the
+dashboard - accepted, since every dashboard tab is sync-fed and useless
+without one.
 
 ## Flow
 
@@ -55,6 +64,46 @@ The handoff is deliberately a click, not a redirect - the user gets a
 moment with the finished step list before moving on.
 
 Copy and section names follow `docs/wording.md` (Welcome flow section).
+
+## Completion footer
+
+The footer ("All set. Playlists update daily." beside a go-to-dashboard
+button) reveals only after a *successful* sync, and only once the sync card
+has finished replaying its steps - not the instant the finishing run's
+refresh lands.
+
+- **Never on a failed run.** The reveal keys off `last_synced_at`, which the
+  workflow stamps only after every step succeeds (the `record_sync_completed`
+  activity, reached only when no step raised); a failed run never stamps it
+  and never clears an existing stamp. So a failed *first* run shows no footer
+  - the user stays on `/welcome` and re-runs, the card's normal retry. A
+  failed *later* run leaves the earlier success's footer in place, since the
+  stamp still stands.
+- **Waits for playback.** When a run finishes the card sets a `settling` flag
+  and refreshes the route; the server re-renders with the stamp set, but the
+  footer holds back until the step playback settles. The welcome page learns
+  the card is mid-playback through a small `SyncActivityContext`
+  (`frontend/src/app/dashboard/sync-activity.tsx`) the card reports into - a
+  no-op on the dashboard, which has no footer. The reveal lives in
+  `frontend/src/app/welcome/welcome-flow.tsx`, a client wrapper around the
+  setup sections and the footer.
+- **Latched, so re-runs don't disturb it.** Once revealed the footer stays: a
+  manual re-run, or one that fails, must not collapse it and replay the
+  reveal. Two things guarantee this. The durable fact is `last_synced_at` in
+  the database, re-read on every render, so the footer survives soft refreshes
+  and full reloads alike. A client-side latch additionally holds it across the
+  card's in-session re-run playback (client state survives the soft
+  `router.refresh()`); it resets on a full reload, but harmlessly, since a
+  fresh load with no run replaying shows the footer straight away. The footer
+  hides again only if a setup step reopens (Last.fm or home city gone), which
+  the invariant's no-removal rule prevents in practice.
+
+The dashboard redirect and this footer share one gate: both key off a
+Last.fm link, a home city and a stamped `last_synced_at`, and the footer's
+`ready` is the exact inverse of the redirect condition. So there is no window
+where one treats a user as onboarded and the other doesn't - a failed-only
+user is held on the welcome flow and shown no footer, never half-admitted to
+an empty dashboard. See the Invariant.
 
 ## Routing
 

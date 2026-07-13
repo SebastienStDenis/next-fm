@@ -54,6 +54,15 @@ RETRY_POLICY = RetryPolicy(
     non_retryable_error_types=["SpotifyAuthError", "LastfmPrivateDataError"],
 )
 
+# start_to_close bounds a single attempt; schedule_to_close is that plus this
+# margin, so an attempt that fails late still leaves room for the retry policy
+# (and so queue wait when no worker is polling stays bounded).
+RETRY_MARGIN = timedelta(minutes=5)
+
+
+def _schedule_to_close(attempt_timeout: timedelta) -> timedelta:
+    return attempt_timeout + RETRY_MARGIN
+
 
 def user_sync_workflow_id(user_id: uuid.UUID) -> str:
     return f"user-sync-{user_id}"
@@ -125,7 +134,7 @@ class _StepSpec:
     label: str
     activity: str
     result_type: type
-    timeout: timedelta
+    attempt_timeout: timedelta
     summarize: Callable[[Any], str]
 
 
@@ -135,7 +144,7 @@ STEP_SPECS = (
         label="Import listening history from Last.fm",
         activity="sync_artists",
         result_type=ArtistSyncResult,
-        timeout=timedelta(minutes=2),
+        attempt_timeout=timedelta(minutes=2),
         summarize=_summarize_artists,
     ),
     _StepSpec(
@@ -143,7 +152,7 @@ STEP_SPECS = (
         label="Suggest artists",
         activity="sync_suggestions",
         result_type=SuggestionSyncResult,
-        timeout=timedelta(minutes=15),
+        attempt_timeout=timedelta(minutes=15),
         summarize=_summarize_suggestions,
     ),
     _StepSpec(
@@ -151,7 +160,7 @@ STEP_SPECS = (
         label="Find concerts",
         activity="sync_events",
         result_type=EventSyncResult,
-        timeout=timedelta(minutes=15),
+        attempt_timeout=timedelta(minutes=15),
         summarize=_summarize_events,
     ),
     _StepSpec(
@@ -159,7 +168,7 @@ STEP_SPECS = (
         label="Generate Spotify playlists",
         activity="sync_playlists",
         result_type=PlaylistSyncResult,
-        timeout=timedelta(minutes=30),
+        attempt_timeout=timedelta(minutes=30),
         summarize=_summarize_playlists,
     ),
 )
@@ -185,9 +194,12 @@ class SyncUserWorkflow:
                     spec.activity,
                     user_id,
                     result_type=spec.result_type,
-                    # schedule_to_close bounds queue wait plus every retry, so
-                    # a run can't sit RUNNING forever when no worker is polling.
-                    schedule_to_close_timeout=spec.timeout,
+                    # start_to_close bounds one attempt so a single slow run
+                    # can't consume the whole budget with no room left to retry;
+                    # schedule_to_close is the outer cap on queue wait plus every
+                    # attempt, so a run can't sit RUNNING forever with no worker.
+                    start_to_close_timeout=spec.attempt_timeout,
+                    schedule_to_close_timeout=_schedule_to_close(spec.attempt_timeout),
                     retry_policy=RETRY_POLICY,
                 )
             except ActivityError as exc:
@@ -207,7 +219,8 @@ class SyncUserWorkflow:
         await workflow.execute_activity(
             "record_sync_completed",
             user_id,
-            schedule_to_close_timeout=timedelta(minutes=1),
+            start_to_close_timeout=timedelta(minutes=1),
+            schedule_to_close_timeout=_schedule_to_close(timedelta(minutes=1)),
             retry_policy=RETRY_POLICY,
         )
         return SyncRunResult(steps=self._steps)
@@ -224,7 +237,8 @@ class DispatchSyncsWorkflow:
         user_ids: list[str] = await workflow.execute_activity(
             "list_users_due_for_sync",
             result_type=list[str],
-            schedule_to_close_timeout=timedelta(minutes=1),
+            start_to_close_timeout=timedelta(minutes=1),
+            schedule_to_close_timeout=_schedule_to_close(timedelta(minutes=1)),
             retry_policy=RETRY_POLICY,
         )
         succeeded = failed = skipped = 0
@@ -252,7 +266,8 @@ class DispatchSyncsWorkflow:
             drain = await workflow.execute_activity(
                 "drain_playlist_tombstones",
                 result_type=TombstoneDrainResult,
-                schedule_to_close_timeout=timedelta(minutes=10),
+                start_to_close_timeout=timedelta(minutes=10),
+                schedule_to_close_timeout=_schedule_to_close(timedelta(minutes=10)),
                 retry_policy=RETRY_POLICY,
             )
         except ActivityError:
@@ -262,7 +277,8 @@ class DispatchSyncsWorkflow:
             orphans_found = await workflow.execute_activity(
                 "audit_bot_playlists",
                 result_type=int,
-                schedule_to_close_timeout=timedelta(minutes=10),
+                start_to_close_timeout=timedelta(minutes=10),
+                schedule_to_close_timeout=_schedule_to_close(timedelta(minutes=10)),
                 retry_policy=RETRY_POLICY,
             )
         except ActivityError:
