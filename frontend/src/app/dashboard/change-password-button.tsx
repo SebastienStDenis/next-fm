@@ -7,6 +7,7 @@ import { changePassword } from "./actions";
 import type { ActionState } from "./actions";
 import { AnimatedHeight } from "./animated-height";
 import { Collapse } from "../collapse";
+import { FormError } from "../form-error";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -145,7 +146,7 @@ export function ChangePasswordButton() {
               </div>
               <div className="grid">
                 <Collapse show={state.error !== null}>
-                  <p className="pb-3 text-sm text-destructive">{state.error}</p>
+                  <FormError className="pb-3">{state.error}</FormError>
                 </Collapse>
                 <Button type="submit" disabled={pending || !valid}>
                   {pending && <Spinner />}

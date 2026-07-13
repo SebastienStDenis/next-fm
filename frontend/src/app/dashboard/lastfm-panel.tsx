@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { Link2, Pencil, X } from "lucide-react";
 
 import { linkLastfm } from "./actions";
+import { FormError } from "../form-error";
 import { AnimatedHeight } from "./animated-height";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -112,9 +113,7 @@ function LinkForm({
           </Button>
         )}
       </div>
-      {state.error && !pending && (
-        <p className="text-sm text-destructive">{state.error}</p>
-      )}
+      {state.error && !pending && <FormError>{state.error}</FormError>}
     </form>
   );
 }

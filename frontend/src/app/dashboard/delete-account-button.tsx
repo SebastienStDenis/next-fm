@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { deleteAccount } from "./actions";
+import { FormError } from "../form-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,9 +57,7 @@ export function DeleteAccountButton({ userName }: { userName: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {state.error && (
-        <p className="mt-2 text-sm text-destructive">{state.error}</p>
-      )}
+      {state.error && <FormError className="mt-2">{state.error}</FormError>}
     </div>
   );
 }

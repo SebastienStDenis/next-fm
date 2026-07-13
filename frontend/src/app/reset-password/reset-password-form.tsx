@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Check } from "lucide-react";
 
 import { Collapse } from "../collapse";
+import { FormError } from "../form-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,7 +74,7 @@ export function ResetPasswordForm() {
       </div>
       <div className="grid">
         <Collapse show={state.error !== null}>
-          <p className="pb-3 text-sm text-destructive">{state.error}</p>
+          <FormError className="pb-3">{state.error}</FormError>
         </Collapse>
         <Button type="submit" disabled={pending || !valid} className="w-full">
           {pending && <Spinner />}

@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FormError } from "../form-error";
 import { HomeLink } from "../home-link";
 import { InlineNav } from "../inline-nav";
 import { LoginForm } from "./login-form";
@@ -31,9 +32,7 @@ export default async function LoginPage({
         </CardHeader>
         <CardContent className="grid gap-4">
           {error === "confirm" && (
-            <p className="text-sm text-destructive">
-              That email link is invalid or has expired.
-            </p>
+            <FormError>That email link is invalid or has expired.</FormError>
           )}
           <LoginForm />
         </CardContent>

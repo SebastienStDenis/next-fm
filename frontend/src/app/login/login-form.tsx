@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { FormError } from "../form-error";
 import { logIn } from "./actions";
 
 export function LoginForm() {
@@ -33,9 +34,7 @@ export function LoginForm() {
           autoComplete="current-password"
         />
       </div>
-      {state.error && (
-        <p className="text-sm text-destructive">{state.error}</p>
-      )}
+      {state.error && <FormError>{state.error}</FormError>}
       <Button type="submit" disabled={pending} className="w-full">
         {pending && <Spinner />}
         Log in
