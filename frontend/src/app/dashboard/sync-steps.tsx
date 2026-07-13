@@ -26,6 +26,9 @@ export const POLL_INTERVAL_MS = 1500;
 // How long a finished step keeps showing its final state before the display
 // moves on.
 const STEP_HOLD_MS = 900;
+// Smallest ring fill, so a just-started run shows a live ring rather than a
+// dead empty circle.
+export const RING_MIN_FRACTION = 0.04;
 
 export const stepMarkClasses: Record<SyncStep["status"], string> = {
   pending: "text-muted-foreground",
@@ -104,10 +107,12 @@ export function CurrentStep({
   steps,
   finished,
   onSettled,
+  onProgress,
 }: {
   steps: SyncStep[];
   finished: boolean;
   onSettled: () => void;
+  onProgress: (fraction: number) => void;
 }) {
   // Polling only snapshots the workflow, so a fast step can finish between
   // polls without ever being seen running. Instead of mirroring the latest
@@ -151,6 +156,24 @@ export function CurrentStep({
         : null,
     [step, index, cursor.phase],
   );
+
+  // Drive the button's progress ring off the played-back cursor, not the raw
+  // status, so the ring advances in lockstep with the step shown here: the
+  // displayed step counts as half a share while it plays live, and a full
+  // share only once it settles as completed. A failed step keeps its half
+  // share so the ring freezes at the break instead of announcing 100% for a
+  // sync that did not succeed.
+  const total = steps.length;
+  const settledDone = cursor.phase === "final" && step?.status === "completed";
+  const fraction =
+    total > 0 && step
+      ? Math.max((index + (settledDone ? 1 : 0.5)) / total, RING_MIN_FRACTION)
+      : null;
+  useEffect(() => {
+    if (fraction !== null) {
+      onProgress(fraction);
+    }
+  }, [fraction, onProgress]);
 
   useEffect(() => {
     if (!step || !snapshot) {

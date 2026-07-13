@@ -28,6 +28,22 @@ export function SettingsDialog({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("hashchange", syncWithHash);
   }, []);
 
+  // router.refresh() (see the sync card's poll-complete refresh and the
+  // background-run watch below) reconciles the URL as part of applying the
+  // refreshed tree, which drops the hash. Re-assert #settings whenever the
+  // dialog is open but the hash has drifted out from under it, so a sync
+  // finishing mid-settings doesn't silently boot the user back to the
+  // dashboard. No dependency array: the drift can happen on any render.
+  useEffect(() => {
+    if (open && window.location.hash !== SETTINGS_HASH) {
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search + SETTINGS_HASH,
+      );
+    }
+  });
+
   // The sync card refreshes the dashboard when a run it is polling
   // finishes, but it unmounts with the dialog. Cover a run that outlives
   // the dialog: on mount and after every close, poll a live run to its end

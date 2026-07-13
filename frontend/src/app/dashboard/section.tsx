@@ -1,6 +1,3 @@
-import { Check } from "lucide-react";
-
-import { AttentionDot } from "./attention-dot";
 import {
   Card,
   CardContent,
@@ -8,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StepStatusMark } from "./step-status-mark";
 
 // One titled settings card: heading and italic description. Shared by the
 // settings dialog and the welcome flow so both read as the same surface.
@@ -28,20 +26,7 @@ export function Section({
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {/* The dot pulses (its own animation), so the fade lives on a
-              wrapper instead. */}
-          {state === "active" && (
-            <span className="flex animate-fade-in">
-              <AttentionDot pulse />
-            </span>
-          )}
-          {state === "done" && (
-            <Check
-              aria-hidden
-              className="size-3.5 animate-fade-in text-green-600 dark:text-green-500"
-              strokeWidth={2.5}
-            />
-          )}
+          <StepStatusMark state={state} />
           <h2>{heading}</h2>
         </CardTitle>
         {description && (
