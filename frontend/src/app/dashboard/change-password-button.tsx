@@ -134,7 +134,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
             <Check
               aria-hidden
               className={cn(
-                "absolute inset-0 size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
+                "absolute inset-0 size-3 text-success transition-opacity duration-300",
                 passwordMet ? "opacity-100" : "opacity-0",
               )}
               strokeWidth={2.5}

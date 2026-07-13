@@ -46,7 +46,7 @@ export function ResetPasswordForm() {
           <Check
             aria-hidden
             className={cn(
-              "size-3 text-green-600 transition-opacity duration-300 dark:text-green-500",
+              "size-3 text-success transition-opacity duration-300",
               password.length >= 6 ? "opacity-100" : "opacity-0",
             )}
             strokeWidth={2.5}

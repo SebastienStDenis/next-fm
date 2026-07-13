@@ -33,7 +33,7 @@ export const RING_MIN_FRACTION = 0.04;
 export const stepMarkClasses: Record<SyncStep["status"], string> = {
   pending: "text-muted-foreground",
   running: "",
-  completed: "text-green-600 dark:text-green-500",
+  completed: "text-success",
   failed: "text-destructive",
 };
 
