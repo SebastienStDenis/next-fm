@@ -1,7 +1,7 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ChevronDown, CirclePlus, ExternalLink, X } from "lucide-react";
 
 import {
   Card,
@@ -15,6 +15,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTitle,
+} from "@/components/ui/popover";
 import type { City } from "./city-panel";
 import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
@@ -129,6 +135,7 @@ export function PlaylistsPanel({
   playlists: Playlist[];
 }) {
   const columnCount = useColumnCount();
+  const tip = useSavePlaylistTip();
 
   // Existing playlists always show (even if the latest run didn't complete
   // the playlists step); the run-a-sync hint is only for a truly empty panel.
@@ -149,11 +156,15 @@ export function PlaylistsPanel({
     ...playlists.filter((playlist) => playlist.city !== null),
   ];
 
+  // The save-to-library tip anchors to the leading playlist only.
+  const tipFor = (playlist: Playlist) =>
+    tip && playlist.id === ordered[0]?.id ? tip : undefined;
+
   if (columnCount === null) {
     return (
       <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
+          <PlaylistCard key={playlist.id} playlist={playlist} tip={tipFor(playlist)} />
         ))}
       </ul>
     );
@@ -167,7 +178,7 @@ export function PlaylistsPanel({
       {columns.map((column, index) => (
         <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
           {column.map((playlist) => (
-            <PlaylistCard key={playlist.id} playlist={playlist} />
+            <PlaylistCard key={playlist.id} playlist={playlist} tip={tipFor(playlist)} />
           ))}
         </ul>
       ))}
@@ -175,10 +186,79 @@ export function PlaylistsPanel({
   );
 }
 
-function PlaylistCard({ playlist }: { playlist: Playlist }) {
+type SavePlaylistTip = { open: boolean; onOpenChange: (open: boolean) => void };
+
+// A one-shot nudge cued by `?tip=save-playlist` on the welcome-flow handoff.
+// The cue is read only after hydration (the URL isn't known server-side, and
+// deferring keeps server and client HTML in sync), then the param is stripped
+// so a refresh or Back never replays it. Untriggered arrivals never leave the
+// "uncued" phase, so no tip is rendered for them at all.
+function useSavePlaylistTip(): SavePlaylistTip | undefined {
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  const [phase, setPhase] = useState<
+    "idle" | "uncued" | "pending" | "open" | "closed"
+  >("idle");
+
+  if (hydrated && phase === "idle") {
+    const cued =
+      new URLSearchParams(window.location.search).get("tip") ===
+      "save-playlist";
+    setPhase(cued ? "pending" : "uncued");
+  }
+
+  // Once cued, strip the one-shot param and hold a beat before opening, so the
+  // tip animates in just after the page settles - the motion is what draws the
+  // eye, rather than it sitting there from the first paint.
+  useEffect(() => {
+    if (phase !== "pending") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("tip") === "save-playlist") {
+      url.searchParams.delete("tip");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+    const timer = window.setTimeout(() => setPhase("open"), 450);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  if (phase === "open" || phase === "closed") {
+    return {
+      open: phase === "open",
+      onOpenChange: (open) => setPhase(open ? "open" : "closed"),
+    };
+  }
+  return undefined;
+}
+
+function PlaylistCard({
+  playlist,
+  tip,
+}: {
+  playlist: Playlist;
+  tip?: SavePlaylistTip;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const spotifyLink = playlist.spotify_url && (
+    <a
+      href={playlist.spotify_url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={tip ? () => tip.onOpenChange(false) : undefined}
+      className="inline-flex items-center gap-1 underline hover:text-foreground"
+    >
+      Open in Spotify
+      <ExternalLink className="size-3.5" aria-hidden />
+    </a>
+  );
+
   return (
     <li className="flex">
-      <Card size="sm" className="flex-1">
+      <Card ref={cardRef} tabIndex={-1} size="sm" className="flex-1 outline-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <span className="shrink-0 animate-fade-in" aria-hidden>
@@ -187,16 +267,56 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
             {playlist.name}
           </CardTitle>
           <CardDescription>
-            {playlist.spotify_url && (
-              <a
-                href={playlist.spotify_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 underline hover:text-foreground"
-              >
-                Open in Spotify
-                <ExternalLink className="size-3.5" aria-hidden />
-              </a>
+            {tip && spotifyLink ? (
+              <Popover open={tip.open} onOpenChange={tip.onOpenChange}>
+                <PopoverAnchor asChild>{spotifyLink}</PopoverAnchor>
+                <PopoverContent
+                  side="right"
+                  align="start"
+                  sideOffset={8}
+                  // Stay pinned to the right of the link; without this Radix
+                  // flips the tip to the far left of the screen on very narrow
+                  // widths where the right side can't fit it. collisionPadding
+                  // still feeds the available-width so the pill keeps a margin
+                  // from the screen edge instead of hugging it.
+                  avoidCollisions={false}
+                  collisionPadding={12}
+                  // Don't pull focus onto the dismiss button when the tip
+                  // opens; put it on the card the tip is about.
+                  onOpenAutoFocus={(event) => {
+                    event.preventDefault();
+                    cardRef.current?.focus();
+                  }}
+                  onInteractOutside={(event) => event.preventDefault()}
+                  onEscapeKeyDown={(event) => event.preventDefault()}
+                  className="relative w-auto max-w-[max(9rem,var(--radix-popper-available-width))] flex-row items-start gap-0.5 rounded-md py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-150 ease-out data-open:zoom-in-75"
+                >
+                  {/* Pinned to the first line, not the pill's center, so the
+                      point keeps aiming at the link when the text wraps. */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute top-[0.625rem] -left-[2px] size-1.5 -translate-y-1/2 rotate-45 bg-primary"
+                  />
+                  <PopoverTitle className="min-w-0 text-balance">
+                    Save{" "}
+                    <CirclePlus
+                      className="inline size-3.5 -translate-y-px align-middle"
+                      aria-hidden
+                    />{" "}
+                    in Spotify to listen anywhere
+                  </PopoverTitle>
+                  <button
+                    type="button"
+                    aria-label="Dismiss"
+                    onClick={() => tip.onOpenChange(false)}
+                    className="-my-0.5 shrink-0 rounded p-1 text-primary-foreground/70 hover:bg-primary-foreground/15 hover:text-primary-foreground"
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              spotifyLink
             )}
           </CardDescription>
         </CardHeader>
