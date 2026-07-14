@@ -284,13 +284,13 @@ function PlaylistCard({
                   }}
                   onInteractOutside={(event) => event.preventDefault()}
                   onEscapeKeyDown={(event) => event.preventDefault()}
-                  className="relative w-auto max-w-[max(9rem,var(--radix-popper-available-width))] flex-row items-start gap-0.5 py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-300 ease-out data-open:zoom-in-75"
+                  className="relative w-auto max-w-[max(9rem,var(--radix-popper-available-width))] flex-row items-start gap-0.5 rounded-md py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-300 ease-out data-open:zoom-in-75"
                 >
                   {/* Pinned to the first line, not the pill's center, so the
                       point keeps aiming at the link when the text wraps. */}
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute top-[0.625rem] -left-[3px] size-1.5 -translate-y-1/2 rotate-45 bg-primary"
+                    className="pointer-events-none absolute top-[0.625rem] -left-[2px] size-1.5 -translate-y-1/2 rotate-45 bg-primary"
                   />
                   <PopoverTitle className="min-w-0 text-balance">
                     Save{" "}
