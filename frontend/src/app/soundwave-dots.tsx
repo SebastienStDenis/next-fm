@@ -77,7 +77,7 @@ export function SoundwaveDots() {
           const x = gx + dx * offset;
           const y = gy + dy * offset;
           const radius = 1 + energy * 0.7;
-          ctx.globalAlpha = BASE_ALPHA + energy * 0.28;
+          ctx.globalAlpha = BASE_ALPHA + energy * 0.19;
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.fill();
