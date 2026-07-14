@@ -104,7 +104,11 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 async def get_lastfm_client() -> AsyncIterator[LastfmClient]:
     api_key = get_settings().lastfm_api_key
     if not api_key:
-        raise HTTPException(status_code=503, detail="LASTFM_API_KEY is not configured")
+        logger.error("LASTFM_API_KEY is not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="This service is temporarily unavailable. Please try again later.",
+        )
     client = LastfmClient(api_key)
     try:
         yield client
@@ -118,7 +122,11 @@ LastfmClientDep = Annotated[LastfmClient, Depends(get_lastfm_client)]
 async def get_bandsintown_client() -> AsyncIterator[BandsintownClient]:
     app_id = get_settings().bandsintown_api_key
     if not app_id:
-        raise HTTPException(status_code=503, detail="BANDSINTOWN_API_KEY is not configured")
+        logger.error("BANDSINTOWN_API_KEY is not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="This service is temporarily unavailable. Please try again later.",
+        )
     client = BandsintownClient(app_id)
     try:
         yield client
@@ -158,7 +166,11 @@ async def get_spotify_client(spotify: OptionalSpotifyClientDep) -> SpotifyClient
     if spotify is None:
         settings = get_settings()
         missing = [key.upper() for key in SPOTIFY_SETTINGS if not getattr(settings, key)]
-        raise HTTPException(status_code=503, detail=f"{', '.join(missing)} is not configured")
+        logger.error("Spotify is not configured: %s", ", ".join(missing))
+        raise HTTPException(
+            status_code=503,
+            detail="This service is temporarily unavailable. Please try again later.",
+        )
     return spotify
 
 
@@ -334,7 +346,11 @@ async def delete_me(
     retries anything that fails here)."""
     if user.supabase_user_id is not None:
         if admin is None:
-            raise HTTPException(status_code=503, detail="SUPABASE_SECRET_KEY is not configured")
+            logger.error("SUPABASE_SECRET_KEY is not configured")
+            raise HTTPException(
+                status_code=503,
+                detail="This service is temporarily unavailable. Please try again later.",
+            )
         await admin.delete_user(user.supabase_user_id)
     result = await session.execute(
         select(Playlist.spotify_playlist_id).where(
