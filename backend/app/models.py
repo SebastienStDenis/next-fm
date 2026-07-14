@@ -132,7 +132,6 @@ class LastfmArtist(Base):
     listeners: Mapped[int | None] = mapped_column(BigInteger)
     playcount: Mapped[int | None] = mapped_column(BigInteger)
     tags: Mapped[list | None] = mapped_column(JSONB)
-    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     similar_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     info_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

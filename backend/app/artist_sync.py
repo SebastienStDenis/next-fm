@@ -1,6 +1,5 @@
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime
 
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -138,7 +137,6 @@ async def upsert_lastfm_artists(
     )
     by_key = {row.name_key: row for row in result.scalars()}
 
-    now = datetime.now(UTC)
     artist_ids: dict[str, uuid.UUID] = {}
     new_artists: dict[str, Artist] = {}
     new_signals: dict[str, ArtistSignal] = {}
@@ -156,7 +154,6 @@ async def upsert_lastfm_artists(
                 row.url = signal.url
             if signal.mbid:
                 row.mbid = signal.mbid
-            row.last_synced_at = now
             artist_ids[key] = row.artist_id
 
     if new_artists:
@@ -169,7 +166,6 @@ async def upsert_lastfm_artists(
                     "name_key": key,
                     "url": signal.url,
                     "mbid": signal.mbid,
-                    "last_synced_at": now,
                 }
                 for key, signal in new_signals.items()
             ]
@@ -181,7 +177,6 @@ async def upsert_lastfm_artists(
             set_={
                 "url": func.coalesce(stmt.excluded.url, LastfmArtist.url),
                 "mbid": func.coalesce(stmt.excluded.mbid, LastfmArtist.mbid),
-                "last_synced_at": stmt.excluded.last_synced_at,
             },
         ).returning(LastfmArtist.name_key, LastfmArtist.artist_id)
         result = await session.execute(stmt)
