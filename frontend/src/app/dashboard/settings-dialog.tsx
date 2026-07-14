@@ -4,12 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { IntroText } from "../intro-text";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { SyncActivityProvider } from "./sync-activity";
+import { SettingsHeader } from "./settings-header";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export const SETTINGS_HASH = "#settings";
 
@@ -17,9 +14,21 @@ export const SETTINGS_HASH = "#settings";
 // and the Back button dismisses the dialog. Triggers are plain anchors:
 // native hash navigation fires hashchange, which Link's client-side
 // navigation does not.
-export function SettingsDialog({ children }: { children: ReactNode }) {
+export function SettingsDialog({
+  signature,
+  lastSyncedAt,
+  children,
+}: {
+  signature: string;
+  lastSyncedAt: string | null;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // The sync card (in the body) reports whether it is running or still
+  // replaying steps, so the header can hold the warning's clear until that
+  // simulated finish rather than the moment the workflow actually ends.
+  const [syncActive, setSyncActive] = useState(false);
 
   useEffect(() => {
     const syncWithHash = () => setOpen(window.location.hash === SETTINGS_HASH);
@@ -98,13 +107,20 @@ export function SettingsDialog({ children }: { children: ReactNode }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="max-h-[calc(100dvh-4rem)] overflow-y-auto sm:max-w-xl"
+        showCloseButton={false}
+        className="flex max-h-[calc(100dvh-4rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
       >
-        <DialogHeader>
-          <DialogTitle className="text-lg">Settings</DialogTitle>
-          <IntroText className="text-xs text-muted-foreground italic" />
-        </DialogHeader>
-        {children}
+        <SettingsHeader
+          signature={signature}
+          lastSyncedAt={lastSyncedAt}
+          syncActive={syncActive}
+        />
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <IntroText className="mb-4 text-xs text-muted-foreground italic" />
+          <SyncActivityProvider value={setSyncActive}>
+            {children}
+          </SyncActivityProvider>
+        </div>
       </DialogContent>
     </Dialog>
   );
