@@ -10,6 +10,7 @@ import { AnimatedHeight } from "./animated-height";
 import { CitySearchBox, cityLabel } from "./city-search-box";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { hasVirtualKeyboard } from "@/lib/utils";
 
 export type City = {
   geonameid: number;
@@ -118,7 +119,7 @@ function CitySearch({
       <div className="min-w-0 flex-1">
         <CitySearchBox
           placeholder="Search for a city"
-          autoFocus={hasCity}
+          autoFocus={hasCity && !hasVirtualKeyboard()}
           onSelect={onSelect}
         />
       </div>
