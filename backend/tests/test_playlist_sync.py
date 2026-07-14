@@ -143,6 +143,11 @@ def test_playlist_title_with_and_without_city() -> None:
     assert playlist_title("Alice", None) == "Alice's concerts"
 
 
+def test_playlist_title_possessive_for_name_ending_in_s() -> None:
+    assert playlist_title("Charles", "Montréal") == "Charles' concerts in Montréal"
+    assert playlist_title("Charles", None) == "Charles' concerts"
+
+
 def test_playlist_description_chooses_copy_by_setting() -> None:
     now = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
 
