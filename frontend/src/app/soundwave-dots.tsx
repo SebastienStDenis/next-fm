@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 // each hit races outward fast, pushing and brightening the dots its wavefront
 // passes, then fades. Deliberately quiet at rest: it borrows the primary token
 // at low opacity and sits behind the page content.
-const GRID_GAP = 30;
+const GRID_GAP = 20;
 const BASE_ALPHA = 0.05;
 const PULSE_SPEED = 0.85; // px per ms - the wavefront races outward
 const RING_SIGMA = 34; // wavefront thickness
