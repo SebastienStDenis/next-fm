@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDown, CirclePlus, ExternalLink, X } from "lucide-react";
 
 import {
@@ -242,8 +242,10 @@ function PlaylistCard({
   playlist: Playlist;
   tip?: SavePlaylistTip;
 }) {
+  const linkRef = useRef<HTMLAnchorElement>(null);
   const spotifyLink = playlist.spotify_url && (
     <a
+      ref={linkRef}
       href={playlist.spotify_url}
       target="_blank"
       rel="noreferrer"
@@ -274,6 +276,12 @@ function PlaylistCard({
                   align="start"
                   sideOffset={8}
                   collisionPadding={12}
+                  // Don't pull focus onto the dismiss button when the tip
+                  // opens; keep it on the card's link the tip points at.
+                  onOpenAutoFocus={(event) => {
+                    event.preventDefault();
+                    linkRef.current?.focus();
+                  }}
                   onInteractOutside={(event) => event.preventDefault()}
                   onEscapeKeyDown={(event) => event.preventDefault()}
                   className="relative w-auto max-w-[max(9rem,var(--radix-popper-available-width))] flex-row items-start gap-0.5 py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-300 ease-out data-open:zoom-in-75"
