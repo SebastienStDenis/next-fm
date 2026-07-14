@@ -28,6 +28,7 @@ import {
   clearSavePlaylistTip,
   isSavePlaylistTipCued,
 } from "./save-playlist-tip";
+import { useSettingsOpen } from "./settings-dialog";
 import { useActiveTab } from "./tabs";
 
 export type Playlist = {
@@ -140,10 +141,13 @@ export function PlaylistsPanel({
   playlists: Playlist[];
 }) {
   const columnCount = useColumnCount();
-  // The tip portals out of the tab (a Popover), so it must go dark when the
-  // Playlists tab isn't the one on screen - otherwise it floats over whatever
-  // tab the user switched to.
-  const tip = useSavePlaylistTip(useActiveTab() === "playlists");
+  // The tip is a Popover that portals to the body, so it outlives whatever
+  // hides its panel and would float on top: over another tab once the user
+  // switches away (the Playlists panel stays mounted), or over the settings
+  // dialog. Only show it when the Playlists tab is the surface on screen.
+  const onPlaylistsTab = useActiveTab() === "playlists";
+  const settingsOpen = useSettingsOpen();
+  const tip = useSavePlaylistTip(onPlaylistsTab && !settingsOpen);
 
   // Existing playlists always show (even if the latest run didn't complete
   // the playlists step); the run-a-sync hint is only for a truly empty panel.
@@ -203,10 +207,10 @@ type SavePlaylistTip = { open: boolean; onOpenChange: (open: boolean) => void };
 // the Spotify link or the X. Untriggered arrivals never leave the "uncued"
 // phase, so no tip renders for them at all.
 //
-// tabActive gates visibility without touching the cue: switching off the
-// Playlists tab closes the tip (it would otherwise float over the new tab,
-// since it portals out of the panel), and switching back reopens it.
-function useSavePlaylistTip(tabActive: boolean): SavePlaylistTip | undefined {
+// onScreen gates visibility without touching the cue: while the panel isn't
+// the surface on screen (another tab, or the settings dialog covering it) the
+// tip closes rather than float on top, and it reopens when the panel returns.
+function useSavePlaylistTip(onScreen: boolean): SavePlaylistTip | undefined {
   const hydrated = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -233,7 +237,7 @@ function useSavePlaylistTip(tabActive: boolean): SavePlaylistTip | undefined {
 
   if (phase === "open" || phase === "closed") {
     return {
-      open: phase === "open" && tabActive,
+      open: phase === "open" && onScreen,
       onOpenChange: (open) => {
         // Dismissal is sticky: forget the cue so it doesn't return on refresh.
         if (!open) {
