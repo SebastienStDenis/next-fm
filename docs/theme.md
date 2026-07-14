@@ -84,6 +84,31 @@ the sliding tab indicator carries it between tabs, and primary buttons and
 focus rings use the same token. Badges, hovers, and muted text use the tinted
 neutral tokens, so the whole page reads warm without competing accents.
 
+## Status colors
+
+Status signals are the one deliberate exception to the "accent is a material,
+not a color" rule. `--destructive` (red), `--success` (green), and `--warning`
+(amber) live alongside the neutral tokens in `globals.css` and *do* read as
+color, because a status has to be recognizable at a glance. They are kept as
+muted as they can be while staying unmistakably red/green/amber - chroma sits
+around 0.11-0.17, well below a stock Tailwind `red-500`/`green-600` but above
+the point where red drifts to brown and green to olive-grey. Nudging them
+lower reads as "broken/greyed", not "on-theme"; that floor is intentional.
+
+- `--destructive` doubles as the shadcn error token, so retuning it recolors
+  every red at once: destructive buttons/badges, `aria-invalid` field borders
+  and rings, the attention dot, and the red `X` marks in forms and sync steps.
+- `--success` replaced the previously hardcoded `text-green-600
+  dark:text-green-500`; the green check marks (sync steps, password/reset
+  requirements met) all use `text-success` now, so the token is the single
+  place to tune them.
+- Toast icons follow the same simple `Check` / `X` vocabulary used inline,
+  colored by these tokens: success = check (`--success`), error = x
+  (`--destructive`), warning = triangle (`--warning`). Info toasts show **no
+  icon at all** - info carries no state to react to, so the icon would be pure
+  decoration; its absence is what distinguishes an FYI from a message that
+  wants a reaction (see `frontend/src/components/ui/sonner.tsx`).
+
 ## Email
 
 Auth emails (`supabase/templates/*.html`) can't use the `oklch()` tokens

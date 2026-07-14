@@ -32,7 +32,7 @@ export function StepStatusMark({ state }: { state?: "active" | "done" }) {
         aria-hidden
         strokeWidth={2.5}
         className={cn(
-          "absolute inset-0 size-3.5 text-green-600 transition-opacity duration-250 ease-out motion-reduce:transition-none dark:text-green-500",
+          "absolute inset-0 size-3.5 text-success transition-opacity duration-250 ease-out motion-reduce:transition-none",
           state === "done" ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       />

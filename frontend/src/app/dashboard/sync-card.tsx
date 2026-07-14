@@ -239,7 +239,7 @@ export function SyncCard({
                     className={
                       finalOutcome === "failed"
                         ? "text-destructive"
-                        : "text-green-600 dark:text-green-500"
+                        : "text-success"
                     }
                   >
                     <StepMark status={finalOutcome} />
