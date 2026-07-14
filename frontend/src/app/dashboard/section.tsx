@@ -26,8 +26,8 @@ export function Section({
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <StepStatusMark state={state} />
           <h2>{heading}</h2>
+          <StepStatusMark state={state} />
         </CardTitle>
         {description && (
           <CardDescription className="text-xs italic">
