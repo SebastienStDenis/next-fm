@@ -49,7 +49,14 @@ export default async function Home() {
           <Button asChild size="lg">
             <Link href="/login">Log in</Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          {/* The dark outline fill (--input) is translucent, so the dots show
+              through it even over the haze; force an opaque surface here. */}
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="dark:bg-background dark:hover:bg-muted dark:active:bg-muted"
+          >
             <Link href="/signup">Sign up</Link>
           </Button>
         </div>
