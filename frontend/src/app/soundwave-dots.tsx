@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react";
 // at low opacity and sits behind the page content.
 const GRID_GAP = 20;
 const BASE_ALPHA = 0.16;
-const PULSE_SPEED = 0.85; // px per ms - the wavefront races outward
+const PULSE_SPEED = 0.425; // px per ms - the wavefront travels outward
 const RING_SIGMA = 34; // wavefront thickness
 const AMPLITUDE = 8; // outward dot displacement at full strength
 const MIN_GAP = 240; // ms between pulses (min)
