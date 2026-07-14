@@ -36,14 +36,19 @@ export default async function Home() {
       <Haze>
         <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>
       </Haze>
-      <Haze>
-        <div className="flex flex-col items-center gap-1.5">
+      {/* Tagline and intro get their own washes so each hugs its own width,
+          but sit in a tight group so the blurs overlap and no dots peek
+          through the gap between them. */}
+      <div className="flex flex-col items-center gap-1.5">
+        <Haze>
           <p className="max-w-md text-center text-lg text-muted-foreground">
             Live-music discovery through listening.
           </p>
+        </Haze>
+        <Haze>
           <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
-        </div>
-      </Haze>
+        </Haze>
+      </div>
       <Haze>
         <div className="flex gap-3">
           <Button asChild size="lg">
