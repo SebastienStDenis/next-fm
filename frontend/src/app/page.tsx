@@ -41,7 +41,7 @@ export default async function Home() {
           <p className="max-w-md text-center text-lg text-muted-foreground">
             Live-music discovery through listening.
           </p>
-          <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
+          <IntroText className="max-w-md text-center text-xs text-balance text-muted-foreground italic" />
         </div>
       </Haze>
       <Haze>
