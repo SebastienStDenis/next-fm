@@ -34,7 +34,9 @@ export function LoginForm() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => setEmailTouched(true)}
+            onBlur={() => {
+              if (email !== "") setEmailTouched(true);
+            }}
           />
           <Collapse show={emailTouched && email !== "" && !emailValid}>
             <p className="pt-2 text-xs text-destructive">

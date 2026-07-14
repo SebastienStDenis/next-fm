@@ -103,7 +103,9 @@ function ChangeEmailForm({ onDone }: { onDone: () => void }) {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            onBlur={() => setEmailTouched(true)}
+            onBlur={() => {
+              if (email !== "") setEmailTouched(true);
+            }}
           />
           <Collapse
             show={emailTouched && email !== "" && !EMAIL_SHAPE.test(email)}
