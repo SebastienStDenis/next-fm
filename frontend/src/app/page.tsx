@@ -5,6 +5,21 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { IntroText } from "./intro-text";
 
+// A feathered wash of the page background, sized to whatever it wraps, so the
+// copy stays legible over the animated dots without a hard-edged card. Applied
+// per element so the dots keep showing through the gaps between them.
+function Haze({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-10 -inset-y-2 [background:radial-gradient(ellipse_at_center,var(--background)_0%,var(--background)_42%,transparent_80%)]"
+      />
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
+
 export default async function Home() {
   const supabase = await createClient();
   const {
@@ -16,15 +31,17 @@ export default async function Home() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-3xl font-semibold tracking-tight">
-        NextFM
-      </h1>
-      <div className="flex flex-col items-center gap-1">
-        <p className="max-w-md text-center text-lg text-muted-foreground">
-          Live-music discovery through listening.
-        </p>
-        <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
-      </div>
+      <Haze>
+        <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>
+      </Haze>
+      <Haze>
+        <div className="flex flex-col items-center gap-1">
+          <p className="max-w-md text-center text-lg text-muted-foreground">
+            Live-music discovery through listening.
+          </p>
+          <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
+        </div>
+      </Haze>
       <div className="flex gap-3">
         <Button asChild size="lg">
           <Link href="/login">Log in</Link>
