@@ -68,7 +68,7 @@ cards would use; Listening History and tracklist messages are plain text.
 | Concerts tab | Run a sync in [Settings] to find concerts. | Home view: "No concerts found near {city}. NextFM will find new concerts as they're announced." Browsing another city: "No concerts found. Try a different city." |
 | Playlists tab | Run a sync in [Settings] to generate playlists. | No playlists generated. NextFM will generate them on the next daily sync. |
 
-`[Settings]` opens the settings dialog (`/dashboard#settings`). Related
+`[Settings]` opens the settings dialog (`/dashboard#settings`). Two related
 fixed messages:
 
 - Concerts hidden by the filter toggles: a card-sized ghost box in the
@@ -76,9 +76,6 @@ fixed messages:
   filters."
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
-- Pinned-cities nudge: a card-sized ghost box after the playlist cards,
-  shown only while the user has pinned no cities and gone once they pin one:
-  "Pin a city in [Settings] to generate another playlist."
 
 There is no "no home city" or "unlinked Last.fm" state: the dashboard
 requires a linked Last.fm account, a home city and a successful sync (see

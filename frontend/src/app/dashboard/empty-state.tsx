@@ -4,22 +4,17 @@ import { cn } from "@/lib/utils";
 
 // Standard container for missing-data messages (see docs/wording.md): a
 // dashed placeholder box where the list content will eventually appear.
-// The default is a roomy standalone panel; `sm` matches the compact padding
-// of `Card size="sm"` for a ghost box sitting inline among those cards.
 export function EmptyState({
   className,
-  size = "default",
   children,
 }: {
   className?: string;
-  size?: "default" | "sm";
   children: ReactNode;
 }) {
   return (
     <p
       className={cn(
-        "rounded-lg border border-dashed px-6 text-center text-xs leading-5 text-balance text-muted-foreground",
-        size === "sm" ? "py-3" : "py-10",
+        "rounded-lg border border-dashed px-6 py-10 text-center text-xs leading-5 text-muted-foreground",
         className,
       )}
     >
