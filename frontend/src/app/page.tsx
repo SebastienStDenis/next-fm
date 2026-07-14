@@ -15,15 +15,15 @@ export default async function Home() {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-3xl font-semibold tracking-tight">
-        NextFM
-      </h1>
-      <div className="flex flex-col items-center gap-1">
-        <p className="max-w-md text-center text-lg text-muted-foreground">
-          Live-music discovery through listening.
-        </p>
-        <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
+    <main className="flex flex-1 flex-col items-center justify-center gap-10 p-8">
+      <div className="flex flex-col items-center gap-3">
+        <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="max-w-md text-center text-lg text-muted-foreground">
+            Live-music discovery through listening.
+          </p>
+          <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
+        </div>
       </div>
       <div className="flex gap-3">
         <Button asChild size="lg">
