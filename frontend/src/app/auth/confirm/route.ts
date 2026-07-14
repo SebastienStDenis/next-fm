@@ -45,6 +45,19 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }
+    // Verification failed. An email change is confirmed while still signed in,
+    // so route the error to the dashboard - the proxy bounces a signed-in user
+    // off /login, which would swallow the toast. Signed-out flows (signup,
+    // recovery) still land on /login.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return NextResponse.redirect(
+      new URL(
+        user ? "/dashboard?error=confirm" : "/login?error=confirm",
+        request.url,
+      ),
+    );
   }
 
   return NextResponse.redirect(new URL("/login?error=confirm", request.url));
