@@ -6,14 +6,16 @@ import { createClient } from "@/lib/supabase/server";
 import { IntroText } from "./intro-text";
 
 // A feathered wash of the page background, sized to whatever it wraps, so the
-// copy stays legible over the animated dots without a hard-edged card. Applied
-// per element so the dots keep showing through the gaps between them.
+// copy stays legible over the animated dots without a hard-edged card. A blurred
+// rounded rectangle (rather than a radial gradient) covers wide text evenly to
+// the edges; the tight vertical inset keeps dots showing through the gaps
+// between blocks. Applied per element.
 function Haze({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative">
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-x-10 -inset-y-2 [background:radial-gradient(ellipse_at_center,var(--background)_0%,var(--background)_42%,transparent_80%)]"
+        className="pointer-events-none absolute -inset-x-4 -inset-y-0.5 rounded-3xl bg-background blur-md"
       />
       <div className="relative">{children}</div>
     </div>
