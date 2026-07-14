@@ -26,8 +26,8 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import (
     ActivityError,
+    ApplicationError,
     ChildWorkflowError,
-    FailureError,
     WorkflowAlreadyStartedError,
 )
 
@@ -180,6 +180,17 @@ def pending_steps() -> list[SyncStepProgress]:
     ]
 
 
+def _failure_summary(exc: ActivityError) -> str:
+    # Activities phrase their own failures for the user (see
+    # app.sync_activities._user_facing_errors), so an ApplicationError message
+    # is safe to show. Timeouts and cancellations carry no such message, so
+    # they fall back to a generic line rather than leaking Temporal internals.
+    cause = exc.cause
+    if isinstance(cause, ApplicationError) and cause.message:
+        return cause.message
+    return "This step didn't finish. Please try again."
+
+
 @workflow.defn
 class SyncUserWorkflow:
     def __init__(self) -> None:
@@ -207,8 +218,7 @@ class SyncUserWorkflow:
                 # remaining steps stay pending and the run fails.
                 step.status = "failed"
                 step.finished_at = workflow.now()
-                if isinstance(exc.cause, FailureError):
-                    step.summary = exc.cause.message
+                step.summary = _failure_summary(exc)
                 raise
             step.status = "completed"
             step.finished_at = workflow.now()

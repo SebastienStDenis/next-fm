@@ -104,7 +104,11 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 async def get_lastfm_client() -> AsyncIterator[LastfmClient]:
     api_key = get_settings().lastfm_api_key
     if not api_key:
-        raise HTTPException(status_code=503, detail="LASTFM_API_KEY is not configured")
+        logger.error("LASTFM_API_KEY is not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="This service is temporarily unavailable. Please try again later.",
+        )
     client = LastfmClient(api_key)
     try:
         yield client
@@ -118,7 +122,11 @@ LastfmClientDep = Annotated[LastfmClient, Depends(get_lastfm_client)]
 async def get_bandsintown_client() -> AsyncIterator[BandsintownClient]:
     app_id = get_settings().bandsintown_api_key
     if not app_id:
-        raise HTTPException(status_code=503, detail="BANDSINTOWN_API_KEY is not configured")
+        logger.error("BANDSINTOWN_API_KEY is not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="This service is temporarily unavailable. Please try again later.",
+        )
     client = BandsintownClient(app_id)
     try:
         yield client
@@ -158,7 +166,11 @@ async def get_spotify_client(spotify: OptionalSpotifyClientDep) -> SpotifyClient
     if spotify is None:
         settings = get_settings()
         missing = [key.upper() for key in SPOTIFY_SETTINGS if not getattr(settings, key)]
-        raise HTTPException(status_code=503, detail=f"{', '.join(missing)} is not configured")
+        logger.error("Spotify is not configured: %s", ", ".join(missing))
+        raise HTTPException(
+            status_code=503,
+            detail="This service is temporarily unavailable. Please try again later.",
+        )
     return spotify
 
 
@@ -201,7 +213,11 @@ async def get_temporal_client() -> TemporalClient:
         try:
             _temporal_client = await connect_temporal(get_settings())
         except (RPCError, OSError, RuntimeError) as exc:
-            raise HTTPException(status_code=503, detail=f"Temporal is unavailable: {exc}") from None
+            logger.warning("Temporal connection failed", exc_info=exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Sync is temporarily unavailable. Please try again in a moment.",
+            ) from None
     return _temporal_client
 
 
@@ -227,34 +243,66 @@ async def lastfm_private_data(request: Request, exc: LastfmPrivateDataError) -> 
     return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 
+# These upstreams can fail with raw driver/HTTP text; the user sees a safe,
+# actionable line while the real message stays in the logs.
 @app.exception_handler(LastfmApiError)
 async def lastfm_api_error(request: Request, exc: LastfmApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Last.fm API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "Last.fm isn't responding right now. Please try again in a moment."},
+    )
 
 
 @app.exception_handler(BandsintownApiError)
 async def bandsintown_api_error(request: Request, exc: BandsintownApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Bandsintown API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={
+            "detail": "We couldn't reach Bandsintown right now. Please try again in a moment."
+        },
+    )
 
 
 @app.exception_handler(SpotifyAuthError)
 async def spotify_auth_error(request: Request, exc: SpotifyAuthError) -> JSONResponse:
-    return JSONResponse(status_code=503, content={"detail": str(exc)})
+    logger.warning("Spotify authorization error", exc_info=exc)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Spotify is temporarily unavailable. Please try again later."},
+    )
 
 
 @app.exception_handler(SpotifyApiError)
 async def spotify_api_error(request: Request, exc: SpotifyApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Spotify API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "We couldn't reach Spotify right now. Please try again in a moment."},
+    )
 
 
 @app.exception_handler(MusicBrainzApiError)
 async def musicbrainz_api_error(request: Request, exc: MusicBrainzApiError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("MusicBrainz API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={
+            "detail": (
+                "A music data service isn't responding right now. Please try again in a moment."
+            )
+        },
+    )
 
 
 @app.exception_handler(SupabaseAdminError)
 async def supabase_admin_error(request: Request, exc: SupabaseAdminError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
+    logger.warning("Supabase admin API error", exc_info=exc)
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "Something went wrong on our end. Please try again."},
+    )
 
 
 @app.get("/health")
@@ -298,7 +346,11 @@ async def delete_me(
     retries anything that fails here)."""
     if user.supabase_user_id is not None:
         if admin is None:
-            raise HTTPException(status_code=503, detail="SUPABASE_SECRET_KEY is not configured")
+            logger.error("SUPABASE_SECRET_KEY is not configured")
+            raise HTTPException(
+                status_code=503,
+                detail="This service is temporarily unavailable. Please try again later.",
+            )
         await admin.delete_user(user.supabase_user_id)
     result = await session.execute(
         select(Playlist.spotify_playlist_id).where(
@@ -858,7 +910,11 @@ async def start_user_sync(
             id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
         )
     except RPCError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from None
+        logger.warning("Failed to start sync workflow", exc_info=exc)
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't start your sync. Please try again in a moment.",
+        ) from None
     return SyncStartResult(workflow_id=handle.id)
 
 
@@ -884,7 +940,11 @@ async def get_user_sync_status(
     except RPCError as exc:
         if exc.status == RPCStatusCode.NOT_FOUND:
             return SyncStatusResult(status="none", steps=pending_steps())
-        raise HTTPException(status_code=502, detail=str(exc)) from None
+        logger.warning("Failed to read sync status", exc_info=exc)
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't load your sync status. Please try again in a moment.",
+        ) from None
 
     status = _SYNC_STATUS_BY_EXECUTION.get(description.status, "failed")
     if status == "completed":
