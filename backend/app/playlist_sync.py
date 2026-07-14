@@ -62,9 +62,10 @@ class DesiredTrack(BaseModel):
 
 
 def playlist_title(user_name: str, city_name: str | None) -> str:
+    possessive = f"{user_name}'" if user_name.endswith(("s", "S")) else f"{user_name}'s"
     if city_name is None:
-        return f"{user_name}'s concerts"
-    return f"{user_name}'s concerts in {city_name}"
+        return f"{possessive} concerts"
+    return f"{possessive} concerts in {city_name}"
 
 
 def playlist_description(city_name: str, now: datetime) -> str:
