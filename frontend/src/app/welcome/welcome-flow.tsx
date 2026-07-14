@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -24,6 +24,7 @@ export function WelcomeFlow({
 }) {
   const [active, setActive] = useState(false);
   const report = useCallback((next: boolean) => setActive(next), []);
+  const completionRef = useRef<HTMLDivElement>(null);
 
   // Once the first sync's steps have played out, the footer stays put: a
   // manual re-run (or one that fails, leaving the earlier sync on record)
@@ -38,6 +39,21 @@ export function WelcomeFlow({
   // green check, so the two appear together once the simulation reads as done.
   const settled = revealed || !active;
 
+  // Keep the completion action in view while its existing reveal animation
+  // makes room, so the handoff is immediately visible at every viewport size.
+  useEffect(() => {
+    if (!ready || !settled) {
+      return;
+    }
+
+    completionRef.current?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "end",
+    });
+  }, [ready, settled]);
+
   return (
     <SyncActivityProvider value={report}>
       <SyncSettledProvider value={settled}>
@@ -49,7 +65,10 @@ export function WelcomeFlow({
         {ready && settled && (
           <div className="grid animate-grow-in grid-rows-[1fr]">
             <div className="min-h-0 overflow-hidden">
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-fade-in-delayed">
+              <div
+                ref={completionRef}
+                className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-fade-in-delayed"
+              >
                 <p className="text-sm">All set. Playlists update daily.</p>
                 <Button asChild size="sm">
                   {/* Lands on the Playlists tab and drops a session cue for the
