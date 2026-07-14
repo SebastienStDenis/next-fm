@@ -9,6 +9,7 @@ import {
   SyncActivityProvider,
   SyncSettledProvider,
 } from "../dashboard/sync-activity";
+import { cueSavePlaylistTip } from "../dashboard/save-playlist-tip";
 import { Button } from "@/components/ui/button";
 
 // Wraps the setup sections and the completion footer so the two can
@@ -51,9 +52,9 @@ export function WelcomeFlow({
               <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-fade-in-delayed">
                 <p className="text-sm">All set. Playlists update daily.</p>
                 <Button asChild size="sm">
-                  {/* Lands on the Playlists tab and cues the one-shot
-                      save-to-library tip on the leading playlist. */}
-                  <Link href="/dashboard?tab=playlists&tip=save-playlist">
+                  {/* Lands on the Playlists tab and drops a session cue for the
+                      one-shot save-to-library tip on the leading playlist. */}
+                  <Link href="/dashboard?tab=playlists" onClick={cueSavePlaylistTip}>
                     Go to dashboard
                     <ArrowRight aria-hidden />
                   </Link>

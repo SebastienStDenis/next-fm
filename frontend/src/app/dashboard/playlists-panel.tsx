@@ -24,6 +24,10 @@ import {
 import type { City } from "./city-panel";
 import { EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import {
+  clearSavePlaylistTip,
+  isSavePlaylistTipCued,
+} from "./save-playlist-tip";
 
 export type Playlist = {
   id: string;
@@ -188,11 +192,12 @@ export function PlaylistsPanel({
 
 type SavePlaylistTip = { open: boolean; onOpenChange: (open: boolean) => void };
 
-// A one-shot nudge cued by `?tip=save-playlist` on the welcome-flow handoff.
-// The cue is read only after hydration (the URL isn't known server-side, and
-// deferring keeps server and client HTML in sync), then the param is stripped
-// so a refresh or Back never replays it. Untriggered arrivals never leave the
-// "uncued" phase, so no tip is rendered for them at all.
+// A one-shot nudge handed off from the welcome-flow "Go to dashboard" click,
+// which drops a sessionStorage cue (see save-playlist-tip). The cue is read
+// after hydration (sessionStorage is client-only) and left in place so a
+// refresh mid-tip replays it; it's cleared only when the user dismisses via
+// the Spotify link or the X. Untriggered arrivals never leave the "uncued"
+// phase, so no tip renders for them at all.
 function useSavePlaylistTip(): SavePlaylistTip | undefined {
   const hydrated = useSyncExternalStore(
     emptySubscribe,
@@ -204,23 +209,15 @@ function useSavePlaylistTip(): SavePlaylistTip | undefined {
   >("idle");
 
   if (hydrated && phase === "idle") {
-    const cued =
-      new URLSearchParams(window.location.search).get("tip") ===
-      "save-playlist";
-    setPhase(cued ? "pending" : "uncued");
+    setPhase(isSavePlaylistTipCued() ? "pending" : "uncued");
   }
 
-  // Once cued, strip the one-shot param and hold a beat before opening, so the
-  // tip animates in just after the page settles - the motion is what draws the
-  // eye, rather than it sitting there from the first paint.
+  // Hold a beat before opening so the tip animates in just after the page
+  // settles - the motion is what draws the eye, rather than it sitting there
+  // from the first paint.
   useEffect(() => {
     if (phase !== "pending") {
       return;
-    }
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("tip") === "save-playlist") {
-      url.searchParams.delete("tip");
-      window.history.replaceState(null, "", url.pathname + url.search);
     }
     const timer = window.setTimeout(() => setPhase("open"), 450);
     return () => window.clearTimeout(timer);
@@ -229,7 +226,13 @@ function useSavePlaylistTip(): SavePlaylistTip | undefined {
   if (phase === "open" || phase === "closed") {
     return {
       open: phase === "open",
-      onOpenChange: (open) => setPhase(open ? "open" : "closed"),
+      onOpenChange: (open) => {
+        // Dismissal is sticky: forget the cue so it doesn't return on refresh.
+        if (!open) {
+          clearSavePlaylistTip();
+        }
+        setPhase(open ? "open" : "closed");
+      },
     };
   }
   return undefined;
@@ -258,7 +261,17 @@ function PlaylistCard({
 
   return (
     <li className="flex">
-      <Card ref={cardRef} tabIndex={-1} size="sm" className="flex-1 outline-none">
+      <Card
+        ref={cardRef}
+        tabIndex={-1}
+        size="sm"
+        // Ring the card while the save tip points at it, so the nudge reads as
+        // being about this playlist. Driven off the tip's open state rather
+        // than :focus, which a programmatic focus() doesn't render visibly.
+        className={`flex-1 outline-none transition-shadow ${
+          tip?.open ? "ring-2 ring-primary/40" : ""
+        }`}
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <span className="shrink-0 animate-fade-in" aria-hidden>
@@ -289,7 +302,11 @@ function PlaylistCard({
                   }}
                   onInteractOutside={(event) => event.preventDefault()}
                   onEscapeKeyDown={(event) => event.preventDefault()}
-                  className="relative w-auto max-w-[max(9rem,var(--radix-popper-available-width))] flex-row items-start gap-0.5 rounded-md py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-150 ease-out data-open:zoom-in-75"
+                  // Wrap to the space on the right as it narrows, but floor the
+                  // width at what the pill needs at the 320px min viewport
+                  // (min-w-80) so it stops shrinking there instead of squeezing
+                  // to a sliver on anything narrower.
+                  className="relative w-auto max-w-[max(9.25rem,var(--radix-popper-available-width))] flex-row items-start gap-0.5 rounded-md py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-150 ease-out data-open:zoom-in-75"
                 >
                   {/* Pinned to the first line, not the pill's center, so the
                       point keeps aiming at the link when the text wraps. */}
@@ -297,7 +314,7 @@ function PlaylistCard({
                     aria-hidden
                     className="pointer-events-none absolute top-[0.625rem] -left-[2px] size-1.5 -translate-y-1/2 rotate-45 bg-primary"
                   />
-                  <PopoverTitle className="min-w-0 text-balance">
+                  <PopoverTitle className="min-w-0">
                     Save{" "}
                     <CirclePlus
                       className="inline size-3.5 -translate-y-px align-middle"
