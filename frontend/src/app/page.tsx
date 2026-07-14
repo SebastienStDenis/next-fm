@@ -44,14 +44,16 @@ export default async function Home() {
           <IntroText className="max-w-md text-center text-xs text-muted-foreground italic" />
         </div>
       </Haze>
-      <div className="flex gap-3">
-        <Button asChild size="lg">
-          <Link href="/login">Log in</Link>
-        </Button>
-        <Button asChild variant="outline" size="lg">
-          <Link href="/signup">Sign up</Link>
-        </Button>
-      </div>
+      <Haze>
+        <div className="flex gap-3">
+          <Button asChild size="lg">
+            <Link href="/login">Log in</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/signup">Sign up</Link>
+          </Button>
+        </div>
+      </Haze>
     </main>
   );
 }
