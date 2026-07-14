@@ -1,7 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
 import { IntroText } from "../intro-text";
 import { SyncActivityProvider } from "./sync-activity";
@@ -9,6 +14,38 @@ import { SettingsHeader } from "./settings-header";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export const SETTINGS_HASH = "#settings";
+
+// Broadcast the dialog's open state to sibling dashboard surfaces that live
+// outside it - specifically the save-playlist tip, which portals to the body
+// like this dialog does and must stand down while it's up, or it paints over
+// the dialog (issue #243, most visible after a refresh at #settings where
+// both restore at once). A module store rather than context: the tip and the
+// dialog sit in separate subtrees under the page, and the close path uses
+// replaceState (no hashchange), so the dialog's own state is the only signal
+// that tracks both open and close.
+let settingsOpen = false;
+const settingsOpenListeners = new Set<() => void>();
+
+function setSettingsOpen(next: boolean) {
+  if (next === settingsOpen) {
+    return;
+  }
+  settingsOpen = next;
+  for (const listener of settingsOpenListeners) {
+    listener();
+  }
+}
+
+export function useSettingsOpen(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      settingsOpenListeners.add(onChange);
+      return () => settingsOpenListeners.delete(onChange);
+    },
+    () => settingsOpen,
+    () => false,
+  );
+}
 
 // Opens and closes with the URL hash so settings are linkable (#settings)
 // and the Back button dismisses the dialog. Triggers are plain anchors:
@@ -36,6 +73,14 @@ export function SettingsDialog({
     window.addEventListener("hashchange", syncWithHash);
     return () => window.removeEventListener("hashchange", syncWithHash);
   }, []);
+
+  // Mirror the open state into the module store so the save-playlist tip can
+  // stand down while settings is up. Cleared on unmount so a torn-down dialog
+  // never leaves the flag stuck on.
+  useEffect(() => {
+    setSettingsOpen(open);
+    return () => setSettingsOpen(false);
+  }, [open]);
 
   // router.refresh() (see the sync card's poll-complete refresh and the
   // background-run watch below) reconciles the URL as part of applying the
