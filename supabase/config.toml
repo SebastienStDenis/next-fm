@@ -62,6 +62,12 @@ enable_confirmations = true
 # custom SMTP provider (the built-in sender allows only a few emails/hour).
 # These templates only apply to the local stack; a hosted project takes them
 # in the dashboard (Auth > Email Templates) or via the Management API.
+#
+# Never interpolate the user's name (or any user-controlled profile field) into
+# these emails. The name is self-chosen and unverified, so rendering it in a
+# NextFM-branded message is a phishing vector: an attacker sets their name to
+# scam copy ("Verify now: evil.example") that then arrives inside a trusted
+# email. Greet generically and keep names out of transactional mail.
 [auth.email.template.confirmation]
 subject = "Confirm your email for NextFM"
 content_path = "./supabase/templates/confirmation.html"

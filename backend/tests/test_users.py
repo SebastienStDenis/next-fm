@@ -123,6 +123,37 @@ async def test_update_user_sets_include_known_artists() -> None:
     assert user.include_known_artists is True
 
 
+async def test_update_user_sets_name() -> None:
+    session = make_session()
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
+
+    response = await request("PATCH", "/me", session, user=user, json={"name": "Alicia"})
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Alicia"
+    assert user.name == "Alicia"
+
+
+async def test_update_user_trims_name() -> None:
+    session = make_session()
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
+
+    response = await request("PATCH", "/me", session, user=user, json={"name": "  Bob  "})
+
+    assert response.status_code == 200
+    assert user.name == "Bob"
+
+
+async def test_update_user_rejects_blank_name() -> None:
+    session = make_session()
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
+
+    response = await request("PATCH", "/me", session, user=user, json={"name": "   "})
+
+    assert response.status_code == 422
+    assert user.name == "Alice"
+
+
 async def test_update_user_with_empty_payload_changes_nothing() -> None:
     session = make_session()
     user = User(id=USER_ID, name="Alice", include_known_artists=True)

@@ -1,4 +1,5 @@
 import { ChangeEmailButton } from "./change-email-button";
+import { ChangeNameButton } from "./change-name-button";
 import { ChangePasswordButton } from "./change-password-button";
 import { CityPanel, type City } from "./city-panel";
 import { DeleteAccountButton } from "./delete-account-button";
@@ -72,8 +73,12 @@ export function SettingsContent({
       <Section heading="Account">
         <div className="space-y-4">
           <div className="min-w-0">
-            <p className="font-medium">{user.name}</p>
-            <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+              <dt className="self-center text-muted-foreground">Name</dt>
+              <dd className="flex min-w-0 items-center gap-1">
+                <span className="truncate">{user.name}</span>
+                <ChangeNameButton currentName={user.name} />
+              </dd>
               {email && (
                 <>
                   <dt className="self-center text-muted-foreground">Email</dt>

@@ -275,6 +275,8 @@ async def update_me(user: CurrentUserDep, payload: UserUpdate, session: SessionD
     """Update the user's settings."""
     if payload.include_known_artists is not None:
         user.include_known_artists = payload.include_known_artists
+    if payload.name is not None:
+        user.name = payload.name
     await session.commit()
     return user
 
