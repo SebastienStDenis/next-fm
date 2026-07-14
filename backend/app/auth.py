@@ -89,7 +89,7 @@ async def get_current_user(
     result = await session.execute(select(User).where(User.supabase_user_id == claims.sub))
     user = result.scalar_one_or_none()
     if user is None:
-        name = claims.display_name or (claims.email or "").split("@")[0] or "Music lover"
+        name = claims.display_name or (claims.email or "").split("@")[0] or "Audiophil"
         user = User(supabase_user_id=claims.sub, name=name, last_seen_at=now)
         session.add(user)
         try:
