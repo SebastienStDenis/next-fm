@@ -28,7 +28,12 @@ from app.schemas import (
     SyncStepProgress,
     TombstoneDrainResult,
 )
-from app.sync_activities import SyncActivities
+from app.spotify import SpotifyAuthError
+from app.sync_activities import (
+    STEP_FAILED_SUGGESTIONS,
+    SyncActivities,
+    _user_facing_errors,
+)
 from app.sync_workflow import (
     DispatchSyncsWorkflow,
     SyncUserWorkflow,
@@ -364,6 +369,44 @@ async def test_sync_events_activity_for_unknown_user_is_non_retryable(
 
 
 # --- workflow ---
+
+
+async def test_user_facing_errors_masks_unexpected_exception() -> None:
+    raw = "canceling statement due to statement timeout [SQL: UPDATE lastfm_artists ...]"
+    with pytest.raises(ApplicationError) as caught:
+        async with _user_facing_errors(STEP_FAILED_SUGGESTIONS):
+            raise RuntimeError(raw)
+    assert caught.value.message == STEP_FAILED_SUGGESTIONS
+    # Retryable, since the underlying cause may be transient.
+    assert caught.value.non_retryable is False
+    # The raw cause is preserved for the logs and Temporal history, not shown.
+    assert isinstance(caught.value.__cause__, RuntimeError)
+    assert raw not in caught.value.message
+
+
+async def test_user_facing_errors_passes_through_application_error() -> None:
+    with pytest.raises(ApplicationError) as caught:
+        async with _user_facing_errors(STEP_FAILED_SUGGESTIONS):
+            raise ApplicationError("No home city set", non_retryable=True)
+    assert caught.value.message == "No home city set"
+    assert caught.value.non_retryable is True
+
+
+async def test_user_facing_errors_keeps_actionable_private_data_message() -> None:
+    with pytest.raises(ApplicationError) as caught:
+        async with _user_facing_errors(STEP_FAILED_SUGGESTIONS):
+            raise LastfmPrivateDataError("rj")
+    assert caught.value.message == str(LastfmPrivateDataError("rj"))
+    assert caught.value.non_retryable is True
+
+
+async def test_user_facing_errors_masks_operator_only_spotify_auth() -> None:
+    with pytest.raises(ApplicationError) as caught:
+        async with _user_facing_errors(STEP_FAILED_SUGGESTIONS):
+            raise SpotifyAuthError("Re-run `python -m app.spotify_auth` as the bot account.")
+    assert caught.value.message == "Spotify is temporarily unavailable. Please try again later."
+    assert "spotify_auth" not in caught.value.message
+    assert caught.value.non_retryable is True
 
 
 @activity.defn(name="sync_artists")

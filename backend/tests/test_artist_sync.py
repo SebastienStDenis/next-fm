@@ -312,7 +312,10 @@ async def test_sync_maps_unknown_lastfm_error_to_502() -> None:
     response = await request("POST", SYNC_URL, session, lastfm, user=user())
 
     assert response.status_code == 502
-    assert response.json()["detail"] == "Last.fm error 29: Rate limit exceeded"
+    # The raw upstream message stays in the logs; the user sees a safe line.
+    assert response.json()["detail"] == (
+        "Last.fm isn't responding right now. Please try again in a moment."
+    )
     session.commit.assert_not_awaited()
 
 

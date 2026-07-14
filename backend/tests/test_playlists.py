@@ -443,4 +443,7 @@ async def test_sync_requires_spotify_configuration(monkeypatch: pytest.MonkeyPat
     response = await request("POST", SYNC_URL, session, user=make_user())
 
     assert response.status_code == 503
-    assert "SPOTIFY_REFRESH_TOKEN" in response.json()["detail"]
+    # The missing key names go to the logs, never to the user.
+    detail = response.json()["detail"]
+    assert detail == "This service is temporarily unavailable. Please try again later."
+    assert "SPOTIFY" not in detail

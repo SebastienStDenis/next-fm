@@ -11,7 +11,10 @@ its whole lifetime; in particular a single shared MusicBrainzClient is what
 preserves the MusicBrainz 1 req/s guarantee across activities.
 """
 
+import contextlib
+import logging
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, select
@@ -24,7 +27,7 @@ from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
 from app.bandsintown import BandsintownClient
 from app.db import session_factory
 from app.event_sync import sync_user_events
-from app.lastfm import LastfmClient
+from app.lastfm import LastfmClient, LastfmPrivateDataError
 from app.models import LastfmAccount, LastfmConnection, User
 from app.musicbrainz import MusicBrainzClient
 from app.playlist_sync import (
@@ -39,13 +42,53 @@ from app.schemas import (
     SuggestionSyncResult,
     TombstoneDrainResult,
 )
-from app.spotify import SpotifyClient
+from app.spotify import SpotifyAuthError, SpotifyClient
 from app.suggestion_sync import sync_user_suggestions
+
+logger = logging.getLogger(__name__)
 
 ACTIVITY_WINDOW = timedelta(days=30)
 # Below the daily cadence on purpose: a 24h threshold against a 24h schedule
 # would skip users whose previous run finished minutes after the firing time.
 SYNC_FRESHNESS_WINDOW = timedelta(hours=20)
+
+# What the user sees when a step fails for an unexpected reason. The raw cause
+# (a driver, HTTP, or timeout message) must never reach the UI, so each step
+# falls back to its own line; the real failure stays in the logs and in
+# Temporal history via the preserved exception cause.
+STEP_FAILED_ARTISTS = "We couldn't import your Last.fm listening history. Please try again."
+STEP_FAILED_SUGGESTIONS = "We couldn't refresh your artist suggestions. Please try again."
+STEP_FAILED_EVENTS = "We couldn't check for upcoming concerts. Please try again."
+STEP_FAILED_PLAYLISTS = "We couldn't update your Spotify playlists. Please try again."
+
+
+@contextlib.asynccontextmanager
+async def _user_facing_errors(fallback: str) -> AsyncIterator[None]:
+    """Ensure a failing sync step surfaces only a message safe for the user.
+
+    Curated `ApplicationError` preconditions and the already-actionable
+    `LastfmPrivateDataError` pass through unchanged; every other exception
+    becomes a generic step message. The original is chained with
+    `raise ... from`, so Temporal history and the worker log keep the real
+    cause for debugging.
+    """
+    try:
+        yield
+    except ApplicationError:
+        raise
+    except LastfmPrivateDataError as exc:
+        # Phrased for the user and fixable only by them - never worth a retry.
+        raise ApplicationError(str(exc), non_retryable=True) from exc
+    except SpotifyAuthError as exc:
+        # The detail names an operator-only CLI step; the user can only wait.
+        logger.warning("Spotify authorization failed during sync", exc_info=exc)
+        raise ApplicationError(
+            "Spotify is temporarily unavailable. Please try again later.",
+            non_retryable=True,
+        ) from exc
+    except Exception as exc:
+        logger.warning("Sync step failed: %s", fallback, exc_info=exc)
+        raise ApplicationError(fallback) from exc
 
 
 async def _require_user(session: AsyncSession, user_id: str) -> User:
@@ -84,7 +127,7 @@ class SyncActivities:
 
     @activity.defn
     async def sync_artists(self, user_id: str) -> ArtistSyncResult:
-        async with session_factory() as session:
+        async with _user_facing_errors(STEP_FAILED_ARTISTS), session_factory() as session:
             user = await _require_user(session, user_id)
             _require_home_city(user)
             account = await _require_lastfm_account(session, user.id)
@@ -96,7 +139,7 @@ class SyncActivities:
 
     @activity.defn
     async def sync_suggestions(self, user_id: str) -> SuggestionSyncResult:
-        async with session_factory() as session:
+        async with _user_facing_errors(STEP_FAILED_SUGGESTIONS), session_factory() as session:
             user = await _require_user(session, user_id)
             account = await _require_lastfm_account(session, user.id)
             result = await sync_user_suggestions(session, self._lastfm, user, account.username)
@@ -105,7 +148,7 @@ class SyncActivities:
 
     @activity.defn
     async def sync_events(self, user_id: str) -> EventSyncResult:
-        async with session_factory() as session:
+        async with _user_facing_errors(STEP_FAILED_EVENTS), session_factory() as session:
             user = await _require_user(session, user_id)
             result = await sync_user_events(session, self._bandsintown, user.id)
             await session.commit()
@@ -113,7 +156,7 @@ class SyncActivities:
 
     @activity.defn
     async def sync_playlists(self, user_id: str) -> PlaylistSyncResult:
-        async with session_factory() as session:
+        async with _user_facing_errors(STEP_FAILED_PLAYLISTS), session_factory() as session:
             user = await _require_user(session, user_id)
             result = await sync_user_playlists(
                 session, self._spotify, self._lastfm, self._musicbrainz, user

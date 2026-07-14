@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
+import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
@@ -140,7 +141,7 @@ export function EventsPanel({
         <CitySearchBox
           placeholder="Search for a city"
           disabled={loading}
-          autoFocus
+          autoFocus={!hasVirtualKeyboard()}
           onSelect={selectCity}
         />
       </span>
