@@ -15,9 +15,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { InlineNav } from "../inline-nav";
 import type { City } from "./city-panel";
-import { EmptyStateCell } from "./empty-state";
+import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SETTINGS_HASH } from "./settings-dialog";
 
 export type Playlist = {
   id: string;
@@ -124,9 +126,13 @@ function useColumnCount(): number | null {
 export function PlaylistsPanel({
   synced,
   playlists,
+  showPinHint,
 }: {
   synced: boolean;
   playlists: Playlist[];
+  // A one-time nudge toward pinned cities, shown only while the user has none
+  // (decided in page.tsx); it rides along as the last card in the list.
+  showPinHint: boolean;
 }) {
   const columnCount = useColumnCount();
 
@@ -149,29 +155,50 @@ export function PlaylistsPanel({
     ...playlists.filter((playlist) => playlist.city !== null),
   ];
 
+  const cards = ordered.map((playlist) => (
+    <PlaylistCard key={playlist.id} playlist={playlist} />
+  ));
+  if (showPinHint) {
+    cards.push(<PinCityHint key="pin-hint" />);
+  }
+
   if (columnCount === null) {
     return (
       <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ordered.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
-        ))}
+        {cards}
       </ul>
     );
   }
 
   const columns = Array.from({ length: columnCount }, (_, column) =>
-    ordered.filter((_, index) => index % columnCount === column),
+    cards.filter((_, index) => index % columnCount === column),
   );
   return (
-    <div className="flex items-start gap-3">
+    // With the pin hint present there is exactly one real card beside it;
+    // stretch the columns so the hint matches that card's height. Without it,
+    // keep columns independent so an expanded tracklist pushes only its own.
+    <div className={`flex gap-3 ${showPinHint ? "items-stretch" : "items-start"}`}>
       {columns.map((column, index) => (
         <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
-          {column.map((playlist) => (
-            <PlaylistCard key={playlist.id} playlist={playlist} />
-          ))}
+          {column}
         </ul>
       ))}
     </div>
+  );
+}
+
+// A dashed ghost card in the playlist list, sitting alongside the real cards,
+// pointing the user at the pinned-cities feature they haven't used yet.
+function PinCityHint() {
+  return (
+    // flex-1 fills the stretched masonry column; self-stretch fills the grid
+    // row - either way the hint matches the neighbouring card's height.
+    <li className="flex flex-1 self-stretch">
+      <EmptyState size="sm" className="flex-1 content-center">
+        Pin a city in <InlineNav href={SETTINGS_HASH}>Settings</InlineNav> to
+        generate another playlist.
+      </EmptyState>
+    </li>
   );
 }
 

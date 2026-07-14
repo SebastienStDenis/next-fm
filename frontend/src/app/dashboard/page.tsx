@@ -175,6 +175,7 @@ export default async function DashboardPage() {
                 <PlaylistsPanel
                   synced={syncStepCompleted(sync, "playlists")}
                   playlists={linkedPlaylists}
+                  showPinHint={pinnedPlaylists.length === 0}
                 />
               ),
             },
