@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { hasVirtualKeyboard } from "@/lib/utils";
 
 export type LastfmAccount = {
   id: string;
@@ -85,7 +86,7 @@ function LinkForm({
           placeholder="Last.fm username"
           required
           disabled={pending}
-          autoFocus={hasAccount}
+          autoFocus={hasAccount && !hasVirtualKeyboard()}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="flex-1"
