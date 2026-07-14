@@ -2,15 +2,14 @@
 
 import { useEffect, useRef } from "react";
 
-// A field of dots arranged in rows, each row a sine wave travelling sideways so
-// the whole background reads as slow-moving sound waves. Deliberately quiet: it
-// borrows the primary token at low opacity and sits behind the page content.
-const ROW_GAP = 34;
-const DOT_GAP = 26;
-const AMPLITUDE = 7;
-const WAVELENGTH = 260;
-const SPEED = 0.0011; // radians per ms
-const ROW_PHASE = 0.6; // phase shift between adjacent rows
+// A grid of dots pushed outward by a sine wave keyed to each dot's distance
+// from the center, so concentric ripples radiate out like sound waves from a
+// point source. Deliberately quiet: it borrows the primary token at low opacity
+// and sits behind the page content.
+const GRID_GAP = 30;
+const AMPLITUDE = 6;
+const WAVELENGTH = 150;
+const SPEED = 0.0016; // radians per ms
 
 export function SoundwaveDots() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,19 +48,23 @@ export function SoundwaveDots() {
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = color;
       const k = (2 * Math.PI) / WAVELENGTH;
-      let rowIndex = 0;
-      for (let baseY = ROW_GAP / 2; baseY < height; baseY += ROW_GAP) {
-        for (let x = DOT_GAP / 2; x < width; x += DOT_GAP) {
-          const phase = k * x - time * SPEED + rowIndex * ROW_PHASE;
-          const wave = Math.sin(phase);
-          const y = baseY + wave * AMPLITUDE;
+      const cx = width / 2;
+      const cy = height / 2;
+      for (let gy = GRID_GAP / 2; gy < height; gy += GRID_GAP) {
+        for (let gx = GRID_GAP / 2; gx < width; gx += GRID_GAP) {
+          const dx = gx - cx;
+          const dy = gy - cy;
+          const dist = Math.hypot(dx, dy) || 1;
+          const wave = Math.sin(k * dist - time * SPEED);
+          const offset = (wave * AMPLITUDE) / dist;
+          const x = gx + dx * offset;
+          const y = gy + dy * offset;
           const radius = 1 + (wave + 1) * 0.6;
           ctx.globalAlpha = 0.05 + (wave + 1) * 0.05;
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.fill();
         }
-        rowIndex += 1;
       }
       ctx.globalAlpha = 1;
     };
