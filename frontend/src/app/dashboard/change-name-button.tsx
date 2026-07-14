@@ -67,6 +67,9 @@ function ChangeNameForm({
   onDone: () => void;
 }) {
   const [name, setName] = useState(currentName);
+  // Punish late, revalidate eagerly: the empty-name hint waits for the field's
+  // first blur, then tracks every edit until resolved.
+  const [nameTouched, setNameTouched] = useState(false);
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
       const result = await changeName(prev, formData);
@@ -88,6 +91,7 @@ function ChangeNameForm({
     // controlled fields at the DOM level. Since the dialog stays mounted for its
     // close animation, that blanked form would flash before it dismisses.
     <form
+      noValidate
       className="grid gap-4"
       onSubmit={(e) => {
         e.preventDefault();
@@ -97,16 +101,22 @@ function ChangeNameForm({
     >
       <div className="grid gap-2">
         <Label htmlFor="new-name">Name</Label>
-        <Input
-          id="new-name"
-          name="name"
-          type="text"
-          required
-          maxLength={50}
-          autoComplete="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div>
+          <Input
+            id="new-name"
+            name="name"
+            type="text"
+            required
+            maxLength={50}
+            autoComplete="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => setNameTouched(true)}
+          />
+          <Collapse show={nameTouched && trimmed === ""}>
+            <p className="pt-2 text-xs text-destructive">Enter a name.</p>
+          </Collapse>
+        </div>
       </div>
       <div className="grid">
         <Collapse show={state.error !== null}>
