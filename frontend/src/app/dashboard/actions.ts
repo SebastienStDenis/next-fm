@@ -217,6 +217,30 @@ export async function changePassword(
   return { error: null };
 }
 
+export async function changeName(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const name = formData.get("name");
+  if (typeof name !== "string" || name.trim() === "") {
+    return { error: "Enter a name." };
+  }
+
+  // Root-layout revalidation: the name drives the dashboard and welcome
+  // greetings as well as this settings card, so refresh every page's payload.
+  return callApi(
+    `/me`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    },
+    "Failed to change name.",
+    `/`,
+    "layout",
+  );
+}
+
 export async function changeEmail(
   _prev: ActionState,
   formData: FormData,

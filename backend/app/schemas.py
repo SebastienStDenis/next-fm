@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models import Source
 
@@ -18,6 +18,17 @@ class UserRead(BaseModel):
 
 class UserUpdate(BaseModel):
     include_known_artists: bool | None = None
+    name: str | None = Field(default=None, max_length=50)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Name cannot be empty.")
+        return stripped
 
 
 class CityRead(BaseModel):
