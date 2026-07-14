@@ -43,35 +43,40 @@ export default async function WelcomePage() {
   // The settings cards, unchanged, in setup order; the state marks walk the
   // user through the steps, and the sync card runs and replays the first
   // sync (docs/design/2026-07-12-welcome-flow-plan.md).
+  // my-auto (not justify-center) centers the block when it fits but lets the
+  // page scroll normally when the setup outgrows the viewport, so the footer's
+  // button isn't stranded off screen in a non-scrolling centered box (#244).
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center p-8">
-      <span className="text-sm text-muted-foreground">NextFM</span>
-      <h1 className="mt-2 text-2xl font-semibold">Welcome, {user.name}</h1>
-      <IntroText className="mt-1 text-xs text-muted-foreground italic" />
-      <WelcomeFlow ready={ready}>
-        <div className="mt-6 space-y-6">
-          <Section
-            heading="Last.fm"
-            state={stateFor("lastfm", lastfm !== null)}
-            description="Listening history is imported from your Last.fm account."
-          >
-            <LastfmPanel account={lastfm} />
-          </Section>
-          <Section
-            heading="Home City"
-            state={stateFor("city", city !== null)}
-            description="A playlist is generated for concerts in your home city."
-          >
-            <CityPanel city={city} />
-          </Section>
-          <DailySyncSection
-            synced={synced}
-            reached={synced || activeStep === "sync"}
-          >
-            <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
-          </DailySyncSection>
-        </div>
-      </WelcomeFlow>
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col p-8">
+      <div className="my-auto">
+        <span className="text-sm text-muted-foreground">NextFM</span>
+        <h1 className="mt-2 text-2xl font-semibold">Welcome, {user.name}</h1>
+        <IntroText className="mt-1 text-xs text-muted-foreground italic" />
+        <WelcomeFlow ready={ready}>
+          <div className="mt-6 space-y-6">
+            <Section
+              heading="Last.fm"
+              state={stateFor("lastfm", lastfm !== null)}
+              description="Listening history is imported from your Last.fm account."
+            >
+              <LastfmPanel account={lastfm} />
+            </Section>
+            <Section
+              heading="Home City"
+              state={stateFor("city", city !== null)}
+              description="A playlist is generated for concerts in your home city."
+            >
+              <CityPanel city={city} />
+            </Section>
+            <DailySyncSection
+              synced={synced}
+              reached={synced || activeStep === "sync"}
+            >
+              <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
+            </DailySyncSection>
+          </div>
+        </WelcomeFlow>
+      </div>
     </main>
   );
 }
