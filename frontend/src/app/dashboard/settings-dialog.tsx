@@ -115,7 +115,7 @@ export function SettingsDialog({
           lastSyncedAt={lastSyncedAt}
           syncActive={syncActive}
         />
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           <IntroText className="mb-4 text-xs text-muted-foreground italic" />
           <SyncActivityProvider value={setSyncActive}>
             {children}
