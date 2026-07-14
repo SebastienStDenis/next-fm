@@ -152,7 +152,7 @@ def test_playlist_description() -> None:
     now = datetime(2026, 7, 6, 12, 0, tzinfo=UTC)
 
     assert playlist_description("Alice", "Montréal", now) == (
-        "Artists you might like playing near Montréal. Curated for Alice by "
+        "Artists you might like playing near Montréal, curated for Alice by "
         "NextFM (nextfm.sebastienstdenis.me). Updated July 6, 2026."
     )
 
