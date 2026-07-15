@@ -137,3 +137,29 @@ in-app restraint antialiases away to nothing at that size. Like the email
 templates they carry their own copy of the palette rather than importing
 `globals.css` (they render outside the app), so a meaningful token change means
 regenerating them: see `brand/README.md`.
+
+## Favicon
+
+`frontend/public/icon-{light,dark}.svg` is the same mark at tab size, and
+carries the same palette copy again - the browser rasterizes it outside the
+app, so it can't reach the tokens either. It is vector rather than a scaled
+avatar: a favicon is seen at 16-32px, where the grille has already antialiased
+away to a faint tint and only the `N` still reads.
+
+The tile is rounded at 20% of its edge - the usual app-icon proportion, and far
+looser than `--radius` would give if scaled down to this size, which would read
+as square. The avatars stay square because both services crop them to a circle
+anyway. The radius lives on a clip path rather than on each rect, so the grille
+cannot spill past the corners.
+
+The two files are identical but for the two fills, and neither carries a
+`prefers-color-scheme` query: `frontend/src/app/favicon-sync.tsx` picks between
+them instead. Swapping the `href` is the only mechanism that tracks the scheme
+live in every engine - Chrome rasterizes an SVG favicon once and won't
+re-evaluate a query baked into it until reload, Safari never evaluates one, and
+Firefox has ignored a `media` attribute on the `<link>` since 2019. The cost is
+that the icon needs JS: the served default is the light variant, so a dark-mode
+tab shows it briefly before hydration. Deriving the mark by hand would drift
+from `brand/avatar.html`, so the palette is sampled from the rendered avatars
+and the path is Geist `N` at wght 560 pulled from `brand/geist-latin.woff2`;
+re-derive from there if either changes.
