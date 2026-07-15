@@ -36,7 +36,7 @@ from app.spotify import (
 logger = logging.getLogger(__name__)
 
 CITY_CONCERTS_KIND = "city_concerts"
-PINNED_PLAYLIST_CAP = 4  # pinned cities per user; the home-city playlist is always kept
+PINNED_PLAYLIST_CAP = 2  # pinned cities per user; the home-city playlist is always kept
 
 MATCH_EXACT = "exact"
 MATCH_FUZZY = "fuzzy"
