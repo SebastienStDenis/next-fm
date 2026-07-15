@@ -40,7 +40,5 @@ shoot() {
 }
 
 for mode in light dark; do
-  for art in grille wave; do
-    shoot "$here/nextfm-$art-$mode.png" "mode=$mode&art=$art" || exit 1
-  done
+  shoot "$here/nextfm-$mode.png" "mode=$mode" || exit 1
 done

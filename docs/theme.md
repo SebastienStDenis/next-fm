@@ -129,11 +129,8 @@ change meaningfully, re-derive the hex snapshot here too.
 
 The bot accounts' profile pictures (`brand/`) are an `N` in Geist on
 `--background`, marked in `--primary` - chestnut on paper in light, champagne
-on shell in dark. Both sit over the faint perforation field that the
-"magnesium grille" half of the palette is named for, either at rest (`grille`)
-or with a wavefront caught crossing it (`wave`), borrowing the displacement the
-landing-page soundwave field animates and firing from the centre as that field
-does - the mark sits where the cone would. Like the email templates they carry
-their own copy of the palette rather than importing `globals.css` (they render
-outside the app), so a meaningful token change means regenerating them: see
-`brand/README.md`.
+on shell in dark. Both sit over a faint, widely spaced perforation field: the
+"magnesium grille" half of the palette, made literal. Like the email templates
+they carry their own copy of the palette rather than importing `globals.css`
+(they render outside the app), so a meaningful token change means regenerating
+them: see `brand/README.md`.

@@ -5,24 +5,17 @@ by the app - these are uploaded by hand to each service.
 
 ## The files
 
-Four 1024x1024 PNGs, an `N` set in Geist over the palette in `docs/theme.md`.
-Light is chestnut on champagne-taupe paper, dark is champagne on chestnut
-shell; both sit over a faint perforated grille - the champagne metal grille of
-the headphones the palette is modeled on.
+Two 1024x1024 PNGs, an `N` set in Geist over the palette in `docs/theme.md`:
 
-| File | Field |
-| --- | --- |
-| `nextfm-grille-light.png` | grille at rest |
-| `nextfm-grille-dark.png` | grille at rest |
-| `nextfm-wave-light.png` | grille mid-wave |
-| `nextfm-wave-dark.png` | grille mid-wave |
+| File | Background | Mark |
+| --- | --- | --- |
+| `nextfm-light.png` | champagne-taupe paper (`--background`) | chestnut (`--primary`) |
+| `nextfm-dark.png` | chestnut shell (`--background`) | champagne (`--primary`) |
 
-The `wave` pair catches a wavefront crossing the grille, the same displacement
-the landing-page field animates. It fires from the centre, where that field's
-own pulses spawn, so the mark sits where the speaker cone would: the front
-expands out from behind the N. Both pairs read as texture at profile size and
-thin out in small list avatars, where the mark carries on its own - the
-resting grille goes to a soft tint first, the front holds a little longer.
+Both sit over a faint, widely spaced perforation field - the champagne metal
+grille of the headphones the palette is modeled on. The open pitch is what
+carries it into small list avatars; a fine field washes out to a flat tint
+there, leaving the mark to carry the whole avatar on its own.
 
 Both services crop avatars to a circle; the mark is sized to clear the
 inscribed circle with margin, so the square and circle crops both work.
@@ -30,7 +23,7 @@ inscribed circle with margin, so the square and circle crops both work.
 ## Regenerating
 
 ```sh
-./generate.sh          # 1024px, all four
+./generate.sh          # 1024px, both modes
 ./generate.sh 512      # any edge length
 ```
 
@@ -38,13 +31,9 @@ inscribed circle with margin, so the square and circle crops both work.
 in headless Chrome. `geist-latin.woff2` is the same Geist subset the site
 serves, vendored so the mark stays identical if `node_modules` is not built.
 
-The wave geometry is overridable by query param (`ox`, `oy`, `r`, `sigma`,
-`amp`, `boost`), as is the field itself (`cols`, `dot`) - open `avatar.html`
-directly to reframe it. How sharp the front can get is a property of the
-lattice, not the front: much tighter than the grid pitch and it staircases
-along the rows instead of resolving into a ring. That is the trade behind the
-column count - a coarser grille has more presence once the avatar is small,
-but cannot carry a front this narrow.
+The grille is retunable by query param (`cols` for the pitch, `dot` for the
+perforation radius) - open `avatar.html` directly to try values before baking
+them in.
 
 The palette is duplicated as literals in `avatar.html` rather than imported
 from `globals.css`; if the tokens there change meaningfully, re-derive and
