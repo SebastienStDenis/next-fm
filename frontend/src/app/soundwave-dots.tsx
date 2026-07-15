@@ -17,7 +17,7 @@ const AMPLITUDE = 8; // outward dot displacement at full strength
 const MIN_GAP = 240; // ms between automatic pulses (min)
 const GAP_JITTER = 900; // ms of extra random spacing
 const CLICK_INTENSITY = 1.15;
-const IDLE_RESUME = 4000; // ms of no clicks before automatic pulses return
+const IDLE_RESUME = 2000; // ms of no clicks before automatic pulses return
 
 type Pulse = {
   start: number;
