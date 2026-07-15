@@ -124,3 +124,16 @@ a `prefers-color-scheme: dark` media query overriding classed elements,
 guarded by a `color-scheme` meta tag; light-mode inline styles are the
 fallback for clients that ignore both. If the token values in `globals.css`
 change meaningfully, re-derive the hex snapshot here too.
+
+## Avatars
+
+The bot accounts' profile pictures (`brand/`) are an `N` in Geist on
+`--background`, marked in `--primary` - chestnut on paper in light, champagne
+on shell in dark. Both sit over a widely spaced perforation field: the
+"magnesium grille" half of the palette, made literal. That field is pitched
+more present than the low-contrast guidance above would suggest, which is
+deliberate - avatars are shown at ~180px and smaller, and a texture tuned to
+in-app restraint antialiases away to nothing at that size. Like the email
+templates they carry their own copy of the palette rather than importing
+`globals.css` (they render outside the app), so a meaningful token change means
+regenerating them: see `brand/README.md`.

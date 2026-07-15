@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>next.fm avatar</title>
+<style>
+  html,
+  body {
+    margin: 0;
+    background: #000;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+<canvas id="c"></canvas>
+<script>
+  // Renders one next.fm bot-account avatar. Query params:
+  //   mode=light|dark   which side of the palette
+  //   size=<px>         output edge length (default 1024)
+  //   cols, dot         grille pitch and perforation radius, for retuning
+  // The palette values mirror the tokens in frontend/src/app/globals.css; when
+  // those change, re-derive here and regenerate.
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode") === "dark" ? "dark" : "light";
+  const SIZE = Number(params.get("size") || 1024);
+  const num = (key, fallback) =>
+    params.has(key) ? Number(params.get(key)) : fallback;
+
+  const PALETTE = {
+    light: {
+      background: "oklch(0.972 0.006 75)",
+      primary: "oklch(0.44 0.055 45)",
+    },
+    dark: {
+      background: "oklch(0.17 0.012 50)",
+      primary: "oklch(0.76 0.072 70)",
+    },
+  }[mode];
+
+  // Proportions of the canvas edge, so any size renders identically.
+  const CAP_RATIO = 0.54; // N cap height
+  const WEIGHT = 560;
+  const COLUMNS = num("cols", 12); // grille perforations across the edge
+  const DOT_ALPHA = num("alpha", 0.7);
+  const DOT_RADIUS = num("dot", 0.0075);
+
+  const canvas = document.getElementById("c");
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  canvas.style.width = SIZE + "px";
+  canvas.style.height = SIZE + "px";
+  const ctx = canvas.getContext("2d");
+
+  // The champagne metal grille of the headphones the palette is modeled on: an
+  // even perforation field, spaced open so it reads as material rather than
+  // pattern.
+  // The field is deliberately more present than the same texture would be
+  // in-app, and both numbers below are load-bearing for that. An avatar is
+  // shown at ~180px and smaller, where a perforation this size lands under a
+  // pixel: antialiasing then spreads it across its neighbours and drains the
+  // contrast, so a token-quiet alpha renders as nothing at all. The dot has to
+  // clear a pixel at display size and the alpha has to survive being averaged
+  // with the background. Judge any change to either at 180px and 96px, not at
+  // full size, where everything looks fine.
+  const drawGrille = () => {
+    const gap = SIZE / COLUMNS;
+    ctx.fillStyle = PALETTE.primary;
+    ctx.globalAlpha = DOT_ALPHA;
+    for (let y = gap / 2; y < SIZE; y += gap) {
+      for (let x = gap / 2; x < SIZE; x += gap) {
+        ctx.beginPath();
+        ctx.arc(x, y, DOT_RADIUS * SIZE, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  // Centers on the N's own ink rather than its em box, which sits low.
+  const drawMark = () => {
+    let fontSize = SIZE;
+    ctx.font = `${WEIGHT} ${fontSize}px Geist`;
+    const probe = ctx.measureText("N");
+    const capAtProbe = probe.actualBoundingBoxAscent + probe.actualBoundingBoxDescent;
+    fontSize = (CAP_RATIO * SIZE * fontSize) / capAtProbe;
+
+    ctx.font = `${WEIGHT} ${fontSize}px Geist`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    const m = ctx.measureText("N");
+    const inkCenter = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+    ctx.fillStyle = PALETTE.primary;
+    ctx.fillText("N", SIZE / 2, SIZE / 2 - inkCenter);
+  };
+
+  const render = () => {
+    ctx.fillStyle = PALETTE.background;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    drawGrille();
+    drawMark();
+    document.title = "ready";
+  };
+
+  const font = new FontFace("Geist", "url(geist-latin.woff2) format('woff2')", {
+    weight: "100 900",
+  });
+  font.load().then((loaded) => {
+    document.fonts.add(loaded);
+    render();
+  });
+</script>
