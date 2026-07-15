@@ -43,6 +43,7 @@ The palette is duplicated as literals in `avatar.html` rather than imported
 from `globals.css`; if the tokens there change meaningfully, re-derive and
 regenerate (same arrangement as the email templates, see `docs/theme.md`).
 
-The site favicon (`frontend/src/app/icon.svg`) is the same mark drawn as vector
-for tab sizes, not one of these PNGs - it samples its palette from them and its
-`N` from `geist-latin.woff2`. Re-derive it alongside any change here.
+The site favicon (`frontend/public/icon-{light,dark}.svg`) is the same mark
+drawn as vector for tab sizes, not one of these PNGs - it samples its palette
+from them and its `N` from `geist-latin.woff2`. Re-derive it alongside any
+change here.
