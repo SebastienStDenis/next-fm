@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { Haze } from "./haze";
+import { HomeNotice } from "./home-notice";
 import { IntroText } from "./intro-text";
 
 export default async function Home() {
@@ -17,6 +19,9 @@ export default async function Home() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
+      <Suspense>
+        <HomeNotice />
+      </Suspense>
       <Haze>
         <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>
       </Haze>
