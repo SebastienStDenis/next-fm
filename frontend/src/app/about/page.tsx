@@ -45,6 +45,28 @@ export default function AboutPage() {
             concerts and newly suggested artists will appear at the top.
           </p>
         </section>
+        <section>
+          <h2 className="text-sm font-medium">Contact</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            Questions, feedback and bug reports are welcome at{" "}
+            <a
+              href="mailto:contact@nextfm.net"
+              className="underline hover:text-foreground"
+            >
+              contact@nextfm.net
+            </a>
+            . NextFM’s source code lives on{" "}
+            <a
+              href="https://github.com/SebastienStDenis/next-fm"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              GitHub
+            </a>
+            .
+          </p>
+        </section>
       </div>
     </main>
   );
