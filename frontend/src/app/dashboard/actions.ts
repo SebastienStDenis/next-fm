@@ -288,5 +288,5 @@ export async function deleteAccount(): Promise<ActionState> {
   }
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/", RedirectType.replace);
+  redirect("/?notice=account-deleted", RedirectType.replace);
 }
