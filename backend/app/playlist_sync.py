@@ -71,7 +71,7 @@ def playlist_title(user_name: str, city_name: str | None) -> str:
 def playlist_description(user_name: str, city_name: str, now: datetime) -> str:
     return (
         f"Artists you might like playing near {city_name}, curated for {user_name} "
-        f"by NextFM (nextfm.sebastienstdenis.me). Updated {now:%B} {now.day}, {now:%Y}."
+        f"by NextFM (nextfm.net). Updated {now:%B} {now.day}, {now:%Y}."
     )
 
 

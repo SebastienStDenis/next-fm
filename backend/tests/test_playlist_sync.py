@@ -153,7 +153,7 @@ def test_playlist_description() -> None:
 
     assert playlist_description("Alice", "Montréal", now) == (
         "Artists you might like playing near Montréal, curated for Alice by "
-        "NextFM (nextfm.sebastienstdenis.me). Updated July 6, 2026."
+        "NextFM (nextfm.net). Updated July 6, 2026."
     )
 
 
