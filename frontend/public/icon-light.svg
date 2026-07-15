@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- The bot-account avatar's mark at tab size; paired with icon-dark.svg,
+       which differs only in the two fills below. Palette, grille and the N's
+       cap-height sizing mirror brand/avatar.html; the path is Geist N at
+       wght 560. See docs/theme.md. -->
+  <style>
+    .bg { fill: #f8f5f1 }
+    .mark { fill: #6c4939 }
+  </style>
+  <defs>
+    <pattern id="grille" width="8.3333" height="8.3333" patternUnits="userSpaceOnUse">
+      <circle class="mark" cx="4.1667" cy="4.1667" r="0.75" opacity="0.7" />
+    </pattern>
+    <clipPath id="tile">
+      <rect width="100" height="100" rx="20" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect class="bg" width="100" height="100" />
+    <rect width="100" height="100" fill="url(#grille)" />
+  </g>
+  <path class="mark" d="M27.87 77V23H38.99L62.92 65.01V23H72.13V77H60.7L37.08 36.1V77Z" />
+</svg>
