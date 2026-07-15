@@ -15,14 +15,18 @@
 <script>
   // Renders one next.fm bot-account avatar. Query params:
   //   mode=light|dark   which side of the palette
-  //   art=plain|grille  bare mark, or the mark over a perforated grille field
+  //   art=grille|wave   still grille, or a wavefront caught crossing it
   //   size=<px>         output edge length (default 1024)
+  // The wave geometry below (ox, oy, r, sigma, amp, boost) is overridable by
+  // query param too, which is how the framing was chosen.
   // The palette values mirror the tokens in frontend/src/app/globals.css; when
   // those change, re-derive here and regenerate.
   const params = new URLSearchParams(location.search);
   const mode = params.get("mode") === "dark" ? "dark" : "light";
-  const art = params.get("art") === "grille" ? "grille" : "plain";
+  const art = params.get("art") === "wave" ? "wave" : "grille";
   const SIZE = Number(params.get("size") || 1024);
+  const num = (key, fallback) =>
+    params.has(key) ? Number(params.get(key)) : fallback;
 
   const PALETTE = {
     light: {
@@ -42,6 +46,24 @@
   const DOT_ALPHA = 0.17;
   const DOT_RADIUS = 0.0032;
 
+  // The wavefront, frozen. Fired from the bottom-left and caught partway
+  // across: it enters at the upper left, passes behind the mark, and re-emerges
+  // lower right, leaving the origin corner settled. Centring it instead rings
+  // the mark like a target, which is why the origin sits off in a corner.
+  // `sigma` is the front's thickness and has to stay well above the grid pitch
+  // (1 / COLUMNS), or a single row of perforations lights up and aliases into
+  // scatter instead of a swell. Unlike the live field in soundwave-dots.tsx
+  // this carries no distance decay: the avatar is one still frame, so the front
+  // has to hold on its own.
+  const WAVE = {
+    ox: num("ox", 0.14),
+    oy: num("oy", 0.86),
+    r: num("r", 0.62),
+    sigma: num("sigma", 0.11),
+    amp: num("amp", 0.03),
+    boost: num("boost", 0.34),
+  };
+
   const canvas = document.getElementById("c");
   canvas.width = SIZE;
   canvas.height = SIZE;
@@ -51,15 +73,34 @@
 
   // The champagne metal grille of the headphones the palette is modeled on: an
   // even perforation field, quiet enough that it reads as material rather than
-  // pattern, and collapses to a soft tint once the avatar is scaled down.
-  const drawGrille = () => {
+  // pattern, and collapses to a soft tint once the avatar is scaled down. With
+  // `wave`, the front pushes each perforation outward and brightens it, the
+  // same displacement the live landing-page field uses.
+  const drawGrille = (wave) => {
     const gap = SIZE / COLUMNS;
+    const ox = WAVE.ox * SIZE;
+    const oy = WAVE.oy * SIZE;
+    const ring = WAVE.r * SIZE;
+    const sigma = WAVE.sigma * SIZE;
+    const amp = WAVE.amp * SIZE;
     ctx.fillStyle = PALETTE.primary;
-    ctx.globalAlpha = DOT_ALPHA;
     for (let y = gap / 2; y < SIZE; y += gap) {
       for (let x = gap / 2; x < SIZE; x += gap) {
+        let energy = 0;
+        let px = x;
+        let py = y;
+        if (wave) {
+          const dx = x - ox;
+          const dy = y - oy;
+          const dist = Math.hypot(dx, dy) || 1;
+          const offset = dist - ring;
+          energy = Math.exp(-(offset * offset) / (2 * sigma * sigma));
+          px += (dx / dist) * energy * amp;
+          py += (dy / dist) * energy * amp;
+        }
+        ctx.globalAlpha = DOT_ALPHA + energy * WAVE.boost;
         ctx.beginPath();
-        ctx.arc(x, y, DOT_RADIUS * SIZE, 0, Math.PI * 2);
+        ctx.arc(px, py, DOT_RADIUS * SIZE * (1 + energy * 0.7), 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -86,7 +127,7 @@
   const render = () => {
     ctx.fillStyle = PALETTE.background;
     ctx.fillRect(0, 0, SIZE, SIZE);
-    if (art === "grille") drawGrille();
+    drawGrille(art === "wave");
     drawMark();
     document.title = "ready";
   };
