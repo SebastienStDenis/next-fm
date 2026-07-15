@@ -148,6 +148,22 @@ export function SoundwaveDots() {
       spawn(time, event.clientX, event.clientY, CLICK_INTENSITY);
     };
 
+    // Thumping out waves means double-clicking the page, which would otherwise
+    // select whatever copy sits under the pointer. Suppress the selection that
+    // repeat clicks trigger, but leave drag-select alone and keep hands off
+    // fields where selecting a word is the point.
+    const handleMouseDown = (event: MouseEvent) => {
+      if (event.detail <= 1) return;
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("input, textarea, [contenteditable]")
+      ) {
+        return;
+      }
+      event.preventDefault();
+    };
+
     const paintStill = () => {
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = color;
@@ -162,6 +178,7 @@ export function SoundwaveDots() {
     } else {
       frame = requestAnimationFrame(loop);
       window.addEventListener("click", handleClick);
+      window.addEventListener("mousedown", handleMouseDown);
     }
 
     window.addEventListener("resize", resize);
@@ -177,6 +194,7 @@ export function SoundwaveDots() {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("click", handleClick);
+      window.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("resize", resize);
       themeObserver.disconnect();
     };
