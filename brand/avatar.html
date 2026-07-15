@@ -40,8 +40,8 @@
   const CAP_RATIO = 0.54; // N cap height
   const WEIGHT = 560;
   const COLUMNS = num("cols", 12); // grille perforations across the edge
-  const DOT_ALPHA = 0.17;
-  const DOT_RADIUS = num("dot", 0.0046);
+  const DOT_ALPHA = num("alpha", 0.7);
+  const DOT_RADIUS = num("dot", 0.0075);
 
   const canvas = document.getElementById("c");
   canvas.width = SIZE;
@@ -51,9 +51,16 @@
   const ctx = canvas.getContext("2d");
 
   // The champagne metal grille of the headphones the palette is modeled on: an
-  // even perforation field, spaced open and quiet enough that it reads as
-  // material rather than pattern. The wide pitch is also what carries it into
-  // small list avatars - a fine field washes out to a flat tint there.
+  // even perforation field, spaced open so it reads as material rather than
+  // pattern.
+  // The field is deliberately more present than the same texture would be
+  // in-app, and both numbers below are load-bearing for that. An avatar is
+  // shown at ~180px and smaller, where a perforation this size lands under a
+  // pixel: antialiasing then spreads it across its neighbours and drains the
+  // contrast, so a token-quiet alpha renders as nothing at all. The dot has to
+  // clear a pixel at display size and the alpha has to survive being averaged
+  // with the background. Judge any change to either at 180px and 96px, not at
+  // full size, where everything looks fine.
   const drawGrille = () => {
     const gap = SIZE / COLUMNS;
     ctx.fillStyle = PALETTE.primary;

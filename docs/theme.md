@@ -129,8 +129,11 @@ change meaningfully, re-derive the hex snapshot here too.
 
 The bot accounts' profile pictures (`brand/`) are an `N` in Geist on
 `--background`, marked in `--primary` - chestnut on paper in light, champagne
-on shell in dark. Both sit over a faint, widely spaced perforation field: the
-"magnesium grille" half of the palette, made literal. Like the email templates
-they carry their own copy of the palette rather than importing `globals.css`
-(they render outside the app), so a meaningful token change means regenerating
-them: see `brand/README.md`.
+on shell in dark. Both sit over a widely spaced perforation field: the
+"magnesium grille" half of the palette, made literal. That field is pitched
+more present than the low-contrast guidance above would suggest, which is
+deliberate - avatars are shown at ~180px and smaller, and a texture tuned to
+in-app restraint antialiases away to nothing at that size. Like the email
+templates they carry their own copy of the palette rather than importing
+`globals.css` (they render outside the app), so a meaningful token change means
+regenerating them: see `brand/README.md`.
