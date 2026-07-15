@@ -1,0 +1,101 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>next.fm avatar</title>
+<style>
+  html,
+  body {
+    margin: 0;
+    background: #000;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+<canvas id="c"></canvas>
+<script>
+  // Renders one next.fm bot-account avatar. Query params:
+  //   mode=light|dark   which side of the palette
+  //   art=plain|grille  bare mark, or the mark over a perforated grille field
+  //   size=<px>         output edge length (default 1024)
+  // The palette values mirror the tokens in frontend/src/app/globals.css; when
+  // those change, re-derive here and regenerate.
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode") === "dark" ? "dark" : "light";
+  const art = params.get("art") === "grille" ? "grille" : "plain";
+  const SIZE = Number(params.get("size") || 1024);
+
+  const PALETTE = {
+    light: {
+      background: "oklch(0.972 0.006 75)",
+      primary: "oklch(0.44 0.055 45)",
+    },
+    dark: {
+      background: "oklch(0.17 0.012 50)",
+      primary: "oklch(0.76 0.072 70)",
+    },
+  }[mode];
+
+  // Proportions of the canvas edge, so any size renders identically.
+  const CAP_RATIO = 0.54; // N cap height
+  const WEIGHT = 560;
+  const COLUMNS = 18; // grille perforations across the edge
+  const DOT_ALPHA = 0.17;
+  const DOT_RADIUS = 0.0032;
+
+  const canvas = document.getElementById("c");
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  canvas.style.width = SIZE + "px";
+  canvas.style.height = SIZE + "px";
+  const ctx = canvas.getContext("2d");
+
+  // The champagne metal grille of the headphones the palette is modeled on: an
+  // even perforation field, quiet enough that it reads as material rather than
+  // pattern, and collapses to a soft tint once the avatar is scaled down.
+  const drawGrille = () => {
+    const gap = SIZE / COLUMNS;
+    ctx.fillStyle = PALETTE.primary;
+    ctx.globalAlpha = DOT_ALPHA;
+    for (let y = gap / 2; y < SIZE; y += gap) {
+      for (let x = gap / 2; x < SIZE; x += gap) {
+        ctx.beginPath();
+        ctx.arc(x, y, DOT_RADIUS * SIZE, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  // Centers on the N's own ink rather than its em box, which sits low.
+  const drawMark = () => {
+    let fontSize = SIZE;
+    ctx.font = `${WEIGHT} ${fontSize}px Geist`;
+    const probe = ctx.measureText("N");
+    const capAtProbe = probe.actualBoundingBoxAscent + probe.actualBoundingBoxDescent;
+    fontSize = (CAP_RATIO * SIZE * fontSize) / capAtProbe;
+
+    ctx.font = `${WEIGHT} ${fontSize}px Geist`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    const m = ctx.measureText("N");
+    const inkCenter = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+    ctx.fillStyle = PALETTE.primary;
+    ctx.fillText("N", SIZE / 2, SIZE / 2 - inkCenter);
+  };
+
+  const render = () => {
+    ctx.fillStyle = PALETTE.background;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    if (art === "grille") drawGrille();
+    drawMark();
+    document.title = "ready";
+  };
+
+  const font = new FontFace("Geist", "url(geist-latin.woff2) format('woff2')", {
+    weight: "100 900",
+  });
+  font.load().then((loaded) => {
+    document.fonts.add(loaded);
+    render();
+  });
+</script>
