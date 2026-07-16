@@ -18,9 +18,10 @@ import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 // replaying its steps for a beat after; `syncActive` stays true through that
 // playback, so the clear is held until the simulated run reads as done.
 //
-// The warning stays mounted and collapses via grid-rows 0fr<->1fr with a
-// matching opacity fade, so it loads and unloads smoothly (both height and
-// text) instead of popping in and out.
+// The warning's line is always part of the header's layout and only its
+// opacity animates: any height change here would reflow the scroll body and
+// shift its content mid-interaction, and scroll compensation can't fully
+// cancel that at low scroll offsets (#233).
 export function SettingsHeader({
   signature,
   lastSyncedAt,
@@ -57,24 +58,21 @@ export function SettingsHeader({
           </Button>
         </DialogClose>
       </div>
-      <div
-        className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-250 ease-out motion-reduce:transition-none ${
-          changed ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+      <p
+        aria-hidden={!changed}
+        className={`flex items-start gap-1.5 pt-2 text-xs text-foreground transition-opacity duration-250 ease-out motion-reduce:transition-none ${
+          changed ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="min-h-0 overflow-hidden">
-          <p className="flex items-start gap-1.5 pt-2 text-xs text-foreground">
-            <Triangle
-              aria-hidden
-              className="mt-px size-3.5 shrink-0 text-warning"
-            />
-            <span>
-              Run a manual sync to apply updates now, or wait for the next daily
-              sync.
-            </span>
-          </p>
-        </div>
-      </div>
+        <Triangle
+          aria-hidden
+          className="mt-px size-3.5 shrink-0 text-warning"
+        />
+        <span>
+          Run a manual sync to apply updates now, or wait for the next daily
+          sync.
+        </span>
+      </p>
     </div>
   );
 }
