@@ -165,14 +165,21 @@ regression trigger matters - without it, resolving an issue mutes it forever.
 Each project also keeps Sentry's default email alert for high-priority issues, a
 subset of the above.
 
-**The alert is scoped to `environment:production`.** Both the api/worker and the
-Vercel app tag their events with an environment (`SENTRY_ENVIRONMENT` on Render,
-`NEXT_PUBLIC_VERCEL_ENV` on the frontend, set in `sentry.shared.ts`). Without the
-scope, a runtime error on a Vercel **preview** - a reviewer clicking through an
-unfinished PR - would page Slack identically to a production failure, because
-Vercel builds previews with a production `next build` and the SDK's default
-environment cannot tell them apart. Preview errors still land in Sentry for
-debugging; they just do not alert.
+**The alert is scoped to `environment:production`.** The api/worker tag events
+via `SENTRY_ENVIRONMENT` on Render; the frontend sets `environment` from
+`NEXT_PUBLIC_VERCEL_ENV` in `sentry.shared.ts`. That explicit frontend tag is
+what makes one combined rule possible: left to its default the SDK tags Vercel
+events `vercel-production` / `vercel-preview`, which does not match the backend's
+`production`, and a Sentry issue alert filters to a single environment - so no
+one value would cover both projects' production at once. Normalizing the frontend
+to `production` / `preview` lets a single `environment:production` filter cover
+api, worker, and frontend prod while leaving previews out. Preview errors still
+land in Sentry for debugging; they just do not alert.
+
+Sentry's environment filter lists every environment it has ever ingested and
+never prunes them, so stale values linger there - `vercel-production`,
+`vercel-preview` (the SDK's old default, superseded by the above) and any one-off
+like `prod`. Pick `production`; ignore the rest.
 
 **Render**: notification destination Slack, default "Only failure
 notifications". Env group `next-fm` holds `SENTRY_DSN` and `SENTRY_ENVIRONMENT`;

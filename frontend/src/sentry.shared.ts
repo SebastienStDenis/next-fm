@@ -12,12 +12,15 @@ import type { init } from "@sentry/nextjs";
  */
 export const sharedOptions: Parameters<typeof init>[0] = {
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  // Vercel builds previews with a production `next build`, so the SDK's own
-  // environment default would tag preview and production events identically and
-  // the Slack alert (scoped to `environment:production`) could not tell a
-  // reviewer's preview error from a real one. Vercel exposes this per
-  // deployment; it is unset locally, where the DSN is also unset and Sentry is
-  // off anyway.
+  // Left to its default the SDK tags Vercel events `vercel-production` /
+  // `vercel-preview`, which does not match the backend's `production`. A Sentry
+  // issue alert filters to a single environment, so no one value covers both
+  // projects' production at once. Setting it from NEXT_PUBLIC_VERCEL_ENV (which
+  // Vercel exposes per deployment, inlined into all three runtimes) normalizes
+  // the frontend to `production` / `preview`, so the single combined alert can
+  // filter to `environment:production` across api, worker, and frontend and
+  // leave previews out. Unset locally, where the DSN is off anyway, so it falls
+  // back to `development`.
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development",
   // Errors and logs only. Tracing bills per span and answers "how slow is
   // this", which is not a question this app is asking yet. Raising it above 0
