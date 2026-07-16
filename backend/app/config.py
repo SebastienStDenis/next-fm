@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     # legacy JWT secret rather than asymmetric signing keys.
     supabase_jwt_secret: str = ""
     supabase_secret_key: str = ""
+    log_level: str = "INFO"
+    # Empty disables error reporting entirely, which is what a local stack
+    # wants; the api and worker services share one DSN and are told apart by
+    # the `component` tag.
+    sentry_dsn: str = ""
+    sentry_environment: str = "development"
+    # Set by Render on every deploy; stamps events with the commit they came
+    # from, so an error points at the deploy that introduced it.
+    render_git_commit: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

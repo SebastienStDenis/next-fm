@@ -85,6 +85,7 @@ Small layered FastAPI app; keep the separation when adding features:
 - `accounts.py` - shared linked-Last.fm-account lookup used by both the API and the sync activities.
 - `auth.py` - Supabase JWT verification and the `get_current_user` dependency: resolves tokens to `User` rows (JIT provisioning) and stamps `users.last_seen_at`, the activity signal for the nightly sync.
 - `geonames.py` - parses the vendored GeoNames dumps in `backend/data/` (cities with population >= 15k, admin1 region names) for the city seed.
+- `observability.py` - `configure_observability()`, called once by both the API and the worker: installs the root log handler (uvicorn configures only its own loggers) and starts Sentry when `SENTRY_DSN` is set. Reporting is wired at WARNING, not Sentry's ERROR default, because that is the level this codebase logs real failures at; log records also forward to Sentry Logs alongside Render's own capture.
 - `main.py` - FastAPI app and endpoints; inject sessions with `SessionDep = Annotated[AsyncSession, Depends(get_session)]`.
 - `seed.py` - idempotent seed script (`python -m app.seed`).
 - `spotify_auth.py` - CLI for the one-time bot-account authorization (`python -m app.spotify_auth`); prints the `SPOTIFY_REFRESH_TOKEN` for `.env`.

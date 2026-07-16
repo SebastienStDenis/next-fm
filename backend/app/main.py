@@ -60,6 +60,7 @@ from app.models import (
     UserArtistInterest,
 )
 from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
+from app.observability import configure_observability
 from app.playlist_sync import (
     CITY_CONCERTS_KIND,
     PINNED_PLAYLIST_CAP,
@@ -222,6 +223,8 @@ async def get_temporal_client() -> TemporalClient:
 
 
 TemporalClientDep = Annotated[TemporalClient, Depends(get_temporal_client)]
+
+configure_observability(get_settings(), "api")
 
 app = FastAPI(title="NextFM API")
 

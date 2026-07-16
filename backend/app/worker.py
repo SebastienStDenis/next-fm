@@ -32,6 +32,7 @@ from app.bandsintown import BandsintownClient
 from app.config import Settings, get_settings
 from app.lastfm import LastfmClient
 from app.musicbrainz import MusicBrainzClient
+from app.observability import configure_observability
 from app.spotify import SpotifyClient
 from app.sync_activities import SyncActivities
 from app.sync_workflow import DispatchSyncsWorkflow, SyncUserWorkflow
@@ -148,6 +149,7 @@ async def _run_worker(settings: Settings, activities: SyncActivities) -> None:
 
 async def main() -> None:
     settings = get_settings()
+    configure_observability(settings, "worker")
     missing = [key.upper() for key in REQUIRED_SETTINGS if not getattr(settings, key)]
     if missing:
         raise SystemExit(f"{', '.join(missing)} is not configured")
@@ -177,5 +179,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())
