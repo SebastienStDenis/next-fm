@@ -47,7 +47,6 @@ from app.suggestion_sync import sync_user_suggestions
 
 logger = logging.getLogger(__name__)
 
-ACTIVITY_WINDOW = timedelta(days=30)
 # Below the daily cadence on purpose: a 24h threshold against a 24h schedule
 # would skip users whose previous run finished minutes after the firing time.
 SYNC_FRESHNESS_WINDOW = timedelta(hours=20)
@@ -193,7 +192,6 @@ class SyncActivities:
                 select(User.id)
                 .join(LastfmConnection, LastfmConnection.user_id == User.id)
                 .where(User.city_id.is_not(None))
-                .where(User.last_seen_at >= now - ACTIVITY_WINDOW)
                 .where(
                     or_(
                         User.last_synced_at.is_(None),

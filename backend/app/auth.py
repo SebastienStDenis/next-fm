@@ -17,8 +17,7 @@ from app.models import User
 
 ALLOWED_ALGORITHMS = ("HS256", "ES256", "RS256")
 
-# last_seen_at feeds the nightly sync's 30-day activity window
-# (docs/design/2026-07-09-background-sync-plan.md); hourly precision is plenty, and
+# last_seen_at records general user activity; hourly precision is plenty, and
 # the throttle keeps it to at most one extra UPDATE per user per hour.
 LAST_SEEN_REFRESH = timedelta(hours=1)
 
