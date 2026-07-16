@@ -122,8 +122,11 @@ Then, and the script does not say this - it only mentions `.env`:
   running process on their own, and the worker is the one that actually writes
   playlists.
 
-It needs `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` set first, and only
-requests the `playlist-modify-public` scope.
+It needs `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` set first, and requests
+the `playlist-modify-public` (create and write the public playlists) and
+`playlist-read-private` (list the bot's own playlists for the orphan audit)
+scopes. Scopes are baked into the refresh token, so widening them means
+re-running this flow, not just editing the code.
 
 ### A sync is failing for one user
 

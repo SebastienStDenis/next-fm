@@ -20,7 +20,7 @@ from app.config import get_settings
 AUTHORIZE_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 REDIRECT_URI = "http://127.0.0.1:8765/callback"
-SCOPE = "playlist-modify-public"
+SCOPE = "playlist-modify-public playlist-read-private"
 
 
 async def main() -> None:
