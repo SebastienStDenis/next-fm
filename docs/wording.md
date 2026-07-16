@@ -1,6 +1,6 @@
 # Wording conventions
 
-*Written 2026-07-11 by Claude (Fable 5).*
+*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-16 by Claude (Sonnet 5).*
 
 User-facing copy (web UI, sync step labels and summaries, emails) uses one
 vocabulary. When adding or editing copy, follow these rules; when the product
@@ -128,9 +128,11 @@ Keep these exactly as written:
 
 - Tagline: "Live-music discovery through listening."
 - Intro: "NextFM finds upcoming concerts near you by artists that match your
-  listening history, and generates Spotify playlists for you to discover
-  them." (The daily cadence isn't in the intro; the Daily Sync section name
-  and the welcome completion footer carry it.)
+  taste, and generates Spotify playlists for you to discover them." (The
+  daily cadence isn't in the intro; the Daily Sync section name and the
+  welcome completion footer carry it. "Taste" is a deliberate exception to
+  the listening-history term below - the intro is the one place the
+  shorthand takes precedence over the literal Last.fm mechanism.)
 - Daily Sync section: "Imports listening history, suggests artists, finds
   concerts and generates playlists."
 - Artists tab: "Artists you might like based on your listening history."
