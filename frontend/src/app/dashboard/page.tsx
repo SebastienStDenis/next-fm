@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
 import { type City } from "./city-panel";
+import { ConfirmErrorNotice } from "./confirm-error-notice";
 import { DashboardNotice } from "./dashboard-notice";
 import { EventsPanel, type UserEvent } from "./events-panel";
 import { type LastfmAccount } from "./lastfm-panel";
@@ -27,7 +28,12 @@ import {
   syncStepCompleted,
 } from "./user-api";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { error } = await searchParams;
   const user = await loadMe();
   const lastTab = (await cookies()).get(TAB_COOKIE)?.value;
 
@@ -110,6 +116,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl p-8">
+      {error === "confirm" && <ConfirmErrorNotice />}
       <Suspense>
         <DashboardNotice />
       </Suspense>

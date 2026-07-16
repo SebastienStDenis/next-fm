@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
     // Verification failed. An email change is confirmed while still signed in,
     // so route the error to the dashboard - the proxy bounces a signed-in user
-    // off /login, which would swallow the toast. Signed-out flows (signup,
+    // off /login, which would swallow the message. Signed-out flows (signup,
     // recovery) still land on /login.
     const {
       data: { user },
