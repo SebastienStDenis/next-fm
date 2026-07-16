@@ -1,6 +1,6 @@
 # Operations
 
-*Written 2026-07-15 by Claude (Opus 4.8).*
+*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-07-16.*
 
 How you find out something broke, and what to do about it. Introduced by the
 Sentry wiring in `backend/app/observability.py`; keep this doc current as the
@@ -165,6 +165,15 @@ regression trigger matters - without it, resolving an issue mutes it forever.
 Each project also keeps Sentry's default email alert for high-priority issues, a
 subset of the above.
 
+**The alert is scoped to `environment:production`.** Both the api/worker and the
+Vercel app tag their events with an environment (`SENTRY_ENVIRONMENT` on Render,
+`NEXT_PUBLIC_VERCEL_ENV` on the frontend, set in `sentry.shared.ts`). Without the
+scope, a runtime error on a Vercel **preview** - a reviewer clicking through an
+unfinished PR - would page Slack identically to a production failure, because
+Vercel builds previews with a production `next build` and the SDK's default
+environment cannot tell them apart. Preview errors still land in Sentry for
+debugging; they just do not alert.
+
 **Render**: notification destination Slack, default "Only failure
 notifications". Env group `next-fm` holds `SENTRY_DSN` and `SENTRY_ENVIRONMENT`;
 `SENTRY_ORG`/`SENTRY_PROJECT` are not needed, as Python has no source maps and
@@ -173,4 +182,6 @@ the DSN carries its own routing.
 **Vercel**: notifications on for failed deploys. Env vars
 `NEXT_PUBLIC_SENTRY_DSN` (public by design - it ships in the browser bundle;
 do not mark it sensitive) plus `SENTRY_ORG`, `SENTRY_PROJECT`, and
-`SENTRY_AUTH_TOKEN` (a real secret - mark it sensitive).
+`SENTRY_AUTH_TOKEN` (a real secret - mark it sensitive). The environment tag
+comes from `NEXT_PUBLIC_VERCEL_ENV`, a Vercel system variable exposed
+automatically per deployment, so no env var holds it by hand.
