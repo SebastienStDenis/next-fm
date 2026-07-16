@@ -1,9 +1,10 @@
-"""One-time authorization of the bot Spotify account.
+"""Authorization of the bot Spotify account.
 
 Prints the authorize URL; open it in a browser logged in as the bot account,
 approve, then paste the URL Spotify redirected to back here. Prints the
-refresh token to put in .env as SPOTIFY_REFRESH_TOKEN. Re-run whenever the
-token expires (Spotify expires refresh tokens after 6 months).
+refresh token to set as SPOTIFY_REFRESH_TOKEN. Re-run whenever the token
+expires (Spotify expires refresh tokens after 6 months); the full runbook,
+including the production side, is docs/operations.md.
 
 Usage (from backend/): uv run python -m app.spotify_auth
 """
@@ -71,8 +72,11 @@ async def main() -> None:
     if not refresh_token:
         raise SystemExit(f"No refresh token in response: {response.text}")
 
-    print("\nAdd this to .env:\n")
-    print(f"SPOTIFY_REFRESH_TOKEN={refresh_token}")
+    print(f"\nSPOTIFY_REFRESH_TOKEN={refresh_token}\n")
+    print("Locally: add it to the root .env.")
+    print("In production: set it in the Render `next-fm` env group, then")
+    print("redeploy both next-fm-api and next-fm-worker - a running process")
+    print("does not pick up an env group change on its own.")
 
 
 if __name__ == "__main__":
