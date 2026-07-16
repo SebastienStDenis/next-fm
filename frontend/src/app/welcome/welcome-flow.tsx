@@ -11,6 +11,7 @@ import {
 } from "../dashboard/sync-activity";
 import { cueSavePlaylistTip } from "../dashboard/save-playlist-tip";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 
 // Wraps the setup sections and the completion footer so the two can
 // coordinate: the footer only reveals once the setup is done and on record
@@ -40,8 +41,9 @@ export function WelcomeFlow({
   const showFooter = ready && settled;
 
   // On a phone the setup can already fill the screen, so the footer lands
-  // below the fold with no cue to scroll (#244). Once it has slid in (a touch
-  // past the 250ms reveal), scroll the page down to bring the button into view.
+  // below the fold with no cue to scroll (#244). Once it has finished opening
+  // (a touch past the 250ms reveal), scroll the page down to bring the button
+  // into view; when nothing overflows this is a no-op.
   useEffect(() => {
     if (!showFooter) return;
     const timer = setTimeout(() => {
@@ -57,24 +59,31 @@ export function WelcomeFlow({
     <SyncActivityProvider value={report}>
       <SyncSettledProvider value={settled}>
         {children}
-        {/* The footer slides in (rather than growing its grid row open, which
-            collapses to nothing when the setup already overflows the viewport
-            and there is no free space to animate into). Held back until the
-            sync card has finished replaying each step, so the "go to dashboard"
-            prompt lands after the run reads as done. */}
-        {showFooter && (
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 animate-slide-in-up">
-            <p className="text-sm">All set. Playlists update daily.</p>
-            <Button asChild size="sm">
-              {/* Lands on the Playlists tab and drops a session cue for the
-                  one-shot save-to-library tip on the leading playlist. */}
-              <Link href="/dashboard?tab=playlists" onClick={cueSavePlaylistTip}>
-                Go to dashboard
-                <ArrowRight aria-hidden />
-              </Link>
-            </Button>
-          </div>
-        )}
+        {/* The footer opens as a collapsible so its height animates to a
+            measured pixel value: the centered page re-centers gradually
+            instead of jumping a frame (#262), and unlike a 1fr grid-row grow
+            the measurement holds when the setup already overflows the
+            viewport, keeping the button reachable on phones (#244). Held back
+            until the sync card has finished replaying each step, so the "go
+            to dashboard" prompt lands after the run reads as done. */}
+        <Collapsible open={showFooter}>
+          <CollapsibleContent>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-6">
+              <p className="text-sm">All set. Playlists update daily.</p>
+              <Button asChild size="sm">
+                {/* Lands on the Playlists tab and drops a session cue for the
+                    one-shot save-to-library tip on the leading playlist. */}
+                <Link
+                  href="/dashboard?tab=playlists"
+                  onClick={cueSavePlaylistTip}
+                >
+                  Go to dashboard
+                  <ArrowRight aria-hidden />
+                </Link>
+              </Button>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </SyncSettledProvider>
     </SyncActivityProvider>
   );
