@@ -45,8 +45,19 @@ TAG_BLOCKLIST = frozenset(
         "cool",
         "love",
         "loved",
+        "legend",
+        "genius",
+        "goat",
+        "lovely",
+        "god",
+        "sexy",
+        "vibes",
+        "nostalgic",
+        "childhood",
+        "my top songs",
         "check out",
         "spotify",
+        "messymember10",
     }
 )
 
