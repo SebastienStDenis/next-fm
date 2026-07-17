@@ -18,10 +18,12 @@ import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 // replaying its steps for a beat after; `syncActive` stays true through that
 // playback, so the clear is held until the simulated run reads as done.
 //
-// The warning's line is always part of the header's layout and only its
-// opacity animates: any height change here would reflow the scroll body and
-// shift its content mid-interaction, and scroll compensation can't fully
-// cancel that at low scroll offsets (#233).
+// The warning takes no layout space: it hangs off the header's bottom edge,
+// over the scroll body, and only its opacity animates. Any height change
+// here would reflow the scroll body and shift its content mid-interaction,
+// and scroll compensation can't fully cancel that at low scroll offsets
+// (#233). The dialog's own background keeps it opaque, so body content
+// scrolls underneath it like under the header itself.
 export function SettingsHeader({
   signature,
   lastSyncedAt,
@@ -44,7 +46,7 @@ export function SettingsHeader({
   }
   const changed = signature !== baseline;
   return (
-    <div className="flex-none px-4 pt-4 pb-2">
+    <div className="relative flex-none px-4 pt-4 pb-2">
       <div className="flex items-center gap-3">
         <DialogTitle className="text-lg">Settings</DialogTitle>
         <DialogClose asChild>
@@ -60,7 +62,7 @@ export function SettingsHeader({
       </div>
       <p
         aria-hidden={!changed}
-        className={`flex items-start gap-1.5 pt-2 text-xs text-foreground transition-opacity duration-250 ease-out motion-reduce:transition-none ${
+        className={`pointer-events-none absolute inset-x-0 top-full z-10 flex items-start gap-1.5 bg-popover px-4 pb-2 text-xs text-foreground transition-opacity duration-250 ease-out motion-reduce:transition-none ${
           changed ? "opacity-100" : "opacity-0"
         }`}
       >
