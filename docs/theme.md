@@ -28,9 +28,15 @@ Everything lives in the shadcn/ui token set in `frontend/src/app/globals.css`
 (`:root` for light, `.dark` for dark), expressed in oklch. Guidelines that
 shaped the values, and should shape future adjustments:
 
-- **Low chroma everywhere.** Neutrals carry 0.005-0.03 chroma; even the
+- **Low chroma everywhere.** Neutrals carry 0.004-0.03 chroma; even the
   primary stays under 0.075. If a tweak makes something look "poppy", it has
   drifted off-theme.
+- **Warmth lives in surfaces and text, not in lines.** Borders and input
+  edges are the greyest tokens in the system (chroma ~0.013 in light mode),
+  so hairlines read crisp rather than rosy. Dark-mode borders are translucent
+  champagne - 17% over cards, 22% on inputs - enough to define a card edge
+  and make a field read as a field without breaking the tight layer
+  hierarchy.
 - **Dark mode avoids pure white.** Foreground text is warm ivory
   (L 0.86), captions L ~0.72 - readable (>= 6:1 on cards) without OLED glare.
 - **Layer hierarchy in dark mode** is deliberately tight: background L 0.17,
