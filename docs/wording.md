@@ -100,6 +100,18 @@ playlist card also shows its own last write beside its track count as plain
 text - "Synced {date}", no check, since it isn't a sync-step marker.
 Listening History relies on the Daily Sync card above it.
 
+## Daily Sync card notices
+
+While a run is in flight, the Daily Sync card can add one muted line under
+the status row:
+
+- Run in flight longer than usual: "Taking longer than usual. Feel free to
+  close the page, the sync will continue." Shown only while progress polling
+  succeeds; it promises continuation, never success.
+- Progress polling failing repeatedly: "Can't check sync progress right now.
+  Retrying." Takes the line's place - when progress is unreachable, the card
+  must not claim the sync is still running.
+
 ## Welcome flow
 
 The dashboard requires a linked Last.fm account, a home city and a

@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
+import { Collapse } from "../collapse";
 import { startSync } from "./actions";
 import { useReportSyncActivity } from "./sync-activity";
 import {
@@ -26,6 +27,13 @@ import {
 } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
 
+// How long a run may be in flight before the card reassures the user that
+// closing the page doesn't stop it.
+const LONG_RUN_NOTICE_MS = 90_000;
+// Consecutive failed status polls before the card admits progress is
+// unreachable instead of claiming the sync is still running.
+const DEGRADED_POLL_FAILURES = 10;
+
 export function SyncCard({
   lastfmLinked,
   citySet,
@@ -44,6 +52,13 @@ export function SyncCard({
   // the step on screen rather than the (often further-ahead) real workflow.
   const [progress, setProgress] = useState<number | null>(null);
   const [runSeq, setRunSeq] = useState(0);
+  // `active` drives the reveal; `last` keeps the outgoing text rendered while
+  // the reveal collapses, so the line fades and shrinks away instead of
+  // vanishing mid-animation.
+  const [notice, setNotice] = useState<{
+    active: "long-run" | "degraded" | null;
+    last: "long-run" | "degraded";
+  }>({ active: null, last: "long-run" });
   const [expanded, setExpanded] = useState(false);
   const [starting, startTransition] = useTransition();
 
@@ -75,6 +90,8 @@ export function SyncCard({
     }
     let cancelled = false;
     let inFlight = false;
+    let failures = 0;
+    const pollingSince = Date.now();
     async function tick() {
       // The status call can be slow under load; never let ticks stack up.
       if (inFlight) {
@@ -83,17 +100,37 @@ export function SyncCard({
       inFlight = true;
       const next = await fetchStatus();
       inFlight = false;
-      if (cancelled || next === null) {
+      if (cancelled) {
         return;
       }
+      if (next === null) {
+        // Progress is unreachable; only say so once it's clearly not a blip,
+        // and never claim the sync is running when nothing confirms it.
+        failures += 1;
+        if (failures >= DEGRADED_POLL_FAILURES) {
+          setNotice({ active: "degraded", last: "degraded" });
+        }
+        return;
+      }
+      failures = 0;
       setStatus(next);
       if (next.status !== "running") {
         setPolling(false);
+        setNotice((prev) => ({ ...prev, active: null }));
         // Let the last step's final state show before collapsing to the
         // last-synced line.
         setSettling(true);
         router.refresh();
+        return;
       }
+      // A page opened mid-run re-attaches, so measure from the run's own
+      // start when the server reports it, not from when polling began.
+      const runningSince = next.started_at
+        ? Date.parse(next.started_at)
+        : pollingSince;
+      const active =
+        Date.now() - runningSince >= LONG_RUN_NOTICE_MS ? "long-run" : null;
+      setNotice((prev) => ({ active, last: active ?? prev.last }));
     }
     tick();
     const timer = setInterval(tick, POLL_INTERVAL_MS);
@@ -149,6 +186,7 @@ export function SyncCard({
     // the ring at its floor so the first frame paints a fresh ring rather than
     // flashing the spinner until the step playback reports back.
     setSettling(false);
+    setNotice((prev) => ({ ...prev, active: null }));
     setProgress(RING_MIN_FRACTION);
     setRunSeq((seq) => seq + 1);
     setStatus({
@@ -275,6 +313,19 @@ export function SyncCard({
           )}
         </div>
       </div>
+      {showSteps && (
+        <Collapse show={notice.active !== null}>
+          <p
+            className={`pt-1 text-xs text-muted-foreground transition-opacity duration-250 motion-reduce:transition-none ${
+              notice.active ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {notice.last === "degraded"
+              ? "Can't check sync progress right now. Retrying."
+              : "Taking longer than usual. Feel free to close the page, the sync will continue."}
+          </p>
+        </Collapse>
+      )}
       {status && finalOutcome !== "none" && (
         <CollapsibleContent>
           <div className="pt-2">
