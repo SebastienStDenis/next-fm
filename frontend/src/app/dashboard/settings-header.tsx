@@ -12,6 +12,13 @@ import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 // divergence (a change that only a sync will apply) reveals the warning on the
 // line below. Reverting a field back, or reopening the dialog, clears it.
 //
+// Pinned cities sit outside the signature because their two directions
+// differ: removing a pin deletes the playlist immediately, so it never needs
+// a sync, while an added pin only reaches Spotify on the next sync. The
+// warning therefore fires when a pending pin id appears that the open-time
+// snapshot lacked - and ids, not cities, so removing and re-adding the same
+// city still warns (the new row is unsynced).
+//
 // A completed sync applies the pending changes, so the current state becomes
 // the new baseline and the warning clears. `lastSyncedAt` advances the moment
 // the workflow finishes (the sync card refreshes the tree), but the card keeps
@@ -23,14 +30,17 @@ import { DialogClose, DialogTitle } from "@/components/ui/dialog";
 // text) instead of popping in and out.
 export function SettingsHeader({
   signature,
+  pendingPinIds,
   lastSyncedAt,
   syncActive,
 }: {
   signature: string;
+  pendingPinIds: string[];
   lastSyncedAt: string | null;
   syncActive: boolean;
 }) {
   const [baseline, setBaseline] = useState(signature);
+  const [pinBaseline, setPinBaseline] = useState(pendingPinIds);
   const [syncedAt, setSyncedAt] = useState(lastSyncedAt);
   const [syncPending, setSyncPending] = useState(false);
   if (lastSyncedAt !== syncedAt) {
@@ -40,8 +50,11 @@ export function SettingsHeader({
   if (syncPending && !syncActive) {
     setSyncPending(false);
     setBaseline(signature);
+    setPinBaseline(pendingPinIds);
   }
-  const changed = signature !== baseline;
+  const changed =
+    signature !== baseline ||
+    pendingPinIds.some((id) => !pinBaseline.includes(id));
   return (
     <div className="flex-none px-4 pt-4 pb-2">
       <div className="flex items-center gap-3">

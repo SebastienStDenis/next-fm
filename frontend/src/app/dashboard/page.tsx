@@ -87,20 +87,26 @@ export default async function DashboardPage() {
   );
   // A fingerprint of the settings a sync propagates. The dialog snapshots it
   // on open and warns when it diverges (see SettingsHeader). Arrays are sorted
-  // so reordering never reads as a change.
+  // so reordering never reads as a change. Pinned cities are tracked
+  // separately (below), not here: removing a pin applies immediately, so only
+  // additions warrant the warning.
   const settingsSignature = JSON.stringify({
     name: user.name,
     discovery: user.include_known_artists,
     lastfm: lastfm.username,
     city: city.geonameid,
-    pinned: pinnedPlaylists
-      .map((p) => p.city?.geonameid ?? null)
-      .sort((a, b) => Number(a) - Number(b)),
     hidden: knownArtists
       .filter((a) => a.excluded)
       .map((a) => a.artist.id)
       .sort(),
   });
+  // Pins the next sync must still create on Spotify, by playlist id: a
+  // re-added city is a new row, so it reads as new work even when the same
+  // geonameid was pinned at open.
+  const pendingPinIds = pinnedPlaylists
+    .filter((playlist) => playlist.spotify_url === null)
+    .map((playlist) => playlist.id)
+    .sort();
   // The tab count matches the panel's default view: suggested artists only.
   const suggestedEventCount = events.filter((userEvent) =>
     userEvent.artists.some(
@@ -199,6 +205,7 @@ export default async function DashboardPage() {
       </section>
       <SettingsDialog
         signature={settingsSignature}
+        pendingPinIds={pendingPinIds}
         lastSyncedAt={user.last_synced_at}
       >
         <SettingsContent

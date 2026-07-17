@@ -53,10 +53,12 @@ export function useSettingsOpen(): boolean {
 // navigation does not.
 export function SettingsDialog({
   signature,
+  pendingPinIds,
   lastSyncedAt,
   children,
 }: {
   signature: string;
+  pendingPinIds: string[];
   lastSyncedAt: string | null;
   children: ReactNode;
 }) {
@@ -157,6 +159,7 @@ export function SettingsDialog({
       >
         <SettingsHeader
           signature={signature}
+          pendingPinIds={pendingPinIds}
           lastSyncedAt={lastSyncedAt}
           syncActive={syncActive}
         />
