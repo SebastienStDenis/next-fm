@@ -105,8 +105,8 @@ Listening History relies on the Daily Sync card above it.
 While a run is in flight, the Daily Sync card can add one muted line under
 the status row:
 
-- Run in flight longer than usual: "Taking longer than usual. Safe to close
-  this page - the sync keeps running." Shown only while progress polling
+- Run in flight longer than usual: "Taking longer than usual. Feel free to
+  close the page, the sync will continue." Shown only while progress polling
   succeeds; it promises continuation, never success.
 - Progress polling failing repeatedly: "Can't check sync progress right now.
   Retrying." Takes the line's place - when progress is unreachable, the card

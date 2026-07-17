@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
+import { Collapse } from "../collapse";
 import { startSync } from "./actions";
 import { useReportSyncActivity } from "./sync-activity";
 import {
@@ -51,7 +52,13 @@ export function SyncCard({
   // the step on screen rather than the (often further-ahead) real workflow.
   const [progress, setProgress] = useState<number | null>(null);
   const [runSeq, setRunSeq] = useState(0);
-  const [notice, setNotice] = useState<"long-run" | "degraded" | null>(null);
+  // `active` drives the reveal; `last` keeps the outgoing text rendered while
+  // the reveal collapses, so the line fades and shrinks away instead of
+  // vanishing mid-animation.
+  const [notice, setNotice] = useState<{
+    active: "long-run" | "degraded" | null;
+    last: "long-run" | "degraded";
+  }>({ active: null, last: "long-run" });
   const [expanded, setExpanded] = useState(false);
   const [starting, startTransition] = useTransition();
 
@@ -101,7 +108,7 @@ export function SyncCard({
         // and never claim the sync is running when nothing confirms it.
         failures += 1;
         if (failures >= DEGRADED_POLL_FAILURES) {
-          setNotice("degraded");
+          setNotice({ active: "degraded", last: "degraded" });
         }
         return;
       }
@@ -109,7 +116,7 @@ export function SyncCard({
       setStatus(next);
       if (next.status !== "running") {
         setPolling(false);
-        setNotice(null);
+        setNotice((prev) => ({ ...prev, active: null }));
         // Let the last step's final state show before collapsing to the
         // last-synced line.
         setSettling(true);
@@ -121,9 +128,9 @@ export function SyncCard({
       const runningSince = next.started_at
         ? Date.parse(next.started_at)
         : pollingSince;
-      setNotice(
-        Date.now() - runningSince >= LONG_RUN_NOTICE_MS ? "long-run" : null,
-      );
+      const active =
+        Date.now() - runningSince >= LONG_RUN_NOTICE_MS ? "long-run" : null;
+      setNotice((prev) => ({ active, last: active ?? prev.last }));
     }
     tick();
     const timer = setInterval(tick, POLL_INTERVAL_MS);
@@ -179,7 +186,7 @@ export function SyncCard({
     // the ring at its floor so the first frame paints a fresh ring rather than
     // flashing the spinner until the step playback reports back.
     setSettling(false);
-    setNotice(null);
+    setNotice((prev) => ({ ...prev, active: null }));
     setProgress(RING_MIN_FRACTION);
     setRunSeq((seq) => seq + 1);
     setStatus({
@@ -306,12 +313,18 @@ export function SyncCard({
           )}
         </div>
       </div>
-      {showSteps && notice && (
-        <p className="animate-fade-in pt-1 text-xs text-muted-foreground">
-          {notice === "degraded"
-            ? "Can't check sync progress right now. Retrying."
-            : "Taking longer than usual. Safe to close this page - the sync keeps running."}
-        </p>
+      {showSteps && (
+        <Collapse show={notice.active !== null}>
+          <p
+            className={`pt-1 text-xs text-muted-foreground transition-opacity duration-250 motion-reduce:transition-none ${
+              notice.active ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {notice.last === "degraded"
+              ? "Can't check sync progress right now. Retrying."
+              : "Taking longer than usual. Feel free to close the page, the sync will continue."}
+          </p>
+        </Collapse>
       )}
       {status && finalOutcome !== "none" && (
         <CollapsibleContent>
