@@ -48,18 +48,9 @@ export function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
-export function ScoreBadge({
-  userArtist,
-  className = "",
-}: {
-  userArtist: UserArtist;
-  className?: string;
-}) {
+export function ScoreBadge({ userArtist }: { userArtist: UserArtist }) {
   return (
-    <Badge
-      variant="outline"
-      className={`shrink-0 px-1.5 text-muted-foreground ${className}`}
-    >
+    <Badge variant="outline" className="shrink-0 px-1.5 text-muted-foreground">
       <span className="size-1.5 rounded-full bg-primary" aria-hidden />
       score {scoreOf(userArtist).toFixed(2)}
     </Badge>

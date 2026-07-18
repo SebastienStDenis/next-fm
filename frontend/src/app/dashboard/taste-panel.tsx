@@ -109,10 +109,10 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   return (
     // The outer row never wraps: a long artist name breaks onto extra lines
     // (and chips wrap) inside the inner container while the hide control
-    // stays right, centered on them. content-visibility lets rows scrolled
+    // stays right, on the first line. content-visibility lets rows scrolled
     // out of the list skip layout and paint - with thousands of artists
     // that is nearly all of them.
-    <li className="group flex items-center gap-2 text-sm [content-visibility:auto] [contain-intrinsic-block-size:auto_1.75rem]">
+    <li className="group flex items-start gap-2 text-sm [content-visibility:auto] [contain-intrinsic-block-size:auto_1.75rem]">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
         <span
           className={`min-w-0 ${
@@ -143,7 +143,9 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
         disabled={pending}
         title={excluded ? "Unhide" : "Hide artist"}
         aria-label={excluded ? `Unhide ${artist.name}` : `Hide ${artist.name}`}
-        className={`text-muted-foreground transition-opacity focus-visible:opacity-100 ${
+        // -mt-1 centers the size-7 button on the row's 20px first text
+        // line, so it tracks the name rather than a wrapped row's middle.
+        className={`-mt-1 text-muted-foreground transition-opacity focus-visible:opacity-100 ${
           // Hidden-until-hover only where hovering exists; touch devices
           // (no group-hover: Tailwind gates it behind hover: hover) always
           // show the button.

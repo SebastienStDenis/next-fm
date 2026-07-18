@@ -204,19 +204,14 @@ function ArtistChip({
         <PopoverHeader>
           {/* The artist's headline number rides the title row: the score for
               a suggestion, the listening-history pills for an artist you
-              listen to. */}
-          <PopoverTitle className="flex flex-wrap items-start gap-x-2 gap-y-1">
+              listen to. Mirrors the Artists-tab card title row: the row
+              never wraps, a long name wraps beside the in-line badge. */}
+          <PopoverTitle className="flex items-center justify-between gap-2">
             <span className="min-w-0 break-words">{artist.name}</span>
-            {/* ml-auto rather than justify-between so the badges keep to
-                the right edge when a long name wraps them onto their own
-                line. */}
             {suggested ? (
-              <ScoreBadge userArtist={details} className="ml-auto" />
+              <ScoreBadge userArtist={details} />
             ) : (
-              <KnownInterestBadges
-                userArtist={details}
-                className="ml-auto justify-end"
-              />
+              <KnownInterestBadges userArtist={details} className="justify-end" />
             )}
           </PopoverTitle>
         </PopoverHeader>
