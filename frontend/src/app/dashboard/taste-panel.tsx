@@ -198,7 +198,7 @@ export function TastePanel({
               options={sortOptions}
             />
           </div>
-          <ul className="mt-2 max-h-80 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+          <ul className="mt-2 max-h-80 overflow-y-auto">
             {sortedArtists.map((userArtist) => (
               <ArtistRow key={userArtist.artist.id} userArtist={userArtist} />
             ))}

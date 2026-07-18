@@ -121,6 +121,15 @@ pattern by what the row holds, and never let a long third-party string
   get-started nudge) hovers with the muted background wash the button
   variants provide; a color-only hover on bare text is off-theme.
 
+## Scrollbars
+
+Every scrollbar - the page scroll, the settings dialog, overflowing panels
+like My Artists - is the same minimal bar: a 6px rounded thumb in `--border`
+on a transparent track, styled once globally in `globals.css` (webkit
+pseudo-elements, with `scrollbar-width: thin` scoped to Firefox). Don't style
+scrollbars per-element; if a container should hide its bar entirely (e.g. the
+command palette), use the `no-scrollbar` utility.
+
 ## Where the accent shows
 
 The primary token is deliberately present on every logged-in page: the active

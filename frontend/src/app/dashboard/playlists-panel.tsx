@@ -174,7 +174,7 @@ export function PlaylistsPanel({
 
   if (columnCount === null) {
     return (
-      <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid grid-cols-[minmax(0,26rem)] items-start gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
         {ordered.map((playlist) => (
           <PlaylistCard key={playlist.id} playlist={playlist} tip={tipFor(playlist)} />
         ))}
@@ -188,7 +188,7 @@ export function PlaylistsPanel({
   return (
     <div className="flex items-start gap-3">
       {columns.map((column, index) => (
-        <ul key={index} className="flex min-w-0 flex-1 flex-col gap-3">
+        <ul key={index} className="flex min-w-0 max-w-[26rem] flex-1 flex-col gap-3">
           {column.map((playlist) => (
             <PlaylistCard key={playlist.id} playlist={playlist} tip={tipFor(playlist)} />
           ))}
