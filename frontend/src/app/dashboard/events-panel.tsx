@@ -55,6 +55,17 @@ function placeLabel(event: UserEvent["event"]): string {
   return [event.city_name, event.region].filter(Boolean).join(", ");
 }
 
+// A title that only repeats the venue name is not a title - Bandsintown
+// listings are often named after their venue ("Public Records") - so the
+// heading falls back to the artists and the venue keeps its slot.
+// Compared trimmed: Bandsintown strings carry stray whitespace
+// ("Moda Center ").
+function eventTitle(event: UserEvent["event"]): string | null {
+  return event.title && event.title.trim() !== event.venue_name.trim()
+    ? event.title
+    : null;
+}
+
 export type ArtistRelation = "known" | "suggested";
 
 function artistChipLabel(
@@ -235,7 +246,7 @@ export function EventsPanel({
                           line below. */}
                       <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                         <span className="min-w-0">
-                          {event.title ??
+                          {eventTitle(event) ??
                             artists.map((artist) => artist.name).join(", ")}
                         </span>
                         <span className="text-xs font-normal text-muted-foreground">

@@ -139,6 +139,7 @@ def _apply_event_data(event: Event, data: BandsintownEventData) -> None:
     event.venue_name = data.venue_name
     event.venue_latitude = data.venue_latitude
     event.venue_longitude = data.venue_longitude
+    event.street_address = data.street_address
     event.city_name = data.city_name
     event.region = data.region
     event.country = data.country
