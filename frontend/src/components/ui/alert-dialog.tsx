@@ -47,6 +47,7 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
@@ -56,16 +57,24 @@ function AlertDialogContent({
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
-        data-size={size}
-        className={cn(
-          // inset-x + auto margins instead of -translate-x-1/2, so below
-          // the min-w floor the over-constrained margins pin the dialog
-          // left and it overflows right like the page (see dialog.tsx).
-          "group/alert-dialog-content fixed top-1/2 left-0 right-0 z-50 mx-auto grid w-full min-w-[18rem] -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className
-        )}
+        // Full-viewport scroll container around a centered panel, so a
+        // panel wider than a sub-320px viewport scrolls into view instead
+        // of clipping (see dialog.tsx). Alert dialogs have no
+        // light-dismiss, so no gutter-click handling here.
+        className="fixed inset-0 z-50 flex overflow-auto p-4 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
         {...props}
-      />
+      >
+        <div
+          data-slot="alert-dialog-panel"
+          data-size={size}
+          className={cn(
+            "group/alert-dialog-content relative m-auto grid w-full min-w-[18rem] gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
+            className
+          )}
+        >
+          {children}
+        </div>
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }

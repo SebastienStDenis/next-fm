@@ -99,10 +99,11 @@ pattern by what the row holds, and never let a long third-party string
   floating beside the block.
 - The page floor is 320px (`min-w-80` in `layout.tsx`); below that the page
   pans horizontally rather than squeezing further. Dialogs share the floor:
-  dialog and alert-dialog content carries `min-w-[18rem]` (a dialog's width
-  at a 320px viewport), so overlays stop shrinking where the page does, and
-  they center via inset-x + auto margins rather than a translate so that
-  below the floor they pin left and overflow to the right, like the page.
+  dialog and alert-dialog panels carry `min-w-[18rem]` (a dialog's width at
+  a 320px viewport), so overlays stop shrinking where the page does. The
+  panel centers inside a full-viewport scroll layer rather than being fixed
+  itself, so below the floor the dialog pans horizontally like the page
+  instead of clipping at the viewport edge.
 
 ## Interactive affordances
 

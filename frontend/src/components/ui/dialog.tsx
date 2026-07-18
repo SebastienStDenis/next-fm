@@ -52,24 +52,25 @@ function DialogContent({
   children,
   showCloseButton = true,
   onOpenAutoFocus,
+  onPointerDown,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const dismissRef = React.useRef<HTMLButtonElement>(null)
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        className={cn(
-          // Horizontal centering comes from inset-x + auto margins rather
-          // than a -translate-x-1/2: when the min-w floor exceeds a
-          // sub-320px viewport, over-constrained auto margins resolve to
-          // margin-left 0, so the dialog overflows to the right like the
-          // page does, instead of hanging off the left edge.
-          "fixed top-1/2 left-4 right-4 z-50 mx-auto grid w-full min-w-[18rem] max-w-[calc(100%-2rem)] -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className
-        )}
+        // The Radix content is a full-viewport scroll container and the
+        // visible panel a centered child: a fixed panel can never be
+        // scrolled into view, so when the panel's min-w floor exceeds a
+        // sub-320px viewport this layer grows a horizontal scrollbar
+        // instead of clipping the panel. The scroller must be the Radix
+        // content, not a wrapper around it: react-remove-scroll only
+        // permits wheel and touch scrolling inside the content subtree.
+        className="fixed inset-0 z-50 flex overflow-auto p-4 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
         onOpenAutoFocus={(event) => {
           onOpenAutoFocus?.(event)
           // On touch devices, let the user's tap open the keyboard so the
@@ -79,22 +80,54 @@ function DialogContent({
             event.preventDefault()
           }
         }}
+        onPointerDown={(event) => {
+          onPointerDown?.(event)
+          if (event.defaultPrevented || event.target !== event.currentTarget) {
+            return
+          }
+          // The gutter around the panel belongs to this layer, so Radix
+          // never sees a pointerdown "outside" and the light-dismiss it
+          // gives the overlay must be re-created here. Presses on the
+          // layer's own scrollbars also target it; only clicks inside the
+          // client area dismiss.
+          const content = event.currentTarget
+          const rect = content.getBoundingClientRect()
+          const inClientArea =
+            event.clientX < rect.left + content.clientLeft + content.clientWidth &&
+            event.clientY < rect.top + content.clientTop + content.clientHeight
+          if (inClientArea) {
+            dismissRef.current?.click()
+          }
+        }}
         {...props}
       >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close data-slot="dialog-close" asChild>
-            <Button
-              variant="ghost"
-              className="absolute top-2 right-2"
-              size="icon-sm"
-            >
-              <XIcon
-              />
-              <span className="sr-only">Close</span>
-            </Button>
-          </DialogPrimitive.Close>
-        )}
+        <div
+          data-slot="dialog-panel"
+          className={cn(
+            "relative m-auto grid w-full min-w-[18rem] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 sm:max-w-sm",
+            className
+          )}
+        >
+          {children}
+          {showCloseButton && (
+            <DialogPrimitive.Close data-slot="dialog-close" asChild>
+              <Button
+                variant="ghost"
+                className="absolute top-2 right-2"
+                size="icon-sm"
+              >
+                <XIcon
+                />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogPrimitive.Close>
+          )}
+        </div>
+        <DialogPrimitive.Close
+          ref={dismissRef}
+          tabIndex={-1}
+          className="hidden"
+        />
       </DialogPrimitive.Content>
     </DialogPortal>
   )
