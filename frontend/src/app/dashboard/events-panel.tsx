@@ -205,12 +205,18 @@ function ArtistChip({
           {/* The artist's headline number rides the title row: the score for
               a suggestion, the listening-history pills for an artist you
               listen to. */}
-          <PopoverTitle className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+          <PopoverTitle className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <span className="min-w-0 break-words">{artist.name}</span>
+            {/* ml-auto rather than justify-between so the badges keep to
+                the right edge when a long name wraps them onto their own
+                line. */}
             {suggested ? (
-              <ScoreBadge userArtist={details} />
+              <ScoreBadge userArtist={details} className="ml-auto" />
             ) : (
-              <KnownInterestBadges userArtist={details} className="justify-end" />
+              <KnownInterestBadges
+                userArtist={details}
+                className="ml-auto justify-end"
+              />
             )}
           </PopoverTitle>
         </PopoverHeader>
@@ -406,10 +412,11 @@ export function EventsPanel({
                       <CardHeader>
                         {/* gap-y-1 matches the header gap, so a wrapped date
                             sits as close to the title above as to the venue
-                            line below. */}
-                        <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                            line below; ml-auto keeps it right-aligned on its
+                            own line, matching the Tickets link. */}
+                        <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                           <span className="min-w-0">{eventName(userEvent)}</span>
-                          <span className="text-xs font-normal text-muted-foreground">
+                          <span className="ml-auto text-xs font-normal text-muted-foreground">
                             {dateFormat.format(new Date(event.starts_at))}
                           </span>
                         </CardTitle>

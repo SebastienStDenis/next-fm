@@ -48,9 +48,18 @@ export function interestLabel(interest: Interest): string {
   return interest.kind;
 }
 
-export function ScoreBadge({ userArtist }: { userArtist: UserArtist }) {
+export function ScoreBadge({
+  userArtist,
+  className = "",
+}: {
+  userArtist: UserArtist;
+  className?: string;
+}) {
   return (
-    <Badge variant="outline" className="shrink-0 px-1.5 text-muted-foreground">
+    <Badge
+      variant="outline"
+      className={`shrink-0 px-1.5 text-muted-foreground ${className}`}
+    >
       <span className="size-1.5 rounded-full bg-primary" aria-hidden />
       score {scoreOf(userArtist).toFixed(2)}
     </Badge>
@@ -114,7 +123,9 @@ export function ArtistDetails({
         <div className={`flex flex-wrap gap-1.5 ${tagsClassName}`}>
           {tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="max-w-full">
-              {tag}
+              {/* A badge never wraps internally, so a tag longer than the
+                  card ellipsizes instead of clipping mid-letter. */}
+              <span className="truncate">{tag}</span>
             </Badge>
           ))}
         </div>

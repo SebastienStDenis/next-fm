@@ -65,6 +65,39 @@ shaped the values, and should shape future adjustments:
   `h-5` inline-nav pill, so an inline Settings button sits flush in the line
   instead of pushing it apart.
 
+## Wrapping on narrow screens
+
+Rows degrade in one of a few deliberate ways when width runs out. Pick the
+pattern by what the row holds, and never let a long third-party string
+(artist, venue, city, playlist, tag names) force horizontal overflow.
+
+- **Text wraps; controls hold.** In a row of text plus a control (taste
+  rows, pinned cities, the city card), the text region takes `min-w-0` and
+  wraps onto extra lines while the control is `shrink-0` and keeps its spot
+  on the right, centered on the wrapped block. The global
+  `overflow-wrap: break-word` in `globals.css` only kicks in once the flex
+  item may shrink, so any flex child rendering external strings carries
+  `min-w-0`.
+- **Right-aligned metadata stays right-aligned when it wraps.** Dates,
+  synced stamps, score badges, and Tickets links are pushed right with
+  `ml-auto` on the item, not `justify-between` on the row, so that when one
+  wraps onto its own line it holds the right edge instead of snapping left
+  under the text.
+- **Groups of equal items wrap as items.** Badge, tag, and filter-toggle
+  groups are `flex flex-wrap`; whole items drop to the next line rather than
+  wrapping internally.
+- **Truncation is the exception.** Browsing surfaces let names wrap and grow
+  taller; ellipsis truncation is reserved for dense fixed-shape contexts -
+  dropdown result rows (city search), the one-line sync step summary,
+  settings key-value rows (name, email), and badge internals (artist chips,
+  tags), since a badge never wraps internally.
+- **Leading markers pin to the first line.** Decorative dots and pointer
+  marks beside wrappable text align to the first text line (the playlist
+  card's pulse dot, the save-tip arrow), so they read as bullets rather than
+  floating beside the block.
+- The page floor is 320px (`min-w-80` in `layout.tsx`); below that the page
+  pans horizontally rather than squeezing further.
+
 ## Interactive affordances
 
 - **Internal navigation is a button, never an underlined link.** In-app
