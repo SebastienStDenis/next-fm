@@ -87,7 +87,7 @@ function SyncedAtLabel({ iso }: { iso: string }) {
     return null;
   }
   return (
-    <span className="animate-fade-in text-xs text-muted-foreground">
+    <span className="ml-auto animate-fade-in text-xs text-muted-foreground">
       Synced {syncedAtFormat.format(new Date(iso))}
     </span>
   );
@@ -285,11 +285,14 @@ function PlaylistCard({
         }`}
       >
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span className="shrink-0 animate-fade-in" aria-hidden>
+          <CardTitle className="flex items-start gap-2">
+            {/* mt-2 centers the dot on the first line of the text-base/
+                leading-snug title, so it reads as a bullet instead of
+                floating beside a wrapped name. */}
+            <span className="mt-2 shrink-0 animate-fade-in" aria-hidden>
               <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
             </span>
-            {playlist.name}
+            <span className="min-w-0">{playlist.name}</span>
           </CardTitle>
           <CardDescription>
             {tip && spotifyLink ? (
@@ -353,7 +356,10 @@ function PlaylistCard({
         </CardHeader>
         <CardContent>
           <Collapsible>
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            {/* The synced stamp carries ml-auto rather than this row using
+                justify-between, so it stays right-aligned when it wraps
+                under the trigger. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <CollapsibleTrigger className="-mx-1.5 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
                 <span>
                   {playlist.tracks.length}{" "}

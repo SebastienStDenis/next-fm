@@ -68,9 +68,11 @@ export function WelcomeFlow({
             to dashboard" prompt lands after the run reads as done. */}
         <Collapsible open={showFooter}>
           <CollapsibleContent>
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-6">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-6">
               <p className="text-sm">All set. Playlists update daily.</p>
-              <Button asChild size="sm">
+              {/* ml-auto rather than justify-between on the row, so the
+                  button stays right-aligned when it wraps below the text. */}
+              <Button asChild size="sm" className="ml-auto">
                 {/* Lands on the Playlists tab and drops a session cue for the
                     one-shot save-to-library tip on the leading playlist. */}
                 <Link

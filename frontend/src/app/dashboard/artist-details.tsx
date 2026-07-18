@@ -114,7 +114,9 @@ export function ArtistDetails({
         <div className={`flex flex-wrap gap-1.5 ${tagsClassName}`}>
           {tags.map((tag) => (
             <Badge key={tag} variant="secondary" className="max-w-full">
-              {tag}
+              {/* A badge never wraps internally, so a tag longer than the
+                  card ellipsizes instead of clipping mid-letter. */}
+              <span className="truncate">{tag}</span>
             </Badge>
           ))}
         </div>
