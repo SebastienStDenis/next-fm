@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ExternalLink, Pencil, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,7 +19,7 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
-  popoverEdgeGap,
+  usePinnedPopoverWidth,
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
@@ -159,24 +159,6 @@ function artistChipLabel(
   }
 }
 
-// The chip popover gives up width rather than move: it narrows down to this
-// floor to keep its left edge on the chip, and only below the floor does the
-// collision shift slide it left, so far-right chips still get a readable card.
-const chipPopoverMinWidth = 208;
-
-// Space between the chip's left edge and the page's right edge (the page,
-// not the window: below the 320px layout floor the page scrolls
-// horizontally). Radix reports available width only after shifting, so the
-// cap that prevents the shift has to be measured from the chip itself.
-function chipPopoverMaxWidth(trigger: HTMLElement): number {
-  const available =
-    document.documentElement.scrollWidth -
-    window.scrollX -
-    trigger.getBoundingClientRect().left -
-    popoverEdgeGap;
-  return Math.max(chipPopoverMinWidth, available);
-}
-
 // An artist chip on a concert card. With details on hand it opens a popover
 // carrying the artist's profile - the same facts their Artists-tab card
 // shows - so the concert can be judged without leaving the tab.
@@ -189,32 +171,7 @@ function ArtistChip({
   relations: Record<string, ArtistRelation>;
   details?: UserArtist;
 }) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const [maxWidth, setMaxWidth] = useState<number>();
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (nextOpen && triggerRef.current) {
-      setMaxWidth(chipPopoverMaxWidth(triggerRef.current));
-    }
-    setOpen(nextOpen);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    const update = () => {
-      if (triggerRef.current) {
-        setMaxWidth(chipPopoverMaxWidth(triggerRef.current));
-      }
-    };
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update);
-    };
-  }, [open]);
-
+  const { triggerRef, open, onOpenChange, maxWidth } = usePinnedPopoverWidth();
   const suggested = relations[artist.id] === "suggested";
   const label = (
     <span className="truncate">{artistChipLabel(artist, relations)}</span>
@@ -231,7 +188,7 @@ function ArtistChip({
     );
   }
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Badge
           asChild
