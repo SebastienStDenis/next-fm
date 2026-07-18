@@ -286,10 +286,10 @@ function PlaylistCard({
       >
         <CardHeader>
           <CardTitle className="flex items-start gap-2">
-            {/* mt-2 centers the dot on the first line of the text-base/
-                leading-snug title, so it reads as a bullet instead of
-                floating beside a wrapped name. */}
-            <span className="mt-2 shrink-0 animate-fade-in" aria-hidden>
+            {/* mt-1.5 centers the dot on the cap height of the first line of
+                the text-base/leading-snug title (items-start keeps it pinned
+                to the top line, not floating beside a wrapped name). */}
+            <span className="mt-1.5 shrink-0 animate-fade-in" aria-hidden>
               <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
             </span>
             <span className="min-w-0">{playlist.name}</span>
