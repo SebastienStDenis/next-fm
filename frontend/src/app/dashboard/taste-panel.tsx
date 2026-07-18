@@ -194,7 +194,6 @@ export function TastePanel({
               value={sortKey}
               onValueChange={setSortKey}
               options={sortOptions}
-              labelId="taste-sort-label"
             />
           </div>
           <ul className="mt-2 max-h-80 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">

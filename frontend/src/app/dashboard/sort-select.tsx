@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import {
   Select,
   SelectContent,
@@ -11,19 +13,17 @@ import {
 export type SortOption<K extends string> = { value: K; label: string };
 
 // The one "Sort by" control shared by every list panel, so they stay visually
-// and behaviorally identical. labelId must be unique per panel: the tabs keep
-// all panels mounted, so a shared id would collide.
+// and behaviorally identical.
 export function SortSelect<K extends string>({
   value,
   onValueChange,
   options,
-  labelId,
 }: {
   value: K;
   onValueChange: (value: K) => void;
   options: readonly SortOption<K>[];
-  labelId: string;
 }) {
+  const labelId = useId();
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <span id={labelId}>Sort by</span>

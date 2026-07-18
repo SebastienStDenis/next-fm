@@ -24,6 +24,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
+import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 import {
   ArtistDetails,
   KnownInterestBadges,
@@ -105,16 +106,21 @@ function byName(a: UserEvent, b: UserEvent): number {
 }
 
 // Best match puts concerts featuring an artist you already listen to first,
-// then ranks by the summed suggestion score of every artist on the bill
-// (known artists carry no suggestion score, so they lean on the floor).
-// Only artists currently surfaced as suggestions count: a hidden artist's
-// lingering suggestion interest shouldn't lift its concerts.
+// then ranks by the summed suggestion score of every artist on the bill.
+// Known is judged by known-kind interests rather than the relation map: an
+// artist can be both known and suggested, and the map keeps only one side.
+// The sum counts only artists currently surfaced as suggestions: a hidden
+// artist's lingering suggestion interest shouldn't lift its concerts.
 function makeComparators(
   relations: Record<string, ArtistRelation>,
   artistsById: Record<string, UserArtist>,
 ): Record<SortKey, (a: UserEvent, b: UserEvent) => number> {
   const hasKnown = (userEvent: UserEvent) =>
-    userEvent.artists.some((artist) => relations[artist.id] === "known");
+    userEvent.artists.some((artist) =>
+      artistsById[artist.id]?.interests.some((interest) =>
+        KNOWN_ARTIST_KINDS.has(interest.kind),
+      ),
+    );
   const scoreSum = (userEvent: UserEvent) =>
     userEvent.artists.reduce(
       (total, artist) =>
@@ -124,9 +130,12 @@ function makeComparators(
       0,
     );
   return {
+    // The ISO timestamps sort chronologically as strings; ties keep the
+    // server's starts_at,id order so the list agrees with the artist cards'
+    // concert footers.
     date: (a, b) =>
-      new Date(a.event.starts_at).getTime() -
-        new Date(b.event.starts_at).getTime() || byName(a, b),
+      a.event.starts_at.localeCompare(b.event.starts_at) ||
+      a.event.id.localeCompare(b.event.id),
     name: byName,
     match: (a, b) =>
       Number(hasKnown(b)) - Number(hasKnown(a)) ||
@@ -374,7 +383,6 @@ export function EventsPanel({
           value={sortKey}
           onValueChange={setSortKey}
           options={sortOptions}
-          labelId="concerts-sort-label"
         />
       </div>
       <div className="mt-3">
@@ -387,50 +395,50 @@ export function EventsPanel({
             </EmptyStateCell>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleEvents.map(({ event, url, artists }) => (
-                <li key={event.id} className="flex">
-                  <Card size="sm" className="flex-1">
-                    <CardHeader>
-                      {/* gap-y-1 matches the header gap, so a wrapped date
-                          sits as close to the title above as to the venue
-                          line below. */}
-                      <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                        <span className="min-w-0">
-                          {eventTitle(event) ??
-                            artists.map((artist) => artist.name).join(", ")}
-                        </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {dateFormat.format(new Date(event.starts_at))}
-                        </span>
-                      </CardTitle>
-                      <CardDescription>
-                        {event.venue_name} · {placeLabel(event)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-                      {artists.map((artist) => (
-                        <ArtistChip
-                          key={artist.id}
-                          artist={artist}
-                          relations={artistRelations}
-                          details={artistsById[artist.id]}
-                        />
-                      ))}
-                      {url && (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
-                        >
-                          Tickets
-                          <ExternalLink className="size-3.5" aria-hidden />
-                        </a>
-                      )}
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
+              {visibleEvents.map((userEvent) => {
+                const { event, url, artists } = userEvent;
+                return (
+                  <li key={event.id} className="flex">
+                    <Card size="sm" className="flex-1">
+                      <CardHeader>
+                        {/* gap-y-1 matches the header gap, so a wrapped date
+                            sits as close to the title above as to the venue
+                            line below. */}
+                        <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                          <span className="min-w-0">{eventName(userEvent)}</span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {dateFormat.format(new Date(event.starts_at))}
+                          </span>
+                        </CardTitle>
+                        <CardDescription>
+                          {event.venue_name} · {placeLabel(event)}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="mt-auto flex flex-wrap items-center gap-2">
+                        {artists.map((artist) => (
+                          <ArtistChip
+                            key={artist.id}
+                            artist={artist}
+                            relations={artistRelations}
+                            details={artistsById[artist.id]}
+                          />
+                        ))}
+                        {url && (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+                          >
+                            Tickets
+                            <ExternalLink className="size-3.5" aria-hidden />
+                          </a>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </li>
+                );
+              })}
               {/* Filtered-out concerts keep a slot in the grid: a ghost cell
               sized like the cards it stands in for. */}
               {hiddenCount > 0 && (
