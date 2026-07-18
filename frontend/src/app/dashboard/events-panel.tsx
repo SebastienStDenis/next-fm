@@ -205,8 +205,9 @@ function ArtistChip({
           {/* The artist's headline number rides the title row: the score for
               a suggestion, the listening-history pills for an artist you
               listen to. Mirrors the Artists-tab card title row: the row
-              never wraps, a long name wraps beside the in-line badge. */}
-          <PopoverTitle className="flex items-center justify-between gap-2">
+              never wraps, a long name wraps beside the in-line badge, and
+              items-start keeps the badge on the first line. */}
+          <PopoverTitle className="flex items-start justify-between gap-2">
             <span className="min-w-0 break-words">{artist.name}</span>
             {suggested ? (
               <ScoreBadge userArtist={details} />
