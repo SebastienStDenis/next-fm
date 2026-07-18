@@ -13,15 +13,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
+import {
+  ArtistDetails,
+  KnownInterestBadges,
+  ScoreBadge,
+  scoreOf,
+} from "./artist-details";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
 import { SortSelect, type SortOption } from "./sort-select";
+import type { UserArtist } from "./taste-panel";
 
 export type UserEvent = {
   event: {
@@ -56,9 +70,22 @@ function placeLabel(event: UserEvent["event"]): string {
   return [event.city_name, event.region].filter(Boolean).join(", ");
 }
 
+// A title that only repeats the venue name is not a title - Bandsintown
+// listings are often named after their venue ("Public Records") - so the
+// heading falls back to the artists and the venue keeps its slot.
+// Compared trimmed: Bandsintown strings carry stray whitespace
+// ("Moda Center "). Shared with the artist cards' concerts popover so
+// both surfaces agree on which titles are real.
+export function eventTitle(event: UserEvent["event"]): string | null {
+  return event.title && event.title.trim() !== event.venue_name.trim()
+    ? event.title
+    : null;
+}
+
+// Sorting by name uses the same name the card displays as its heading.
 function eventName(userEvent: UserEvent): string {
   return (
-    userEvent.event.title ??
+    eventTitle(userEvent.event) ??
     userEvent.artists.map((artist) => artist.name).join(", ")
   );
 }
@@ -81,15 +108,20 @@ function byName(a: UserEvent, b: UserEvent): number {
 // A concert's score puts the ones featuring an artist you already listen to
 // first, then ranks by the summed suggestion score of every artist on the
 // bill (known artists carry no suggestion score, so they lean on the floor).
+// Only artists currently surfaced as suggestions count: a hidden artist's
+// lingering suggestion interest shouldn't lift its concerts.
 function makeComparators(
   relations: Record<string, ArtistRelation>,
-  scores: Record<string, number>,
+  artistsById: Record<string, UserArtist>,
 ): Record<SortKey, (a: UserEvent, b: UserEvent) => number> {
   const hasKnown = (userEvent: UserEvent) =>
     userEvent.artists.some((artist) => relations[artist.id] === "known");
   const scoreSum = (userEvent: UserEvent) =>
     userEvent.artists.reduce(
-      (total, artist) => total + (scores[artist.id] ?? 0),
+      (total, artist) =>
+        relations[artist.id] === "suggested"
+          ? total + scoreOf(artistsById[artist.id])
+          : total,
       0,
     );
   return {
@@ -119,17 +151,87 @@ function artistChipLabel(
   }
 }
 
+// An artist chip on a concert card. With details on hand it opens a popover
+// carrying the artist's profile - the same facts their Artists-tab card
+// shows - so the concert can be judged without leaving the tab.
+function ArtistChip({
+  artist,
+  relations,
+  details,
+}: {
+  artist: { id: string; name: string };
+  relations: Record<string, ArtistRelation>;
+  details?: UserArtist;
+}) {
+  const suggested = relations[artist.id] === "suggested";
+  const label = (
+    <span className="truncate">{artistChipLabel(artist, relations)}</span>
+  );
+  const badgeClass = `max-w-full font-normal ${
+    suggested ? "" : "text-muted-foreground"
+  }`;
+
+  if (!details) {
+    return (
+      <Badge variant={suggested ? "secondary" : "outline"} className={badgeClass}>
+        {label}
+      </Badge>
+    );
+  }
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Badge
+          asChild
+          variant={suggested ? "secondary" : "outline"}
+          className={`${badgeClass} cursor-pointer ${
+            suggested ? "hover:bg-secondary/80" : "hover:bg-muted"
+          }`}
+        >
+          <button type="button" title={`About ${artist.name}`}>
+            {label}
+          </button>
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent align="start">
+        <PopoverHeader>
+          {/* The artist's headline number rides the title row: the score for
+              a suggestion, the listening-history pills for an artist you
+              listen to. */}
+          <PopoverTitle className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+            <span className="min-w-0 break-words">{artist.name}</span>
+            {suggested ? (
+              <ScoreBadge userArtist={details} />
+            ) : (
+              <KnownInterestBadges userArtist={details} className="justify-end" />
+            )}
+          </PopoverTitle>
+        </PopoverHeader>
+        {/* gap-1 and the tags' pt-2 mirror the Artists-tab card body, so the
+            popover reads as the same card in miniature. */}
+        <div className="flex flex-col gap-1">
+          <ArtistDetails
+            userArtist={details}
+            showKnownInterests={suggested}
+            tagsClassName="pt-2"
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function EventsPanel({
   city,
   synced,
   artistRelations,
-  artistScores,
+  artistsById,
   events,
 }: {
   city: City;
   synced: boolean;
   artistRelations: Record<string, ArtistRelation>;
-  artistScores: Record<string, number>;
+  artistsById: Record<string, UserArtist>;
   events: UserEvent[];
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
@@ -181,7 +283,7 @@ export function EventsPanel({
         );
       }),
     )
-    .sort(makeComparators(artistRelations, artistScores)[sortKey]);
+    .sort(makeComparators(artistRelations, artistsById)[sortKey]);
   const hiddenCount = shownEvents.length - visibleEvents.length;
 
   const shownCity = viewCity ?? city;
@@ -296,7 +398,7 @@ export function EventsPanel({
                           line below. */}
                       <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                         <span className="min-w-0">
-                          {event.title ??
+                          {eventTitle(event) ??
                             artists.map((artist) => artist.name).join(", ")}
                         </span>
                         <span className="text-xs font-normal text-muted-foreground">
@@ -308,21 +410,14 @@ export function EventsPanel({
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-                      {artists.map((artist) => {
-                        const suggested =
-                          artistRelations[artist.id] === "suggested";
-                        return (
-                          <Badge
-                            key={artist.id}
-                            variant={suggested ? "secondary" : "outline"}
-                            className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
-                          >
-                            <span className="truncate">
-                              {artistChipLabel(artist, artistRelations)}
-                            </span>
-                          </Badge>
-                        );
-                      })}
+                      {artists.map((artist) => (
+                        <ArtistChip
+                          key={artist.id}
+                          artist={artist}
+                          relations={artistRelations}
+                          details={artistsById[artist.id]}
+                        />
+                      ))}
                       {url && (
                         <a
                           href={url}

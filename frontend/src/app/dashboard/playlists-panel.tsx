@@ -377,7 +377,7 @@ function PlaylistCard({
                   {playlist.tracks.map((track) => (
                     <li
                       key={track.spotify_track_id}
-                      className="flex items-center gap-x-2 text-sm"
+                      className="flex items-start gap-x-2 text-sm"
                     >
                       <span
                         className="flex h-5 shrink-0 items-center justify-center rounded bg-muted text-[10px] tabular-nums text-muted-foreground"
@@ -412,6 +412,10 @@ function PlaylistCard({
                                 {showDateFormat.format(
                                   new Date(track.event.starts_at),
                                 )}
+                                <ExternalLink
+                                  className="ml-1 inline size-3 -translate-y-px"
+                                  aria-hidden
+                                />
                               </a>
                             ) : (
                               <>

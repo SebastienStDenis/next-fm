@@ -97,14 +97,13 @@ done
 port_open "$WEB_PORT" || warn "web app didn't come up in time; opening the tab anyway"
 
 log "Opening web + Mailpit in a new window"
-osascript >/dev/null 2>&1 <<OSA || open "$WEB_URL" "$MAILPIT_URL"
-tell application "Google Chrome"
-  activate
-  set w to make new window
-  set URL of active tab of w to "$WEB_URL"
-  tell w to make new tab with properties {URL:"$MAILPIT_URL"}
-end tell
-OSA
+if open -Ra "Google Chrome" 2>/dev/null; then
+  # Launch through Chrome itself (not AppleScript) so the window opens in the
+  # user's regular profile - scripted windows bypass the profile picker.
+  open -na "Google Chrome" --args --new-window "$WEB_URL" "$MAILPIT_URL"
+else
+  open "$WEB_URL" "$MAILPIT_URL"
+fi
 
 cat <<SUMMARY
 

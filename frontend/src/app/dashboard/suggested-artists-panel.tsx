@@ -1,29 +1,129 @@
 "use client";
 
 import { useState } from "react";
+import { CalendarDays, ChevronDown, ExternalLink } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
-import { SIMILAR_ARTIST_KIND } from "./artist-kinds";
+import { ArtistDetails, ScoreBadge, scoreOf } from "./artist-details";
+import type { City } from "./city-panel";
 import { EmptyStateCell } from "./empty-state";
+import { eventTitle, type UserEvent } from "./events-panel";
 import { RunSyncMessage } from "./run-sync-message";
 import { SortSelect, type SortOption } from "./sort-select";
-import type { Interest, UserArtist } from "./taste-panel";
+import type { UserArtist } from "./taste-panel";
 
-function suggestionOf(userArtist: UserArtist): Interest | undefined {
-  return userArtist.interests.find(
-    (interest) => interest.kind === SIMILAR_ARTIST_KIND,
+// The concerts matched near one of the user's cities (home or pinned),
+// keyed by that city so the footer popover can group by it - the venue's
+// own city name means little for a pinned city's surroundings.
+export type CityConcerts = {
+  city: City;
+  events: UserEvent[];
+};
+
+// Event times are stored as venue-local time labeled UTC, so formatting in
+// UTC displays the original local time.
+const concertDateFormat = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function ConcertList({ concerts }: { concerts: UserEvent[] }) {
+  return (
+    <ul className="flex flex-col gap-1.5 text-xs">
+      {concerts.map(({ event, url }) => {
+        const show = [eventTitle(event), event.venue_name]
+          .filter(Boolean)
+          .join(" · ");
+        return (
+          <li key={event.id}>
+            <span className="font-medium">
+              {concertDateFormat.format(new Date(event.starts_at))}
+            </span>
+            <span className="text-muted-foreground"> · </span>
+            {url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground underline hover:text-foreground"
+              >
+                {show}
+                <ExternalLink
+                  className="ml-1 inline size-3 -translate-y-px"
+                  aria-hidden
+                />
+              </a>
+            ) : (
+              <span className="text-muted-foreground">{show}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-function scoreOf(userArtist: UserArtist): number {
-  return suggestionOf(userArtist)?.weight ?? 0;
+function ConcertsFooter({
+  sections,
+  multiCity,
+}: {
+  sections: { city: City; concerts: UserEvent[] }[];
+  multiCity: boolean;
+}) {
+  // One concert can sit within range of two of the user's cities and
+  // appear in both sections; the count stays honest by counting events.
+  const count = new Set(
+    sections.flatMap(({ concerts }) => concerts.map(({ event }) => event.id)),
+  ).size;
+  return (
+    <CardFooter className="p-0">
+      <Popover>
+        <PopoverTrigger className="flex flex-1 cursor-pointer items-center gap-1.5 px-(--card-spacing) py-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 [&[data-state=open]>svg:last-of-type]:rotate-180">
+          <CalendarDays className="size-3.5 shrink-0" aria-hidden />
+          <span className="min-w-0 text-left">
+            {count} upcoming {count === 1 ? "concert" : "concerts"} near{" "}
+            {multiCity ? "your cities" : "you"}
+          </span>
+          <ChevronDown
+            className="ml-auto size-3.5 shrink-0 transition-transform"
+            aria-hidden
+          />
+        </PopoverTrigger>
+        <PopoverContent align="start">
+          <PopoverHeader>
+            <PopoverTitle>Upcoming Concerts</PopoverTitle>
+          </PopoverHeader>
+          {multiCity ? (
+            sections.map(({ city, concerts }) => (
+              <div key={city.geonameid} className="flex flex-col gap-1.5">
+                <p className="text-xs font-medium">{city.name}</p>
+                <ConcertList concerts={concerts} />
+              </div>
+            ))
+          ) : (
+            <ConcertList concerts={sections[0].concerts} />
+          )}
+        </PopoverContent>
+      </Popover>
+    </CardFooter>
+  );
 }
 
 function byName(a: UserArtist, b: UserArtist): number {
@@ -42,29 +142,40 @@ const comparators: Record<SortKey, (a: UserArtist, b: UserArtist) => number> = {
   name: byName,
 };
 
-const listenersFormat = new Intl.NumberFormat("en-US", {
-  notation: "compact",
-});
-
-function reasonOf(userArtist: UserArtist): string | null {
-  const seeds = suggestionOf(userArtist)
-    ?.evidence.paths?.map((path) => path.seed_name)
-    .filter(Boolean);
-  if (!seeds || seeds.length === 0) {
-    return null;
+// Each artist's upcoming concerts, soonest first (the ISO timestamps sort
+// chronologically as strings).
+function concertsByArtist(events: UserEvent[]): Map<string, UserEvent[]> {
+  const byArtist = new Map<string, UserEvent[]>();
+  const ordered = [...events].sort((a, b) =>
+    a.event.starts_at.localeCompare(b.event.starts_at),
+  );
+  for (const userEvent of ordered) {
+    for (const artist of userEvent.artists) {
+      const list = byArtist.get(artist.id);
+      if (list) {
+        list.push(userEvent);
+      } else {
+        byArtist.set(artist.id, [userEvent]);
+      }
+    }
   }
-  return `because you listen to ${seeds.join(", ")}`;
+  return byArtist;
 }
 
 export function SuggestedArtistsPanel({
   suggestedArtists,
+  cityConcerts,
   synced,
 }: {
   suggestedArtists: UserArtist[];
+  cityConcerts: CityConcerts[];
   synced: boolean;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("score");
   const sortedArtists = [...suggestedArtists].sort(comparators[sortKey]);
+
+  const multiCity = cityConcerts.length > 1;
+  const cityIndexes = cityConcerts.map(({ events }) => concertsByArtist(events));
 
   return (
     <div>
@@ -89,52 +200,38 @@ export function SuggestedArtistsPanel({
             />
           </div>
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedArtists.map((userArtist) => (
-              <li key={userArtist.artist.id} className="min-w-0">
-                <Card size="sm" className="h-full">
-                  <CardHeader className="flex items-center justify-between gap-2">
-                    <CardTitle className="min-w-0 break-words">
-                      {userArtist.artist.name}
-                    </CardTitle>
-                    <Badge
-                      variant="outline"
-                      className="shrink-0 px-1.5 text-muted-foreground"
-                    >
-                      <span
-                        className="size-1.5 rounded-full bg-primary"
-                        aria-hidden
+            {sortedArtists.map((userArtist) => {
+              const sections = cityConcerts
+                .map(({ city }, index) => ({
+                  city,
+                  concerts: cityIndexes[index].get(userArtist.artist.id) ?? [],
+                }))
+                .filter((section) => section.concerts.length > 0);
+              return (
+                <li key={userArtist.artist.id} className="min-w-0">
+                  <Card size="sm" className="h-full">
+                    <CardHeader className="flex items-center justify-between gap-2">
+                      <CardTitle className="min-w-0 break-words">
+                        {userArtist.artist.name}
+                      </CardTitle>
+                      <ScoreBadge userArtist={userArtist} />
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col gap-1">
+                      <ArtistDetails
+                        userArtist={userArtist}
+                        tagsClassName="mt-auto pt-2"
                       />
-                      score {scoreOf(userArtist).toFixed(2)}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-1">
-                    {reasonOf(userArtist) && (
-                      <p className="text-xs text-muted-foreground">
-                        {reasonOf(userArtist)}
-                      </p>
+                    </CardContent>
+                    {sections.length > 0 && (
+                      <ConcertsFooter
+                        sections={sections}
+                        multiCity={multiCity}
+                      />
                     )}
-                    {userArtist.listeners != null && (
-                      <p className="text-xs text-muted-foreground italic">
-                        {listenersFormat.format(userArtist.listeners)} listeners
-                      </p>
-                    )}
-                    {(userArtist.tags ?? []).length > 0 && (
-                      <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-                        {(userArtist.tags ?? []).map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="max-w-full"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
+                  </Card>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

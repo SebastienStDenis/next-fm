@@ -13,7 +13,10 @@ import { type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SettingsContent } from "./settings-content";
 import { SettingsDialog, SETTINGS_HASH } from "./settings-dialog";
-import { SuggestedArtistsPanel } from "./suggested-artists-panel";
+import {
+  SuggestedArtistsPanel,
+  type CityConcerts,
+} from "./suggested-artists-panel";
 import { SyncStepNote } from "./sync-step-note";
 import { TAB_COOKIE } from "./tab-cookie";
 import { Tabs } from "./tabs";
@@ -52,11 +55,33 @@ export default async function DashboardPage() {
   }
 
   // Known-artist events are fetched regardless of the user's global setting;
-  // the events panel hides them behind its own view-side filter.
-  const events = await fetchJson<UserEvent[]>(
-    "/me/events?include_known_artists=true",
-    "events",
-  );
+  // the events panel hides them behind its own view-side filter. Pinned-city
+  // events ride along, kept per city, so the artist cards can group upcoming
+  // concerts by the cities the user tracks - home first, pins in order.
+  const pinnedCities: City[] = [];
+  for (const playlist of playlists) {
+    const pinned = playlist.city;
+    if (
+      pinned &&
+      pinned.geonameid !== city.geonameid &&
+      !pinnedCities.some((other) => other.geonameid === pinned.geonameid)
+    ) {
+      pinnedCities.push(pinned);
+    }
+  }
+  const [events, ...pinnedEventLists] = await Promise.all([
+    fetchJson<UserEvent[]>("/me/events?include_known_artists=true", "events"),
+    ...pinnedCities.map((pinnedCity) =>
+      fetchJson<UserEvent[]>(`/me/events?geonameid=${pinnedCity.geonameid}`, "events"),
+    ),
+  ]);
+  const cityConcerts: CityConcerts[] = [
+    { city, events },
+    ...pinnedCities.map((pinnedCity, index) => ({
+      city: pinnedCity,
+      events: pinnedEventLists[index],
+    })),
+  ];
 
   // The lists overlap on purpose: an artist can hold a known-kind interest
   // below the engine's playcount floor and still be an active suggestion.
@@ -77,14 +102,9 @@ export default async function DashboardPage() {
       ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
       ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
     ]);
-  // The suggestion score per artist, so the concerts panel can rank shows by
-  // the summed score of their line-up.
-  const artistScores: Record<string, number> = Object.fromEntries(
-    suggestedArtists.map(({ artist, interests }) => [
-      artist.id,
-      interests.find((interest) => interest.kind === SIMILAR_ARTIST_KIND)
-        ?.weight ?? 0,
-    ]),
+  // Full artist records by id, for the artist popovers on concert cards.
+  const artistsById: Record<string, UserArtist> = Object.fromEntries(
+    userArtists.map((userArtist) => [userArtist.artist.id, userArtist]),
   );
   // Playlists appear only once they exist on Spotify; pins awaiting their
   // first sync are managed in Settings, not shown here.
@@ -157,6 +177,7 @@ export default async function DashboardPage() {
               content: (
                 <SuggestedArtistsPanel
                   suggestedArtists={suggestedArtists}
+                  cityConcerts={cityConcerts}
                   synced={syncStepCompleted(sync, "suggestions")}
                 />
               ),
@@ -177,7 +198,7 @@ export default async function DashboardPage() {
                   city={city}
                   synced={syncStepCompleted(sync, "events")}
                   artistRelations={artistRelations}
-                  artistScores={artistScores}
+                  artistsById={artistsById}
                   events={events}
                 />
               ),

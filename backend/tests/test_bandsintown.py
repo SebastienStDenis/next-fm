@@ -19,6 +19,7 @@ VENUE = {
     "latitude": "36.121217",
     "longitude": "-115.1620404",
     "location": "Las Vegas, NV",
+    "street_address": "255 Sands Ave",
 }
 
 EVENT = {
@@ -45,6 +46,7 @@ def test_parse_event_maps_fields() -> None:
     assert data.venue_name == "Sphere"
     assert data.venue_latitude == pytest.approx(36.121217)
     assert data.venue_longitude == pytest.approx(-115.1620404)
+    assert data.street_address == "255 Sands Ave"
     assert data.city_name == "Las Vegas"
     assert data.region == "NV"
     assert data.country == "United States"

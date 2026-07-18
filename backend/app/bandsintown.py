@@ -28,6 +28,7 @@ class BandsintownEventData(BaseModel):
     venue_name: str
     venue_latitude: float
     venue_longitude: float
+    street_address: str | None
     city_name: str
     region: str | None
     country: str | None
@@ -43,9 +44,20 @@ class BandsintownClient:
 
     async def get_artist_events(self, name: str) -> list[BandsintownEventData]:
         """Fetch an artist's upcoming events, skipping ones the schema can't
-        represent (no id, date, venue name, or coordinates)."""
+        represent (no id, date, venue name, or coordinates).
+
+        The V3.1 path prefix is undocumented (SwaggerHub only publishes
+        3.0.x) but is the one variant of this endpoint that returns the
+        real venue name on event-page listings (festivals, branded
+        tours); the default path stamps the event title over venue.name.
+        If V3.1 is ever removed, every fetch fails loudly through the
+        sync alerting; if it silently regresses to the default behavior,
+        the concert cards degrade gracefully (a title that repeats the
+        venue is dropped from the heading; see
+        docs/design/2026-07-18-concert-venues.md).
+        """
         response = await self._http.get(
-            f"/artists/{_encode_artist_name(name)}/events",
+            f"/V3.1/artists/{_encode_artist_name(name)}/events",
             params={"app_id": self._app_id, "date": "upcoming"},
         )
         try:
@@ -102,6 +114,7 @@ def _parse_event(event: dict) -> BandsintownEventData | None:
         venue_name=venue_name,
         venue_latitude=latitude,
         venue_longitude=longitude,
+        street_address=_text_or_none(venue.get("street_address")),
         city_name=_text_or_none(venue.get("city")) or _text_or_none(venue.get("location")) or "",
         region=_text_or_none(venue.get("region")),
         country=_text_or_none(venue.get("country")),

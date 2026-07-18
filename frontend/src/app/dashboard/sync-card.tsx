@@ -120,7 +120,6 @@ export function SyncCard({
         // Let the last step's final state show before collapsing to the
         // last-synced line.
         setSettling(true);
-        router.refresh();
         return;
       }
       // A page opened mid-run re-attaches, so measure from the run's own
@@ -138,7 +137,7 @@ export function SyncCard({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [polling, router]);
+  }, [polling]);
 
   const running = status?.status === "running";
   // The button shows a spinner while checking for an existing run, while one is
@@ -259,7 +258,14 @@ export function SyncCard({
                 key={runSeq}
                 steps={status.steps}
                 finished={!running}
-                onSettled={() => setSettling(false)}
+                onSettled={() => {
+                  setSettling(false);
+                  // Sync-gated UI across the site keys off the server-fetched
+                  // status, so refresh only once playback settles - the page
+                  // updates in step with what the display showed, not with
+                  // the workflow running ahead of it.
+                  router.refresh();
+                }}
                 onProgress={setProgress}
               />
             </div>
