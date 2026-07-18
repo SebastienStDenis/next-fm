@@ -29,10 +29,10 @@ export default function AboutPage() {
         <section>
           <h2 className="text-sm font-medium">Your playlist</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            A few top tracks from each suggested artist playing near your city,
-            soonest concert first. You can pin extra cities to follow concerts
-            where you travel. Tracklists are automatically updated daily
-            as your listening history and upcoming concerts change.
+            A few top tracks from each suggested artist playing near your
+            city. You can pin extra cities to follow concerts where you
+            travel. Playlists in Spotify are automatically updated daily as
+            your listening history and upcoming concerts change.
           </p>
         </section>
         <section>
