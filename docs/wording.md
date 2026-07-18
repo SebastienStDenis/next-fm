@@ -151,8 +151,8 @@ Keep these exactly as written:
 - Concerts tab: "Upcoming concerts near you by suggested artists."
 - Playlists tab: "Spotify playlists tracking suggested concerts in your
   cities, updated daily."
-- About page, playlist section: "Tracklists are automatically updated every
-  day as your listening history and upcoming concerts change."
+- About page, playlist section: "Playlists in Spotify are automatically
+  updated daily as your listening history and upcoming concerts change."
 - Listening History section: "Your listening history is used to suggest
   artists and find concerts. Hidden artists are skipped."
 - Confirmation email: "... and start discovering live music through
