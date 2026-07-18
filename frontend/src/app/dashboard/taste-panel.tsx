@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { setArtistHidden } from "./actions";
+import { interestLabel } from "./artist-details";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 
 export type Artist = {
@@ -88,26 +89,6 @@ const comparators: Record<SortKey, (a: UserArtist, b: UserArtist) => number> = {
     rankOf(a) - rankOf(b) ||
     byName(a, b),
 };
-
-function interestLabel(interest: Interest): string {
-  if (interest.kind === "lastfm_top_artist") {
-    const parts: string[] = [];
-    if (interest.evidence.rank != null) {
-      parts.push(`#${interest.evidence.rank}`);
-    }
-    if (interest.evidence.playcount != null) {
-      parts.push(`${numberFormat.format(interest.evidence.playcount)} plays`);
-    }
-    if (parts.length > 0) {
-      return parts.join(" · ");
-    }
-  }
-  if (interest.kind === "lastfm_loved_tracks") {
-    const count = interest.evidence.track_count ?? 0;
-    return `${count} loved ${count === 1 ? "track" : "tracks"}`;
-  }
-  return interest.kind;
-}
 
 function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   const { artist, interests, excluded } = userArtist;

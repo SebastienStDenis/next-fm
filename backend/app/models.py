@@ -174,6 +174,7 @@ class Event(Base):
     venue_name: Mapped[str]
     venue_latitude: Mapped[float]
     venue_longitude: Mapped[float]
+    street_address: Mapped[str | None]
     city_name: Mapped[str]
     region: Mapped[str | None]
     country: Mapped[str | None]
