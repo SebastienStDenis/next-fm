@@ -314,11 +314,13 @@ function PlaylistCard({
                   }}
                   onInteractOutside={(event) => event.preventDefault()}
                   onEscapeKeyDown={(event) => event.preventDefault()}
-                  // Wrap to the space on the right as it narrows, but floor the
-                  // width at what the pill needs at the 320px min viewport
-                  // (min-w-80) so it stops shrinking there instead of squeezing
-                  // to a sliver on anything narrower.
-                  className="relative w-auto max-w-[max(9.25rem,var(--radix-popper-available-width))] flex-row items-start gap-0.5 rounded-md py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-150 ease-out data-open:zoom-in-75"
+                  // The pill is one line when the space to the right fits it
+                  // (15.5rem) and otherwise snaps straight to the 9.25rem the
+                  // two-line wrap needs: any width in between would wrap the
+                  // same way and leave the slack as dead space inside the
+                  // pill. The *9999 turns the available-width difference into
+                  // a step between those two sizes.
+                  className="relative w-auto max-w-[clamp(9.25rem,(var(--radix-popper-available-width)_-_15.5rem)*9999,15.5rem)] flex-row items-start gap-0.5 rounded-md py-0.5 pl-1.5 pr-0.5 ring-0 bg-primary text-xs text-primary-foreground shadow-lg duration-150 ease-out data-open:zoom-in-75"
                 >
                   {/* Pinned to the first line, not the pill's center, so the
                       point keeps aiming at the link when the text wraps. */}
