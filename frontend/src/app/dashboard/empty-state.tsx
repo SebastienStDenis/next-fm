@@ -33,7 +33,12 @@ export function EmptyStateCell({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-3", className)}>
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(0,26rem)] gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3",
+        className,
+      )}
+    >
       {/* content-center, not flex: a flex container would split the message
           around inline elements (the Account pill) and swallow the spaces
           between them. */}
