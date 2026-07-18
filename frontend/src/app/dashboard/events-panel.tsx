@@ -92,22 +92,21 @@ function eventName(userEvent: UserEvent): string {
 
 export type ArtistRelation = "known" | "suggested";
 
-type SortKey = "date" | "name" | "distance" | "score";
+type SortKey = "date" | "name" | "match";
 
 const sortOptions: readonly SortOption<SortKey>[] = [
   { value: "date", label: "Date" },
   { value: "name", label: "Name" },
-  { value: "distance", label: "Distance" },
-  { value: "score", label: "Score" },
+  { value: "match", label: "Best match" },
 ];
 
 function byName(a: UserEvent, b: UserEvent): number {
   return eventName(a).localeCompare(eventName(b));
 }
 
-// A concert's score puts the ones featuring an artist you already listen to
-// first, then ranks by the summed suggestion score of every artist on the
-// bill (known artists carry no suggestion score, so they lean on the floor).
+// Best match puts concerts featuring an artist you already listen to first,
+// then ranks by the summed suggestion score of every artist on the bill
+// (known artists carry no suggestion score, so they lean on the floor).
 // Only artists currently surfaced as suggestions count: a hidden artist's
 // lingering suggestion interest shouldn't lift its concerts.
 function makeComparators(
@@ -129,8 +128,7 @@ function makeComparators(
       new Date(a.event.starts_at).getTime() -
         new Date(b.event.starts_at).getTime() || byName(a, b),
     name: byName,
-    distance: (a, b) => a.distance_km - b.distance_km || byName(a, b),
-    score: (a, b) =>
+    match: (a, b) =>
       Number(hasKnown(b)) - Number(hasKnown(a)) ||
       scoreSum(b) - scoreSum(a) ||
       byName(a, b),

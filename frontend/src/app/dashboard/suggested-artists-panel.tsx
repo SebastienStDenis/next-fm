@@ -130,17 +130,35 @@ function byName(a: UserArtist, b: UserArtist): number {
   return a.artist.name.localeCompare(b.artist.name);
 }
 
-type SortKey = "score" | "name";
+type SortKey = "score" | "name" | "concert";
 
 const sortOptions: readonly SortOption<SortKey>[] = [
   { value: "score", label: "Score" },
   { value: "name", label: "Name" },
+  { value: "concert", label: "Next concert" },
 ];
 
-const comparators: Record<SortKey, (a: UserArtist, b: UserArtist) => number> = {
-  score: (a, b) => scoreOf(b) - scoreOf(a) || byName(a, b),
-  name: byName,
-};
+// Next concert orders by each artist's soonest show across the user's
+// cities; artists with nothing coming up trail alphabetically.
+function makeComparators(
+  soonestConcert: Map<string, string>,
+): Record<SortKey, (a: UserArtist, b: UserArtist) => number> {
+  return {
+    score: (a, b) => scoreOf(b) - scoreOf(a) || byName(a, b),
+    name: byName,
+    concert: (a, b) => {
+      const aDate = soonestConcert.get(a.artist.id);
+      const bDate = soonestConcert.get(b.artist.id);
+      if (aDate && bDate) {
+        return aDate.localeCompare(bDate) || byName(a, b);
+      }
+      if (aDate || bDate) {
+        return aDate ? -1 : 1;
+      }
+      return byName(a, b);
+    },
+  };
+}
 
 // Each artist's upcoming concerts, soonest first (the ISO timestamps sort
 // chronologically as strings).
@@ -172,10 +190,25 @@ export function SuggestedArtistsPanel({
   synced: boolean;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("score");
-  const sortedArtists = [...suggestedArtists].sort(comparators[sortKey]);
 
   const multiCity = cityConcerts.length > 1;
   const cityIndexes = cityConcerts.map(({ events }) => concertsByArtist(events));
+
+  // Each artist's soonest show across all cities (the per-city lists are
+  // already soonest-first, so the head of each is that city's earliest).
+  const soonestConcert = new Map<string, string>();
+  for (const index of cityIndexes) {
+    for (const [artistId, concerts] of index) {
+      const soonest = concerts[0].event.starts_at;
+      const current = soonestConcert.get(artistId);
+      if (!current || soonest < current) {
+        soonestConcert.set(artistId, soonest);
+      }
+    }
+  }
+  const sortedArtists = [...suggestedArtists].sort(
+    makeComparators(soonestConcert)[sortKey],
+  );
 
   return (
     <div>
