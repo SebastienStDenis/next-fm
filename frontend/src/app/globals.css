@@ -116,6 +116,33 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Minimal scrollbars everywhere: a 6px rounded border-colored thumb on a
+   transparent track (the page scroll, the settings dialog, any overflowing
+   panel). The standard properties are scoped to engines without
+   ::-webkit-scrollbar (Firefox): setting them in Chrome would disable the
+   pseudo-element styling and fall back to the flat scrollbar-color
+   rendering. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: var(--border);
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
 /* Radix overlays (dialogs, selects) lock scroll via react-remove-scroll,
    which compensates for the vanishing scrollbar with a body margin. The
    gutter never vanishes here (scrollbar-gutter: stable above), so the
