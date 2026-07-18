@@ -397,7 +397,7 @@ export function EventsPanel({
                 : `No concerts found near ${city.name}. NextFM will find new concerts as they're announced.`}
             </EmptyStateCell>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid grid-cols-[minmax(0,26rem)] gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
               {visibleEvents.map((userEvent) => {
                 const { event, url, artists } = userEvent;
                 return (
