@@ -38,6 +38,7 @@ def event_data(external_id: str, starts_at: datetime | None = None) -> Bandsinto
         venue_name="Sphere",
         venue_latitude=36.121217,
         venue_longitude=-115.1620404,
+        street_address="255 Sands Ave",
         city_name="Las Vegas",
         region="NV",
         country="United States",
