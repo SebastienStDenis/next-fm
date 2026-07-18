@@ -304,11 +304,11 @@ function PlaylistCard({
                   sideOffset={8}
                   // Stay pinned to the right of the link; without this Radix
                   // flips the tip to the far left of the screen on very narrow
-                  // widths where the right side can't fit it. collisionPadding
-                  // still feeds the available-width so the pill keeps a margin
-                  // from the screen edge instead of hugging it.
+                  // widths where the right side can't fit it. The default
+                  // collisionPadding still feeds the available-width so the
+                  // pill keeps the shared edge gap instead of hugging the
+                  // screen edge.
                   avoidCollisions={false}
-                  collisionPadding={12}
                   // Don't pull focus onto the dismiss button when the tip
                   // opens; put it on the card the tip is about.
                   onOpenAutoFocus={(event) => {

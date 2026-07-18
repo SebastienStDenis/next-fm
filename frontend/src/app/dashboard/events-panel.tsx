@@ -19,6 +19,7 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
+  usePinnedPopoverWidth,
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
@@ -170,6 +171,7 @@ function ArtistChip({
   relations: Record<string, ArtistRelation>;
   details?: UserArtist;
 }) {
+  const { triggerRef, open, onOpenChange, maxWidth } = usePinnedPopoverWidth();
   const suggested = relations[artist.id] === "suggested";
   const label = (
     <span className="truncate">{artistChipLabel(artist, relations)}</span>
@@ -186,7 +188,7 @@ function ArtistChip({
     );
   }
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Badge
           asChild
@@ -195,12 +197,12 @@ function ArtistChip({
             suggested ? "hover:bg-secondary/80" : "hover:bg-muted"
           }`}
         >
-          <button type="button" title={`About ${artist.name}`}>
+          <button ref={triggerRef} type="button" title={`About ${artist.name}`}>
             {label}
           </button>
         </Badge>
       </PopoverTrigger>
-      <PopoverContent align="start">
+      <PopoverContent align="start" style={{ maxWidth }}>
         <PopoverHeader>
           {/* The artist's headline number rides the title row: the score for
               a suggestion, the listening-history pills for an artist you

@@ -16,6 +16,7 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
+  usePinnedPopoverWidth,
 } from "@/components/ui/popover";
 
 import { ArtistDetails, ScoreBadge, scoreOf } from "./artist-details";
@@ -87,6 +88,7 @@ function ConcertsFooter({
   sections: { city: City; concerts: UserEvent[] }[];
   multiCity: boolean;
 }) {
+  const { triggerRef, open, onOpenChange, maxWidth } = usePinnedPopoverWidth();
   // One concert can sit within range of two of the user's cities and
   // appear in both sections; the count stays honest by counting events.
   const count = new Set(
@@ -94,8 +96,11 @@ function ConcertsFooter({
   ).size;
   return (
     <CardFooter className="p-0">
-      <Popover>
-        <PopoverTrigger className="flex flex-1 cursor-pointer items-center gap-1.5 px-(--card-spacing) py-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 [&[data-state=open]>svg:last-of-type]:rotate-180">
+      <Popover open={open} onOpenChange={onOpenChange}>
+        <PopoverTrigger
+          ref={triggerRef}
+          className="flex flex-1 cursor-pointer items-center gap-1.5 px-(--card-spacing) py-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 [&[data-state=open]>svg:last-of-type]:rotate-180"
+        >
           <CalendarDays className="size-3.5 shrink-0" aria-hidden />
           <span className="min-w-0 text-left">
             {count} upcoming {count === 1 ? "concert" : "concerts"} near{" "}
@@ -106,7 +111,7 @@ function ConcertsFooter({
             aria-hidden
           />
         </PopoverTrigger>
-        <PopoverContent align="start">
+        <PopoverContent align="start" style={{ maxWidth }}>
           <PopoverHeader>
             <PopoverTitle>Upcoming Concerts</PopoverTitle>
           </PopoverHeader>
