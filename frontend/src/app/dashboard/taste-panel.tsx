@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useDeferredValue, useState, useTransition } from "react";
 import { EyeOff, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -108,8 +108,10 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   return (
     // The outer row never wraps: a long artist name breaks onto extra lines
     // (and chips wrap) inside the inner container while the hide control
-    // stays right, centered on them.
-    <li className="group flex items-center gap-2 text-sm">
+    // stays right, centered on them. content-visibility lets rows scrolled
+    // out of the list skip layout and paint - with thousands of artists
+    // that is nearly all of them.
+    <li className="group flex items-center gap-2 text-sm [content-visibility:auto] [contain-intrinsic-block-size:auto_1.75rem]">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
         <span
           className={`min-w-0 ${
@@ -153,6 +155,8 @@ function ArtistRow({ userArtist }: { userArtist: UserArtist }) {
   );
 }
 
+const NO_ARTISTS: UserArtist[] = [];
+
 export function TastePanel({
   userArtists,
   synced,
@@ -161,7 +165,13 @@ export function TastePanel({
   synced: boolean;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("plays");
-  const sortedArtists = [...userArtists].sort(comparators[sortKey]);
+  // The settings dialog mounts this panel in the same frame its open
+  // animation starts, and the list can run to thousands of rows; rendering
+  // them in that first commit stalls the animation on mobile. Start empty
+  // and fill the rows in a deferred, interruptible render - the list sits
+  // below the dialog's fold, so nothing visibly pops in.
+  const deferredArtists = useDeferredValue(userArtists, NO_ARTISTS);
+  const sortedArtists = [...deferredArtists].sort(comparators[sortKey]);
 
   return (
     <div>
