@@ -110,6 +110,60 @@
   }
 }
 
+/* tw-animate-css's shared enter/exit keyframes animate `filter: blur(...)`,
+   and a filter animation keeps the whole effect off the compositor, so
+   animate-in/animate-out (dialogs, popovers, menus) tick on the main thread.
+   Closing a dialog unmounts its subtree at animationend - work that lands
+   inside the 100ms fade and freezes it mid-flight as a translucent ghost on
+   slower (mobile) devices. No component uses blur-in/blur-out, so repoint
+   animate-in/animate-out at filter-free copies of the keyframes (unique
+   names: the build dedupes same-name @keyframes); the opacity/transform-only
+   effect runs on the compositor, unaffected by main-thread stalls. */
+@theme inline {
+  --animate-in: enter-composited var(--tw-animation-duration, var(--tw-duration, 0.15s))
+    var(--tw-ease, ease) var(--tw-animation-delay, 0s)
+    var(--tw-animation-iteration-count, 1)
+    var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+  --animate-out: exit-composited var(--tw-animation-duration, var(--tw-duration, 0.15s))
+    var(--tw-ease, ease) var(--tw-animation-delay, 0s)
+    var(--tw-animation-iteration-count, 1)
+    var(--tw-animation-direction, normal) var(--tw-animation-fill-mode, none);
+
+  @keyframes enter-composited {
+    from {
+      opacity: var(--tw-enter-opacity, 1);
+      transform: translate3d(
+          var(--tw-enter-translate-x, 0),
+          var(--tw-enter-translate-y, 0),
+          0
+        )
+        scale3d(
+          var(--tw-enter-scale, 1),
+          var(--tw-enter-scale, 1),
+          var(--tw-enter-scale, 1)
+        )
+        rotate(var(--tw-enter-rotate, 0));
+    }
+  }
+
+  @keyframes exit-composited {
+    to {
+      opacity: var(--tw-exit-opacity, 1);
+      transform: translate3d(
+          var(--tw-exit-translate-x, 0),
+          var(--tw-exit-translate-y, 0),
+          0
+        )
+        scale3d(
+          var(--tw-exit-scale, 1),
+          var(--tw-exit-scale, 1),
+          var(--tw-exit-scale, 1)
+        )
+        rotate(var(--tw-exit-rotate, 0));
+    }
+  }
+}
+
 /* Reserve the scrollbar gutter so centered layouts don't shift horizontally
    when content height changes (switching tabs, navigating between pages). */
 html {
