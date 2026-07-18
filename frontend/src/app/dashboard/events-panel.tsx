@@ -360,7 +360,7 @@ export function EventsPanel({
         {cityField}
         <span>({visibleEvents.length})</span>
       </h3>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex flex-wrap gap-2">
           <Toggle
             variant="outline"
@@ -379,10 +379,13 @@ export function EventsPanel({
             Artists you listen to
           </Toggle>
         </div>
+        {/* ml-auto rather than justify-between on the row: it also keeps the
+            picker right-aligned when it wraps to its own line. */}
         <SortSelect
           value={sortKey}
           onValueChange={setSortKey}
           options={sortOptions}
+          className="ml-auto"
         />
       </div>
       <div className="mt-3">
