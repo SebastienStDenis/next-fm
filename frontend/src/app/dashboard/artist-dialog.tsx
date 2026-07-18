@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 
-import { ArtistCard } from "./artist-card";
+import { artistBadge, ArtistCard } from "./artist-card";
 import type { City } from "./city-panel";
 import { ConcertCard } from "./concert-card";
 import { EmptyState } from "./empty-state";
@@ -158,22 +161,38 @@ export function ArtistDialog({
     <Dialog open={userArtist !== null} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
+        showCloseButton={false}
         className="flex max-h-[calc(100dvh-4rem)] flex-col gap-4 overflow-hidden sm:max-w-lg"
       >
         {displayed && (
           <>
-            {/* The artist card below already carries the name visually;
-                this stays for the accessible name only. */}
-            <DialogHeader>
-              <DialogTitle className="sr-only">
-                {displayed.artist.name}
-              </DialogTitle>
+            {/* Title sits on the close button's line, matching the settings
+                dialog header; the score/relation badge that would normally
+                sit beside the title on a card gets its own line below it. */}
+            <DialogHeader className="flex-none gap-1">
+              <div className="flex items-center gap-3">
+                <DialogTitle className="min-w-0 truncate text-lg">
+                  {displayed.artist.name}
+                </DialogTitle>
+                <DialogClose asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="ml-auto shrink-0 text-muted-foreground"
+                  >
+                    <XIcon aria-hidden />
+                    <span className="sr-only">Close</span>
+                  </Button>
+                </DialogClose>
+              </div>
+              {artistBadge(displayed, artistRelations[displayed.artist.id])}
             </DialogHeader>
             {/* overflow-y-auto forces overflow-x to auto too, which clips
                 the inner cards' ring (a box-shadow, so it renders outside
                 their border box) flush against this container's edges;
-                px-1 gives it room to paint. */}
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1">
+                px-1/pb-1 give it room to paint on all sides, including the
+                last card's bottom edge. */}
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1 pb-1">
               <ArtistCard
                 userArtist={displayed}
                 relation={artistRelations[displayed.artist.id]}

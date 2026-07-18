@@ -25,8 +25,8 @@ import {
 // shown; `floating` drops the card's own background there, since the dialog
 // already shares its bg color and a filled card on a filled dialog just
 // reads as a smudge. `bare` goes further, for the concert a popup is
-// *about*: no card frame at all, sitting as a wide header instead of a grid
-// tile.
+// *about*: no card frame, no title/date (the dialog renders those in its
+// own header), just the rest of the body sitting as a wide block.
 export function ConcertCard({
   userEvent,
   artistRelations,
@@ -78,21 +78,9 @@ export function ConcertCard({
   if (bare) {
     return (
       <div className={cn("flex flex-col gap-3", className)}>
-        <div className="flex flex-col gap-1">
-          {/* gap-y-1 matches the header gap, so a wrapped date sits as close
-              to the title above as to the venue line below. */}
-          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 font-heading text-lg font-medium">
-            <span className="min-w-0">
-              {event.title ?? artists.map((artist) => artist.name).join(", ")}
-            </span>
-            <span className="text-xs font-normal text-muted-foreground">
-              {dateFormat.format(new Date(event.starts_at))}
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {event.venue_name} · {placeLabel(event)}
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {event.venue_name} · {placeLabel(event)}
+        </p>
         <div className="flex flex-wrap items-center gap-2">{artistChips}</div>
       </div>
     );
