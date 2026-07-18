@@ -42,7 +42,7 @@ function usePageOverhangX() {
     () =>
       Math.max(
         0,
-        document.body.offsetWidth -
+        document.documentElement.scrollWidth -
           document.documentElement.clientWidth -
           window.scrollX
       ),
