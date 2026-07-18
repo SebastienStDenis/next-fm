@@ -24,15 +24,18 @@ import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
+import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 import {
   ArtistDetails,
   KnownInterestBadges,
   ScoreBadge,
+  scoreOf,
 } from "./artist-details";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import { SortSelect, type SortOption } from "./sort-select";
 import type { UserArtist } from "./taste-panel";
 
 export type UserEvent = {
@@ -80,7 +83,66 @@ export function eventTitle(event: UserEvent["event"]): string | null {
     : null;
 }
 
+// Sorting by name uses the same name the card displays as its heading.
+function eventName(userEvent: UserEvent): string {
+  return (
+    eventTitle(userEvent.event) ??
+    userEvent.artists.map((artist) => artist.name).join(", ")
+  );
+}
+
 export type ArtistRelation = "known" | "suggested";
+
+type SortKey = "date" | "name" | "match";
+
+const sortOptions: readonly SortOption<SortKey>[] = [
+  { value: "date", label: "Date" },
+  { value: "name", label: "Name" },
+  { value: "match", label: "Best match" },
+];
+
+function byName(a: UserEvent, b: UserEvent): number {
+  return eventName(a).localeCompare(eventName(b));
+}
+
+// Best match puts concerts featuring an artist you already listen to first,
+// then ranks by the summed suggestion score of every artist on the bill.
+// Known is judged by known-kind interests rather than the relation map: an
+// artist can be both known and suggested, and the map keeps only one side.
+// The sum counts only artists currently surfaced as suggestions: a hidden
+// artist's lingering suggestion interest shouldn't lift its concerts.
+function makeComparators(
+  relations: Record<string, ArtistRelation>,
+  artistsById: Record<string, UserArtist>,
+): Record<SortKey, (a: UserEvent, b: UserEvent) => number> {
+  const hasKnown = (userEvent: UserEvent) =>
+    userEvent.artists.some((artist) =>
+      artistsById[artist.id]?.interests.some((interest) =>
+        KNOWN_ARTIST_KINDS.has(interest.kind),
+      ),
+    );
+  const scoreSum = (userEvent: UserEvent) =>
+    userEvent.artists.reduce(
+      (total, artist) =>
+        relations[artist.id] === "suggested"
+          ? total + scoreOf(artistsById[artist.id])
+          : total,
+      0,
+    );
+  return {
+    // The ISO timestamps sort chronologically as strings; ties keep the
+    // server's starts_at,id order so the list agrees with the artist cards'
+    // concert footers.
+    date: (a, b) =>
+      a.event.starts_at.localeCompare(b.event.starts_at) ||
+      a.event.id.localeCompare(b.event.id),
+    name: byName,
+    match: (a, b) =>
+      Number(hasKnown(b)) - Number(hasKnown(a)) ||
+      scoreSum(b) - scoreSum(a) ||
+      byName(a, b),
+  };
+}
 
 function artistChipLabel(
   artist: { id: string; name: string },
@@ -181,6 +243,7 @@ export function EventsPanel({
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
   const [viewCity, setViewCity] = useState<City | null>(null);
   const [viewEvents, setViewEvents] = useState<UserEvent[]>([]);
   const [editingCity, setEditingCity] = useState(false);
@@ -217,15 +280,17 @@ export function EventsPanel({
   // Events come with known artists included regardless of the user's global
   // setting; the filter toggles below only affect this view.
   const shownEvents = viewCity ? viewEvents : events;
-  const visibleEvents = shownEvents.filter((userEvent) =>
-    userEvent.artists.some((artist) => {
-      const relation = artistRelations[artist.id];
-      return (
-        (showSuggested && relation === "suggested") ||
-        (showKnown && relation === "known")
-      );
-    }),
-  );
+  const visibleEvents = shownEvents
+    .filter((userEvent) =>
+      userEvent.artists.some((artist) => {
+        const relation = artistRelations[artist.id];
+        return (
+          (showSuggested && relation === "suggested") ||
+          (showKnown && relation === "known")
+        );
+      }),
+    )
+    .sort(makeComparators(artistRelations, artistsById)[sortKey]);
   const hiddenCount = shownEvents.length - visibleEvents.length;
 
   const shownCity = viewCity ?? city;
@@ -295,23 +360,33 @@ export function EventsPanel({
         {cityField}
         <span>({visibleEvents.length})</span>
       </h3>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Toggle
-          variant="outline"
-          size="sm"
-          pressed={showSuggested}
-          onPressedChange={setShowSuggested}
-        >
-          Suggested artists
-        </Toggle>
-        <Toggle
-          variant="outline"
-          size="sm"
-          pressed={showKnown}
-          onPressedChange={setShowKnown}
-        >
-          Artists you listen to
-        </Toggle>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex flex-wrap gap-2">
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={showSuggested}
+            onPressedChange={setShowSuggested}
+          >
+            Suggested artists
+          </Toggle>
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={showKnown}
+            onPressedChange={setShowKnown}
+          >
+            Artists you listen to
+          </Toggle>
+        </div>
+        {/* ml-auto rather than justify-between on the row: it also keeps the
+            picker right-aligned when it wraps to its own line. */}
+        <SortSelect
+          value={sortKey}
+          onValueChange={setSortKey}
+          options={sortOptions}
+          className="ml-auto"
+        />
       </div>
       <div className="mt-3">
         <AnimatedHeight>
@@ -323,50 +398,50 @@ export function EventsPanel({
             </EmptyStateCell>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleEvents.map(({ event, url, artists }) => (
-                <li key={event.id} className="flex">
-                  <Card size="sm" className="flex-1">
-                    <CardHeader>
-                      {/* gap-y-1 matches the header gap, so a wrapped date
-                          sits as close to the title above as to the venue
-                          line below. */}
-                      <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                        <span className="min-w-0">
-                          {eventTitle(event) ??
-                            artists.map((artist) => artist.name).join(", ")}
-                        </span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {dateFormat.format(new Date(event.starts_at))}
-                        </span>
-                      </CardTitle>
-                      <CardDescription>
-                        {event.venue_name} · {placeLabel(event)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-                      {artists.map((artist) => (
-                        <ArtistChip
-                          key={artist.id}
-                          artist={artist}
-                          relations={artistRelations}
-                          details={artistsById[artist.id]}
-                        />
-                      ))}
-                      {url && (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
-                        >
-                          Tickets
-                          <ExternalLink className="size-3.5" aria-hidden />
-                        </a>
-                      )}
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
+              {visibleEvents.map((userEvent) => {
+                const { event, url, artists } = userEvent;
+                return (
+                  <li key={event.id} className="flex">
+                    <Card size="sm" className="flex-1">
+                      <CardHeader>
+                        {/* gap-y-1 matches the header gap, so a wrapped date
+                            sits as close to the title above as to the venue
+                            line below. */}
+                        <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                          <span className="min-w-0">{eventName(userEvent)}</span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {dateFormat.format(new Date(event.starts_at))}
+                          </span>
+                        </CardTitle>
+                        <CardDescription>
+                          {event.venue_name} · {placeLabel(event)}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="mt-auto flex flex-wrap items-center gap-2">
+                        {artists.map((artist) => (
+                          <ArtistChip
+                            key={artist.id}
+                            artist={artist}
+                            relations={artistRelations}
+                            details={artistsById[artist.id]}
+                          />
+                        ))}
+                        {url && (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+                          >
+                            Tickets
+                            <ExternalLink className="size-3.5" aria-hidden />
+                          </a>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </li>
+                );
+              })}
               {/* Filtered-out concerts keep a slot in the grid: a ghost cell
               sized like the cards it stands in for. */}
               {hiddenCount > 0 && (

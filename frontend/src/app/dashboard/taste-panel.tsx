@@ -6,16 +6,10 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { setArtistHidden } from "./actions";
 import { interestLabel } from "./artist-details";
 import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
+import { SortSelect, type SortOption } from "./sort-select";
 
 export type Artist = {
   id: string;
@@ -51,6 +45,13 @@ export type UserArtist = {
 const numberFormat = new Intl.NumberFormat("en-US");
 
 type SortKey = "plays" | "loved" | "name" | "hidden";
+
+const sortOptions: readonly SortOption<SortKey>[] = [
+  { value: "plays", label: "Most plays" },
+  { value: "loved", label: "Most loved tracks" },
+  { value: "name", label: "Name" },
+  { value: "hidden", label: "Hidden first" },
+];
 
 function rankOf(userArtist: UserArtist): number {
   const rank = userArtist.interests.find(
@@ -189,27 +190,11 @@ export function TastePanel({
             <h3 className="text-xs text-muted-foreground italic">
               ({numberFormat.format(userArtists.length)})
             </h3>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span id="taste-sort-label">Sort by</span>
-              <Select
-                value={sortKey}
-                onValueChange={(value) => setSortKey(value as SortKey)}
-              >
-                <SelectTrigger
-                  size="sm"
-                  aria-labelledby="taste-sort-label"
-                  className="text-xs"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="plays">Most plays</SelectItem>
-                  <SelectItem value="loved">Most loved tracks</SelectItem>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="hidden">Hidden first</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <SortSelect
+              value={sortKey}
+              onValueChange={setSortKey}
+              options={sortOptions}
+            />
           </div>
           <ul className="mt-2 max-h-80 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
             {sortedArtists.map((userArtist) => (

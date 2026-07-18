@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CalendarDays, ChevronDown, ExternalLink } from "lucide-react";
 
 import {
@@ -22,6 +23,7 @@ import type { City } from "./city-panel";
 import { EmptyStateCell } from "./empty-state";
 import { eventTitle, type UserEvent } from "./events-panel";
 import { RunSyncMessage } from "./run-sync-message";
+import { SortSelect, type SortOption } from "./sort-select";
 import type { UserArtist } from "./taste-panel";
 
 // The concerts matched near one of the user's cities (home or pinned),
@@ -124,6 +126,40 @@ function ConcertsFooter({
   );
 }
 
+function byName(a: UserArtist, b: UserArtist): number {
+  return a.artist.name.localeCompare(b.artist.name);
+}
+
+type SortKey = "score" | "name" | "concert";
+
+const sortOptions: readonly SortOption<SortKey>[] = [
+  { value: "score", label: "Score" },
+  { value: "name", label: "Name" },
+  { value: "concert", label: "Next concert" },
+];
+
+// Next concert orders by each artist's soonest show across the user's
+// cities; artists with nothing coming up trail alphabetically.
+function makeComparators(
+  soonestConcert: Map<string, string>,
+): Record<SortKey, (a: UserArtist, b: UserArtist) => number> {
+  return {
+    score: (a, b) => scoreOf(b) - scoreOf(a) || byName(a, b),
+    name: byName,
+    concert: (a, b) => {
+      const aDate = soonestConcert.get(a.artist.id);
+      const bDate = soonestConcert.get(b.artist.id);
+      if (aDate && bDate) {
+        return aDate.localeCompare(bDate) || byName(a, b);
+      }
+      if (aDate || bDate) {
+        return aDate ? -1 : 1;
+      }
+      return byName(a, b);
+    },
+  };
+}
+
 // Each artist's upcoming concerts, soonest first (the ISO timestamps sort
 // chronologically as strings).
 function concertsByArtist(events: UserEvent[]): Map<string, UserEvent[]> {
@@ -153,13 +189,26 @@ export function SuggestedArtistsPanel({
   cityConcerts: CityConcerts[];
   synced: boolean;
 }) {
-  const sortedArtists = [...suggestedArtists].sort(
-    (a, b) =>
-      scoreOf(b) - scoreOf(a) || a.artist.name.localeCompare(b.artist.name),
-  );
+  const [sortKey, setSortKey] = useState<SortKey>("score");
 
   const multiCity = cityConcerts.length > 1;
   const cityIndexes = cityConcerts.map(({ events }) => concertsByArtist(events));
+
+  // Each artist's soonest show across all cities (the per-city lists are
+  // already soonest-first, so the head of each is that city's earliest).
+  const soonestConcert = new Map<string, string>();
+  for (const index of cityIndexes) {
+    for (const [artistId, concerts] of index) {
+      const soonest = concerts[0].event.starts_at;
+      const current = soonestConcert.get(artistId);
+      if (!current || soonest < current) {
+        soonestConcert.set(artistId, soonest);
+      }
+    }
+  }
+  const sortedArtists = [...suggestedArtists].sort(
+    makeComparators(soonestConcert)[sortKey],
+  );
 
   return (
     <div>
@@ -174,37 +223,49 @@ export function SuggestedArtistsPanel({
           <RunSyncMessage action="suggest artists" />
         )
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sortedArtists.map((userArtist) => {
-            const sections = cityConcerts
-              .map(({ city }, index) => ({
-                city,
-                concerts: cityIndexes[index].get(userArtist.artist.id) ?? [],
-              }))
-              .filter((section) => section.concerts.length > 0);
-            return (
-              <li key={userArtist.artist.id} className="min-w-0">
-                <Card size="sm" className="h-full">
-                  <CardHeader className="flex items-center justify-between gap-2">
-                    <CardTitle className="min-w-0 break-words">
-                      {userArtist.artist.name}
-                    </CardTitle>
-                    <ScoreBadge userArtist={userArtist} />
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-1">
-                    <ArtistDetails
-                      userArtist={userArtist}
-                      tagsClassName="mt-auto pt-2"
-                    />
-                  </CardContent>
-                  {sections.length > 0 && (
-                    <ConcertsFooter sections={sections} multiCity={multiCity} />
-                  )}
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <div className="mb-3 flex justify-end">
+            <SortSelect
+              value={sortKey}
+              onValueChange={setSortKey}
+              options={sortOptions}
+            />
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {sortedArtists.map((userArtist) => {
+              const sections = cityConcerts
+                .map(({ city }, index) => ({
+                  city,
+                  concerts: cityIndexes[index].get(userArtist.artist.id) ?? [],
+                }))
+                .filter((section) => section.concerts.length > 0);
+              return (
+                <li key={userArtist.artist.id} className="min-w-0">
+                  <Card size="sm" className="h-full">
+                    <CardHeader className="flex items-center justify-between gap-2">
+                      <CardTitle className="min-w-0 break-words">
+                        {userArtist.artist.name}
+                      </CardTitle>
+                      <ScoreBadge userArtist={userArtist} />
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col gap-1">
+                      <ArtistDetails
+                        userArtist={userArtist}
+                        tagsClassName="mt-auto pt-2"
+                      />
+                    </CardContent>
+                    {sections.length > 0 && (
+                      <ConcertsFooter
+                        sections={sections}
+                        multiCity={multiCity}
+                      />
+                    )}
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </div>
   );
