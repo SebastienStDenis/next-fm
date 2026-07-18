@@ -1,27 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ExternalLink, Pencil, Undo2, X } from "lucide-react";
+import { Pencil, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import { hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "./animated-height";
 import type { City } from "./city-panel";
 import { CitySearchBox } from "./city-search-box";
+import { ConcertCard } from "./concert-card";
 import { ConcertDialog } from "./concert-dialog";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { RunSyncMessage } from "./run-sync-message";
+import type { UserArtist } from "./taste-panel";
 
 export type UserEvent = {
   event: {
@@ -58,7 +52,7 @@ export function placeLabel(event: UserEvent["event"]): string {
 
 export type ArtistRelation = "known" | "suggested";
 
-function artistChipLabel(
+export function artistChipLabel(
   artist: { id: string; name: string },
   relations: Record<string, ArtistRelation>,
 ): string {
@@ -76,11 +70,13 @@ export function EventsPanel({
   city,
   synced,
   artistRelations,
+  artistsById,
   events,
 }: {
   city: City;
   synced: boolean;
   artistRelations: Record<string, ArtistRelation>;
+  artistsById: Record<string, UserArtist>;
   events: UserEvent[];
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
@@ -228,76 +224,18 @@ export function EventsPanel({
             </EmptyStateCell>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleEvents.map((userEvent) => {
-                const { event, url, artists } = userEvent;
-                return (
-                  <li key={event.id} className="flex">
-                    {/* The card itself is the click target (opens the artist
-                        popup below); the ticket link stops the click from
-                        bubbling to it so it still navigates on its own. */}
-                    <Card
-                      size="sm"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedEvent(userEvent)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setSelectedEvent(userEvent);
-                        }
-                      }}
-                      className="flex-1 cursor-pointer outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50"
-                    >
-                      <CardHeader>
-                        {/* gap-y-1 matches the header gap, so a wrapped date
-                            sits as close to the title above as to the venue
-                            line below. */}
-                        <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                          <span className="min-w-0">
-                            {event.title ??
-                              artists.map((artist) => artist.name).join(", ")}
-                          </span>
-                          <span className="text-xs font-normal text-muted-foreground">
-                            {dateFormat.format(new Date(event.starts_at))}
-                          </span>
-                        </CardTitle>
-                        <CardDescription>
-                          {event.venue_name} · {placeLabel(event)}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="mt-auto flex flex-wrap items-center gap-2">
-                        {artists.map((artist) => {
-                          const suggested =
-                            artistRelations[artist.id] === "suggested";
-                          return (
-                            <Badge
-                              key={artist.id}
-                              variant={suggested ? "secondary" : "outline"}
-                              className={`max-w-full font-normal ${suggested ? "" : "text-muted-foreground"}`}
-                            >
-                              <span className="truncate">
-                                {artistChipLabel(artist, artistRelations)}
-                              </span>
-                            </Badge>
-                          );
-                        })}
-                        {url && (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="relative ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
-                          >
-                            Tickets
-                            <ExternalLink className="size-3.5" aria-hidden />
-                          </a>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </li>
-                );
-              })}
+              {visibleEvents.map((userEvent) => (
+                <li key={userEvent.event.id} className="flex">
+                  {/* The card itself is the click target (opens the artist
+                      popup below); the ticket link stops the click from
+                      bubbling to it so it still navigates on its own. */}
+                  <ConcertCard
+                    userEvent={userEvent}
+                    artistRelations={artistRelations}
+                    onClick={() => setSelectedEvent(userEvent)}
+                  />
+                </li>
+              ))}
               {/* Filtered-out concerts keep a slot in the grid: a ghost cell
               sized like the cards it stands in for. */}
               {hiddenCount > 0 && (
@@ -315,6 +253,7 @@ export function EventsPanel({
       <ConcertDialog
         event={selectedEvent}
         artistRelations={artistRelations}
+        artistsById={artistsById}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedEvent(null);

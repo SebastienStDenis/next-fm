@@ -77,6 +77,12 @@ export default async function DashboardPage() {
       ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
       ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
     ]);
+  // Looked up by the artist/concert popups to render an artist's full card
+  // (score, reason, tags, listeners) wherever it's shown, not just on the
+  // Artists tab.
+  const artistsById: Record<string, UserArtist> = Object.fromEntries(
+    userArtists.map((userArtist) => [userArtist.artist.id, userArtist]),
+  );
   // Playlists appear only once they exist on Spotify; pins awaiting their
   // first sync are managed in Settings, not shown here.
   const linkedPlaylists = playlists.filter(
@@ -155,6 +161,7 @@ export default async function DashboardPage() {
                 <SuggestedArtistsPanel
                   suggestedArtists={suggestedArtists}
                   synced={syncStepCompleted(sync, "suggestions")}
+                  artistRelations={artistRelations}
                   homeCity={city}
                   homeEvents={events}
                   pinnedCities={pinnedCities}
@@ -177,6 +184,7 @@ export default async function DashboardPage() {
                   city={city}
                   synced={syncStepCompleted(sync, "events")}
                   artistRelations={artistRelations}
+                  artistsById={artistsById}
                   events={events}
                 />
               ),

@@ -2,46 +2,27 @@
 
 import { useEffect, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import {
-  dateFormat,
-  placeLabel,
-  type ArtistRelation,
-  type UserEvent,
-} from "./events-panel";
-
-function relationLabel(relation: ArtistRelation | undefined): string | null {
-  switch (relation) {
-    case "suggested":
-      return "you might like";
-    case "known":
-      return "you listen to";
-    default:
-      return null;
-  }
-}
+import { ArtistCard } from "./artist-card";
+import { ConcertCard } from "./concert-card";
+import type { ArtistRelation, UserEvent } from "./events-panel";
+import type { UserArtist } from "./taste-panel";
 
 export function ConcertDialog({
   event,
   artistRelations,
+  artistsById,
   onOpenChange,
 }: {
   event: UserEvent | null;
   artistRelations: Record<string, ArtistRelation>;
+  artistsById: Record<string, UserArtist>;
   onOpenChange: (open: boolean) => void;
 }) {
   // Keep showing the last concert while the dialog animates closed, so the
@@ -61,52 +42,43 @@ export function ConcertDialog({
       >
         {displayed && (
           <>
+            {/* The concert card below already carries the title, date and
+                venue visually; this stays for the accessible name only. */}
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="sr-only">
                 {displayed.event.title ??
                   displayed.artists.map((artist) => artist.name).join(", ")}
               </DialogTitle>
-              <DialogDescription>
-                {dateFormat.format(new Date(displayed.event.starts_at))} ·{" "}
-                {displayed.event.venue_name} · {placeLabel(displayed.event)}
-              </DialogDescription>
             </DialogHeader>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <h4 className="text-sm font-semibold">Artists</h4>
-              <ul className="mt-2 grid gap-3 sm:grid-cols-2">
-                {displayed.artists.map((artist) => {
-                  const label = relationLabel(artistRelations[artist.id]);
-                  return (
-                    <li key={artist.id}>
-                      <Card size="sm">
-                        <CardHeader>
-                          <CardTitle className="text-sm break-words">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+              <ConcertCard
+                userEvent={displayed}
+                artistRelations={artistRelations}
+                floating
+              />
+              <section>
+                <h4 className="text-sm font-semibold">Artists</h4>
+                <ul className="mt-2 grid gap-3 sm:grid-cols-2">
+                  {displayed.artists.map((artist) => {
+                    const userArtist = artistsById[artist.id];
+                    return (
+                      <li key={artist.id}>
+                        {userArtist ? (
+                          <ArtistCard
+                            userArtist={userArtist}
+                            relation={artistRelations[artist.id]}
+                            floating
+                          />
+                        ) : (
+                          <div className="rounded-xl px-3 py-2 text-sm ring-1 ring-foreground/10">
                             {artist.name}
-                          </CardTitle>
-                        </CardHeader>
-                        {label && (
-                          <CardContent>
-                            <Badge
-                              variant={
-                                artistRelations[artist.id] === "suggested"
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                              className={
-                                artistRelations[artist.id] === "suggested"
-                                  ? "max-w-full font-normal"
-                                  : "max-w-full font-normal text-muted-foreground"
-                              }
-                            >
-                              <span className="truncate">{label}</span>
-                            </Badge>
-                          </CardContent>
+                          </div>
                         )}
-                      </Card>
-                    </li>
-                  );
-                })}
-              </ul>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             </div>
           </>
         )}
