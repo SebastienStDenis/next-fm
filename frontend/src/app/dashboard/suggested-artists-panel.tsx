@@ -247,7 +247,9 @@ export function SuggestedArtistsPanel({
               return (
                 <li key={userArtist.artist.id} className="min-w-0">
                   <Card size="sm" className="h-full">
-                    <CardHeader className="flex items-center justify-between gap-2">
+                    {/* items-start rides the h-5 badge on the title's first
+                        line when a long name wraps. */}
+                    <CardHeader className="flex items-start justify-between gap-2">
                       <CardTitle className="min-w-0 break-words">
                         {userArtist.artist.name}
                       </CardTitle>

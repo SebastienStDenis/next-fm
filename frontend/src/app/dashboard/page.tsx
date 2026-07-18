@@ -150,7 +150,7 @@ export default async function DashboardPage() {
       </Suspense>
       <span className="text-sm text-muted-foreground">NextFM</span>
       <div className="mt-2 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Hey, {user.name}</h1>
+        <h1 className="min-w-0 text-2xl font-semibold">Hey, {user.name}</h1>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <a href={SETTINGS_HASH}>
             <SettingsIcon aria-hidden />

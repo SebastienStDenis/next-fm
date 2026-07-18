@@ -90,9 +90,13 @@ export function SettingsContent({
               )}
               <dt className="self-center text-muted-foreground">Password</dt>
               <dd className="flex items-center gap-1">
+                {/* flex-1 fills the value column exactly at the dialog's
+                    minimum width, so bar + pencil end flush with the
+                    truncated lines above; the max-w (the fill at that
+                    minimum) freezes it there once the dialog is wider. */}
                 <span
                   aria-hidden
-                  className="h-4 w-24 rounded-sm bg-muted-foreground/15"
+                  className="h-4 max-w-[6.5rem] flex-1 rounded-sm bg-muted-foreground/15"
                 />
                 <ChangePasswordButton />
               </dd>
