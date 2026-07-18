@@ -93,7 +93,6 @@ function LinkForm({
         />
         <Button
           type="submit"
-          size="sm"
           disabled={pending || username.trim() === ""}
           className="shrink-0"
         >
@@ -104,7 +103,7 @@ function LinkForm({
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             onClick={onDone}
             aria-label="Cancel"
             title="Cancel"
