@@ -17,25 +17,38 @@ function PopoverTrigger({
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
 }
 
-// How far the page extends past the right edge of the window: below the
-// 320px layout floor (body min-w-80) the page scrolls horizontally instead
-// of narrowing, and popovers should keep colliding with the page's edge,
-// not the window's.
-function subscribeToResize(onChange: () => void) {
+// How far the page extends past each side of the window: below the 320px
+// layout floor (body min-w-80) the page scrolls horizontally instead of
+// narrowing, and popovers should keep colliding with the page's edges,
+// not the window's. The total overhang splits across the two sides by the
+// scroll position.
+function subscribeToViewport(onChange: () => void) {
   window.addEventListener("resize", onChange)
-  return () => window.removeEventListener("resize", onChange)
+  window.addEventListener("scroll", onChange)
+  return () => {
+    window.removeEventListener("resize", onChange)
+    window.removeEventListener("scroll", onChange)
+  }
 }
 
 function usePageOverhangX() {
-  return React.useSyncExternalStore(
-    subscribeToResize,
+  const left = React.useSyncExternalStore(
+    subscribeToViewport,
+    () => Math.max(0, window.scrollX),
+    () => 0
+  )
+  const right = React.useSyncExternalStore(
+    subscribeToViewport,
     () =>
       Math.max(
         0,
-        document.body.offsetWidth - document.documentElement.clientWidth
+        document.body.offsetWidth -
+          document.documentElement.clientWidth -
+          window.scrollX
       ),
     () => 0
   )
+  return { left, right }
 }
 
 function PopoverContent({
@@ -45,8 +58,8 @@ function PopoverContent({
   collisionPadding = 0,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
-  // Radix collides against the window; a negative right padding pushes that
-  // edge out to the page's edge when the window is narrower than the page.
+  // Radix collides against the window; negative side paddings push those
+  // edges out to the page's edges when the window is narrower than the page.
   const overhang = usePageOverhangX()
   const basePadding =
     typeof collisionPadding === "number"
@@ -65,7 +78,8 @@ function PopoverContent({
         sideOffset={sideOffset}
         collisionPadding={{
           ...basePadding,
-          right: (basePadding.right ?? 0) - overhang,
+          left: (basePadding.left ?? 0) - overhang.left,
+          right: (basePadding.right ?? 0) - overhang.right,
         }}
         className={cn(
           "z-50 flex w-72 origin-(--radix-popover-content-transform-origin) flex-col gap-2.5 rounded-lg bg-popover p-2.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
