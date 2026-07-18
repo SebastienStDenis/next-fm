@@ -159,8 +159,36 @@ payload - no correction is baked in.
 | Card title | `title` - except a title that only repeats `venue_name` (compared trimmed; Bandsintown strings carry stray whitespace) counts as no title - else the card's artist names joined with ", " | render |
 | Date | `starts_at` formatted in UTC (wall-clock convention) | ingestion |
 | Location line | `venue_name · city_name, region`, always | ingestion |
-| Artist chips | qualifying artists only (interest + not hidden + filter); "you might like X" (suggested) / "you listen to X" (known) | render |
+| Artist chips | qualifying artists only (interest + not hidden + filter); "you might like X" (suggested) / "you listen to X" (known); chip opens the artist profile popover | render |
 | Tickets link | Bandsintown event-page `url`; omitted when null | ingestion |
+
+### Concert card → artist popover
+
+The chip's popover is the artist's Artists-tab card in miniature
+(shared `artist-details.tsx`): name, score pill (suggested) or
+listening-history pills (known) inline on the title row, suggestion
+reason, listener count, tags. All ingestion-time data; no event fields.
+
+### Artists tab - card footer → concerts popover (`suggested-artists-panel.tsx`)
+
+The footer label reads "{n} upcoming concert(s) near you" for a user
+with no pinned cities and "… near your cities" otherwise - the wording
+tracks how many cities the user tracks, never how many an artist plays.
+The count is distinct events across all tracked cities (one show in
+range of two cities is listed under both but counted once).
+
+The popover groups concerts by tracked city - home first, then pinned
+cities in order, sections without concerts omitted, and no headers at
+all for a pin-less user - because the venue's own city name ("Maspeth")
+means little next to the city the user actually chose. Each line shows:
+date (weekday, month, day, year; UTC wall-clock), then
+`title · venue_name` - the title segment only when it is real, via the
+same `eventTitle` rule the card heading uses, shared so the surfaces
+cannot disagree - linked as a whole to the Bandsintown page when a URL
+exists. The card's artist-names heading fallback is card-only: an
+untitled or venue-named listing's line is just the venue. The venue's
+precise city and co-billed artists are deliberately absent; both live
+on the Concerts tab and the event page.
 
 ### Playlists tab - tracklist line
 
