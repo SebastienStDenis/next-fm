@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from pydantic import BaseModel
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.artist_sync import (
@@ -32,6 +33,7 @@ from app.models import (
     City,
     Event,
     EventArtist,
+    JointCreditVerdict,
     LastfmArtist,
     LastfmSimilarArtist,
     Playlist,
@@ -74,6 +76,7 @@ OVERALL_TOP_ARTISTS_LIMIT = 1000
 EVIDENCE_PATH_COUNT = 3
 
 JOINT_CREDIT_PATTERN = re.compile(r"[,&]|\b(?:feat|ft|featuring|vs)\b\.?|\sx\s", re.IGNORECASE)
+JOINT_CREDIT_VERDICT_TTL = timedelta(days=90)
 
 
 class Path(BaseModel):
@@ -157,12 +160,6 @@ async def sync_user_suggestions(
         [(c.name, c.mbid) for c in candidates if c.score >= SUGGESTION_EXIT_SCORE],
     )
     if joint_keys:
-        logger.warning(
-            "Dropped %d joint-credit suggestion candidates for %s: %s",
-            len(joint_keys),
-            username,
-            "; ".join(sorted(c.name for c in candidates if c.name_key in joint_keys)),
-        )
         candidates = [c for c in candidates if c.name_key not in joint_keys]
 
     blocked_keys = await _blocked_name_keys(lastfm, username)
@@ -353,7 +350,12 @@ async def joint_credit_keys(
     the would-be drops - MusicBrainz models joint credits as artist credits,
     never entities, so its registry is the maintained exception list for real
     separator-bearing names Last.fm has neither an MBID nor tags for. Any
-    upstream being unreachable keeps the name until the next sync."""
+    upstream being unreachable keeps the name until the next sync.
+
+    Clean verdicts persist to the global joint_credit_verdicts cache for
+    JOINT_CREDIT_VERDICT_TTL, so a stable candidate pool costs upstream calls
+    once instead of every sync; degraded probes stay uncached and retry.
+    Fresh drops log at WARNING so only new decisions surface in Sentry."""
     names = {
         name_key(name): name
         for name, mbid in artists
@@ -362,31 +364,74 @@ async def joint_credit_keys(
     if not names:
         return set()
 
+    now = datetime.now(UTC)
+    dropped: set[str] = set()
+    result = await session.execute(
+        select(JointCreditVerdict).where(JointCreditVerdict.name_key.in_(names))
+    )
+    for row in result.scalars():
+        if now - row.checked_at >= JOINT_CREDIT_VERDICT_TTL:
+            continue
+        if row.is_joint_credit:
+            dropped.add(row.name_key)
+        del names[row.name_key]
+    if not names:
+        return dropped
+
+    verdicts: dict[str, bool] = {}
     result = await session.execute(select(LastfmArtist).where(LastfmArtist.name_key.in_(names)))
     unprobed = dict(names)
-    dropped: set[str] = set()
     for row in result.scalars():
         if row.info_synced_at is None:
             continue
         del unprobed[row.name_key]
-        if row.mbid is None and not row.tags:
-            dropped.add(row.name_key)
+        verdicts[row.name_key] = row.mbid is None and not row.tags
 
     semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
     infos = await asyncio.gather(
         *(_fetch_info(lastfm, name, semaphore) for name in unprobed.values())
     )
     for key, info in zip(unprobed, infos, strict=True):
-        if info is not None and info.mbid is None and not info.tags:
-            dropped.add(key)
+        if info is not None:
+            verdicts[key] = info.mbid is None and not info.tags
 
-    for key in sorted(dropped):
+    for key in sorted(key for key, condemned in verdicts.items() if condemned):
         try:
             if await musicbrainz.has_artist_named(names[key]):
-                dropped.discard(key)
+                verdicts[key] = False
         except MusicBrainzApiError, httpx.HTTPError:
-            dropped.discard(key)
-    return dropped
+            del verdicts[key]
+
+    fresh = {key for key, condemned in verdicts.items() if condemned}
+    if fresh:
+        logger.warning(
+            "Dropped %d joint-credit suggestion candidates: %s",
+            len(fresh),
+            "; ".join(sorted(names[key] for key in fresh)),
+        )
+    if verdicts:
+        stmt = pg_insert(JointCreditVerdict).values(
+            [
+                {
+                    "name": names[key],
+                    "name_key": key,
+                    "is_joint_credit": condemned,
+                    "checked_at": now,
+                }
+                for key, condemned in verdicts.items()
+            ]
+        )
+        # A concurrent sync may have cached the same name between our select
+        # and this insert; the newer probe wins.
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[JointCreditVerdict.name_key],
+            set_={
+                "is_joint_credit": stmt.excluded.is_joint_credit,
+                "checked_at": stmt.excluded.checked_at,
+            },
+        )
+        await session.execute(stmt)
+    return dropped | fresh
 
 
 async def _refresh_seed_edges(

@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.dialects import postgresql
 
 from app.artist_sync import LOVED_TRACKS_KIND, TOP_ARTIST_KIND, name_key
 from app.lastfm import (
@@ -17,6 +18,7 @@ from app.lastfm import (
 from app.matching import SIMILAR_ARTIST_KIND
 from app.models import (
     Artist,
+    JointCreditVerdict,
     LastfmAccount,
     LastfmArtist,
     LastfmSimilarArtist,
@@ -526,7 +528,9 @@ async def test_sync_drops_joint_credit_candidates(caplog) -> None:
         result_with_scalars([]),  # exclusions
         result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
         result_with_scalars([edge(seed.artist_id, "Turnstile & Blood Orange", 0.9)]),  # edges
+        result_with_scalars([]),  # joint-credit verdict cache lookup
         result_with_scalars([]),  # joint-credit registry lookup
+        result_with_scalars([]),  # joint-credit verdict upsert
         result_with_scalars([]),  # upsert: nothing selected
         result_with_scalars([]),  # exclusions re-read before the write
         result_with_scalars([]),  # reconcile: no existing suggestion interests
@@ -626,13 +630,19 @@ async def test_joint_credit_keys_rescues_musicbrainz_entities() -> None:
 
 async def test_joint_credit_keys_answers_from_registry_without_probing() -> None:
     session = make_session()
-    session.execute.return_value = result_with_scalars(
-        [
-            registry_row("King Gizzard & The Lizard Wizard", tags=["psych"], info_synced_at=NOW),
-            registry_row("Turnstile, Blood Orange", tags=[], info_synced_at=NOW),
-            registry_row("Ninajirachi & daine"),
-        ]
-    )
+    session.execute.side_effect = [
+        result_with_scalars([]),  # verdict cache lookup
+        result_with_scalars(
+            [
+                registry_row(
+                    "King Gizzard & The Lizard Wizard", tags=["psych"], info_synced_at=NOW
+                ),
+                registry_row("Turnstile, Blood Orange", tags=[], info_synced_at=NOW),
+                registry_row("Ninajirachi & daine"),
+            ]
+        ),
+        result_with_scalars([]),  # verdict upsert
+    ]
     lastfm = AsyncMock(spec=LastfmClient)
     lastfm.get_artist_info.side_effect = lambda name: artist_info(name, tags=[])
     musicbrainz = AsyncMock(spec=MusicBrainzClient)
@@ -687,3 +697,78 @@ async def test_joint_credit_keys_keeps_names_on_transient_failures() -> None:
     )
 
     assert keys == set()
+    # Neither degraded probe produced a verdict, so nothing was cached.
+    assert session.execute.await_count == 2
+
+
+def verdict_row(
+    name: str, is_joint_credit: bool, checked_at: datetime | None = None
+) -> JointCreditVerdict:
+    return JointCreditVerdict(
+        name=name,
+        name_key=name_key(name),
+        is_joint_credit=is_joint_credit,
+        checked_at=checked_at or datetime.now(UTC),
+    )
+
+
+async def test_joint_credit_keys_answers_from_verdict_cache_without_probing() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars(
+        [
+            verdict_row("Turnstile & Blood Orange", is_joint_credit=True),
+            verdict_row("Earth, Wind & Fire", is_joint_credit=False),
+        ]
+    )
+    lastfm = AsyncMock(spec=LastfmClient)
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+
+    keys = await joint_credit_keys(
+        session,
+        lastfm,
+        musicbrainz,
+        [("Turnstile & Blood Orange", None), ("Earth, Wind & Fire", None)],
+    )
+
+    assert keys == {"turnstile & blood orange"}
+    session.execute.assert_awaited_once()
+    lastfm.get_artist_info.assert_not_awaited()
+    musicbrainz.has_artist_named.assert_not_awaited()
+
+
+async def test_joint_credit_keys_reprobes_expired_verdicts() -> None:
+    stale = datetime.now(UTC) - timedelta(days=91)
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([verdict_row("Turnstile & Blood Orange", True, checked_at=stale)]),
+        result_with_scalars([]),  # registry lookup
+        result_with_scalars([]),  # verdict upsert
+    ]
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = lambda name: artist_info(name, tags=["indie"])
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+
+    keys = await joint_credit_keys(
+        session, lastfm, musicbrainz, [("Turnstile & Blood Orange", None)]
+    )
+
+    assert keys == set()
+    lastfm.get_artist_info.assert_awaited_once_with("Turnstile & Blood Orange")
+
+
+async def test_joint_credit_keys_stores_fresh_verdicts() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars([])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = lambda name: artist_info(name, tags=[])
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+    musicbrainz.has_artist_named.return_value = False
+
+    await joint_credit_keys(session, lastfm, musicbrainz, [("Turnstile & Blood Orange", None)])
+
+    stmt = session.execute.await_args_list[-1].args[0]
+    assert stmt.table.name == "joint_credit_verdicts"
+    params = stmt.compile(dialect=postgresql.dialect()).params
+    values = list(params.values())
+    assert "turnstile & blood orange" in values
+    assert True in values

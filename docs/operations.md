@@ -81,10 +81,15 @@ Four things that look like broken wiring and are not.
   log each batch at WARNING (`joint_credit_keys` in
   `backend/app/suggestion_sync.py`), deliberately clearing the Sentry
   threshold so every dropped name can be reviewed while the filter earns
-  trust. A real artist in the list is a false positive: either it gains
-  Last.fm tags/MBID on its own, or MusicBrainz is missing the artist entity
-  the rescue check looks for. Once the filter has proven itself, demote these
-  logs to INFO. Listening-history ingestion deliberately does not filter:
+  trust. Verdicts cache in `joint_credit_verdicts` for 90 days, so each name
+  logs when first judged and again when its verdict expires and re-verifies,
+  not on every sync; a name repeating sooner than that means concurrent syncs
+  raced the cache, which is harmless. A real artist in the list is a false
+  positive: either it gains Last.fm tags/MBID on its own, or MusicBrainz is
+  missing the artist entity the rescue check looks for; a wrong cached verdict
+  can also be cleared by deleting its row. Once the filter has proven itself,
+  demote these logs to INFO. Listening-history ingestion deliberately does not
+  filter:
   a joint-credit page a user actually scrobbles is often the sole carrier of
   that taste signal, and as a suggestion seed its similar-artist edges rank
   the real constituent artists at the top.
