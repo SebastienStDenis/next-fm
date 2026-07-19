@@ -75,39 +75,16 @@ def _plural(count: int, noun: str) -> str:
 def _summarize_artists(result: ArtistSyncResult) -> str:
     artists = sum(kind.artists for kind in result.results)
     created = sum(kind.interests_created for kind in result.results)
-    updated = sum(kind.interests_updated for kind in result.results)
-    removed = sum(kind.interests_removed for kind in result.results)
-    return (
-        f"Imported {_plural(artists, 'artist')} · "
-        f"{created} added, {updated} updated, {removed} removed"
-    )
+    return f"Imported {_plural(artists, 'artist')} · {created} new"
 
 
 def _summarize_suggestions(result: SuggestionSyncResult) -> str:
-    failed = f", {result.seeds_failed} failed" if result.seeds_failed > 0 else ""
-    seeds = f"{_plural(result.seeds_total, 'seed')} ({result.seeds_skipped} fresh{failed})"
-    enrich_failed = (
-        f" · {result.artists_enrich_failed} artist infos failed"
-        if result.artists_enrich_failed > 0
-        else ""
-    )
-    return (
-        f"Scored {result.candidates_scored} candidates from {seeds} · "
-        f"{result.suggestions_created} artists suggested, "
-        f"{result.suggestions_kept} kept, {result.suggestions_removed} removed{enrich_failed}"
-    )
+    total = result.suggestions_created + result.suggestions_kept
+    return f"Suggested {_plural(total, 'artist')} · {result.suggestions_created} new"
 
 
 def _summarize_events(result: EventSyncResult) -> str:
-    failed = f", {result.artists_failed} failed" if result.artists_failed > 0 else ""
-    checked = (
-        f"Checked {_plural(result.artists_total, 'artist')} "
-        f"({result.artists_skipped} fresh, {result.artists_unknown} not on Bandsintown{failed})"
-    )
-    return (
-        f"{checked} · {result.events_created} concerts found, "
-        f"{result.events_updated} updated, {result.events_removed} removed"
-    )
+    return f"Found {_plural(result.events_created, 'new concert')}"
 
 
 def _summarize_playlists(result: PlaylistSyncResult) -> str:
@@ -116,16 +93,7 @@ def _summarize_playlists(result: PlaylistSyncResult) -> str:
     # tracks too, and the summary must explain where they went.
     added = sum(playlist.tracks_added for playlist in result.playlists)
     removed = sum(playlist.tracks_removed for playlist in result.playlists)
-    unresolved = (
-        f", {result.artists_unresolved} not found on Spotify"
-        if result.artists_unresolved > 0
-        else ""
-    )
-    return (
-        f"Generated {_plural(len(synced), 'playlist')} · "
-        f"{added} tracks added, {removed} removed · "
-        f"{result.artists_matched} artists with concerts nearby{unresolved}"
-    )
+    return f"Generated {_plural(len(synced), 'playlist')} · {added} tracks added, {removed} removed"
 
 
 @dataclass(frozen=True)
