@@ -164,6 +164,23 @@ class LastfmSimilarArtist(Base):
     )
 
 
+class JointCreditVerdict(Base):
+    """Cached joint-credit classification per candidate name, global across
+    users: whether the suggestion filter judged the name a Last.fm auto-created
+    joint-credit page. Only clean verdicts are stored - a probe degraded by an
+    upstream failure writes nothing, so the next sync retries it."""
+
+    __tablename__ = "joint_credit_verdicts"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    name: Mapped[str]
+    name_key: Mapped[str] = mapped_column(unique=True)
+    is_joint_credit: Mapped[bool]
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Event(Base):
     __tablename__ = "events"
 
