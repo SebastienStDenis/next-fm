@@ -1,6 +1,6 @@
 # Wording conventions
 
-*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-16 by Claude (Sonnet 5).*
+*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-19 by Claude (Fable 5).*
 
 User-facing copy (web UI, sync step labels and summaries, emails) uses one
 vocabulary. When adding or editing copy, follow these rules; when the product
@@ -45,6 +45,25 @@ labels and summaries.
 
 The one-line pitch for a sync chains all four: "Imports listening history,
 suggests artists, finds concerts and generates playlists."
+
+## Sync step summaries
+
+The line under each step in the Daily Sync card names only outcomes the user
+can see in the product, never pipeline internals (seeds, candidates, scoring,
+cache freshness, interest rows, enrichment). Each summary opens with the
+step's past-tense verb and separates clauses with " · ":
+
+- Import listening history: "Imported {n} artists · {m} new" ({n} counts
+  every artist in the listening history, {m} the ones first seen this run)
+- Suggest artists: "Suggested {n} artists · {m} new" ({n} counts every
+  currently suggested artist, {m} the ones new this run)
+- Find concerts: "Found {n} new concerts"
+- Generate playlists: "Generated {n} playlists · {a} tracks added,
+  {r} removed" (track counts span all playlists, including ones emptied
+  because a city was unpinned)
+
+Failed steps show the activity's own user-phrased error message instead
+(`app.sync_activities._user_facing_errors`).
 
 ## Empty states
 
