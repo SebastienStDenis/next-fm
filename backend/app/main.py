@@ -539,16 +539,13 @@ async def sync_lastfm_artists_for_user(
     user: CurrentUserDep,
     session: SessionDep,
     lastfm: LastfmClientDep,
-    musicbrainz: MusicBrainzClientDep,
 ) -> ArtistSyncResult:
     """Fetch all of the linked Last.fm account's taste signals and upsert artist interests."""
     account = await linked_lastfm_account(session, user.id)
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    results = await sync_lastfm_artists(
-        session, lastfm, musicbrainz, user.id, account.username, SYNC_KINDS
-    )
+    results = await sync_lastfm_artists(session, lastfm, user.id, account.username, SYNC_KINDS)
     await session.commit()
     return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)
 

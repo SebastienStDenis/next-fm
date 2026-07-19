@@ -131,7 +131,7 @@ class SyncActivities:
             _require_home_city(user)
             account = await _require_lastfm_account(session, user.id)
             results = await sync_lastfm_artists(
-                session, self._lastfm, self._musicbrainz, user.id, account.username, SYNC_KINDS
+                session, self._lastfm, user.id, account.username, SYNC_KINDS
             )
             await session.commit()
             return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)

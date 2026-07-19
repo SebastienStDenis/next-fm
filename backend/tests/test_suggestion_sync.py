@@ -23,7 +23,7 @@ from app.models import (
     User,
     UserArtistInterest,
 )
-from app.musicbrainz import MusicBrainzClient
+from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.suggestion_sync import (
     CONSENSUS_BONUS,
     INFO_FETCH_LIMIT,
@@ -32,6 +32,7 @@ from app.suggestion_sync import (
     Candidate,
     _enrich_artist_info,
     _refresh_seed_edges,
+    joint_credit_keys,
     known_artist_ids,
     score_candidates,
     seed_affinities,
@@ -551,3 +552,138 @@ async def test_sync_drops_joint_credit_candidates(caplog) -> None:
     musicbrainz.has_artist_named.assert_awaited_once_with("Turnstile & Blood Orange")
     assert "joint-credit" in caplog.text
     assert "Turnstile & Blood Orange" in caplog.text
+
+
+def registry_row(
+    name: str,
+    mbid: str | None = None,
+    tags: list[str] | None = None,
+    info_synced_at: datetime | None = None,
+) -> LastfmArtist:
+    return LastfmArtist(
+        artist_id=uuid.uuid7(),
+        name=name,
+        name_key=name_key(name),
+        mbid=mbid,
+        tags=tags,
+        info_synced_at=info_synced_at,
+    )
+
+
+async def test_joint_credit_keys_ignores_plain_and_mbid_bearing_names() -> None:
+    session = make_session()
+    lastfm = AsyncMock(spec=LastfmClient)
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+
+    keys = await joint_credit_keys(
+        session,
+        lastfm,
+        musicbrainz,
+        [("Autechre", None), ("Turnstile & Blood Orange", "mbid-collab")],
+    )
+
+    assert keys == set()
+    session.execute.assert_not_awaited()
+    lastfm.get_artist_info.assert_not_awaited()
+    musicbrainz.has_artist_named.assert_not_awaited()
+
+
+async def test_joint_credit_keys_drops_untagged_names_absent_from_musicbrainz() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars([])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = lambda name: artist_info(
+        name, tags=[] if name == "Turnstile & Blood Orange" else ["funk"]
+    )
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+    musicbrainz.has_artist_named.return_value = False
+
+    keys = await joint_credit_keys(
+        session,
+        lastfm,
+        musicbrainz,
+        [("Turnstile & Blood Orange", None), ("Earth, Wind & Fire", None)],
+    )
+
+    assert keys == {"turnstile & blood orange"}
+    musicbrainz.has_artist_named.assert_awaited_once_with("Turnstile & Blood Orange")
+
+
+async def test_joint_credit_keys_rescues_musicbrainz_entities() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars([])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = lambda name: artist_info(name, tags=[])
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+    musicbrainz.has_artist_named.return_value = True
+
+    keys = await joint_credit_keys(
+        session, lastfm, musicbrainz, [("King Gizzard & The Lizard Wizard", None)]
+    )
+
+    assert keys == set()
+
+
+async def test_joint_credit_keys_answers_from_registry_without_probing() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars(
+        [
+            registry_row("King Gizzard & The Lizard Wizard", tags=["psych"], info_synced_at=NOW),
+            registry_row("Turnstile, Blood Orange", tags=[], info_synced_at=NOW),
+            registry_row("Ninajirachi & daine"),
+        ]
+    )
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = lambda name: artist_info(name, tags=[])
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+    musicbrainz.has_artist_named.return_value = False
+
+    keys = await joint_credit_keys(
+        session,
+        lastfm,
+        musicbrainz,
+        [
+            ("King Gizzard & The Lizard Wizard", None),
+            ("Turnstile, Blood Orange", None),
+            ("Ninajirachi & daine", None),
+        ],
+    )
+
+    assert keys == {"turnstile, blood orange", "ninajirachi & daine"}
+    lastfm.get_artist_info.assert_awaited_once_with("Ninajirachi & daine")
+
+
+async def test_joint_credit_keys_treats_unknown_artist_as_untagged() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars([])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = LastfmArtistNotFoundError("Turnstile & Blood Orange")
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+    musicbrainz.has_artist_named.return_value = False
+
+    keys = await joint_credit_keys(
+        session, lastfm, musicbrainz, [("Turnstile & Blood Orange", None)]
+    )
+
+    assert keys == {"turnstile & blood orange"}
+
+
+async def test_joint_credit_keys_keeps_names_on_transient_failures() -> None:
+    session = make_session()
+    session.execute.return_value = result_with_scalars([])
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_artist_info.side_effect = [
+        LastfmApiError(8, "Operation failed"),
+        artist_info("Turnstile & Blood Orange", tags=[]),
+    ]
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+    musicbrainz.has_artist_named.side_effect = MusicBrainzApiError(503, "busy")
+
+    keys = await joint_credit_keys(
+        session,
+        lastfm,
+        musicbrainz,
+        [("Ninajirachi & daine", None), ("Turnstile & Blood Orange", None)],
+    )
+
+    assert keys == set()

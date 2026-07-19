@@ -1,29 +1,14 @@
-import asyncio
-import json
-import logging
-import re
 import uuid
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 
-import httpx
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.lastfm import (
-    LastfmApiError,
-    LastfmArtistInfo,
-    LastfmArtistNotFoundError,
-    LastfmClient,
-    LastfmLovedTrack,
-    LastfmTopArtist,
-)
+from app.lastfm import LastfmClient, LastfmLovedTrack, LastfmTopArtist
 from app.models import Artist, LastfmArtist, Source, UserArtistInterest
-from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.schemas import ArtistSyncKindResult
-
-logger = logging.getLogger(__name__)
 
 TOP_ARTIST_KIND = "lastfm_top_artist"
 LOVED_TRACKS_KIND = "lastfm_loved_tracks"
@@ -33,9 +18,6 @@ LASTFM_TOP_ARTISTS_PERIOD = "12month"
 LASTFM_TOP_ARTISTS_LIMIT = 200
 LASTFM_LOVED_TRACKS_PAGE_SIZE = 200
 LASTFM_LOVED_TRACKS_MAX_PAGES = 10
-
-JOINT_CREDIT_PATTERN = re.compile(r"[,&]|\b(?:feat|ft|featuring|vs)\b\.?|\sx\s", re.IGNORECASE)
-JOINT_CREDIT_PROBE_CONCURRENCY = 4
 
 
 class ArtistSignal(BaseModel):
@@ -54,80 +36,9 @@ def name_key(name: str) -> str:
     return name.casefold()
 
 
-async def joint_credit_keys(
-    session: AsyncSession,
-    lastfm: LastfmClient,
-    musicbrainz: MusicBrainzClient,
-    artists: Iterable[tuple[str, str | None]],
-) -> set[str]:
-    """Name keys among the given (name, mbid) pairs that are joint-credit pages
-    Last.fm auto-created from multi-artist scrobble credits ("Turnstile & Blood
-    Orange") rather than real artists.
-
-    A suspect is a separator-bearing name without an MBID; the verdict is zero
-    tags, which nobody applies to auto-created pages while real separator-bearing
-    names ("Earth, Wind & Fire") carry them even when Last.fm omits the MBID.
-    The registry answers for names it has info for; the rest cost one getInfo
-    each. A MusicBrainz artist entity with the exact name or alias then rescues
-    the would-be drops - MusicBrainz models joint credits as artist credits,
-    never entities, so its registry is the maintained exception list for real
-    separator-bearing names Last.fm has neither an MBID nor tags for. Any
-    upstream being unreachable keeps the name until the next sync."""
-    names = {
-        name_key(name): name
-        for name, mbid in artists
-        if mbid is None and JOINT_CREDIT_PATTERN.search(name)
-    }
-    if not names:
-        return set()
-
-    result = await session.execute(select(LastfmArtist).where(LastfmArtist.name_key.in_(names)))
-    unprobed = dict(names)
-    dropped: set[str] = set()
-    for row in result.scalars():
-        if row.info_synced_at is None:
-            continue
-        del unprobed[row.name_key]
-        if row.mbid is None and not row.tags:
-            dropped.add(row.name_key)
-
-    semaphore = asyncio.Semaphore(JOINT_CREDIT_PROBE_CONCURRENCY)
-    infos = await asyncio.gather(
-        *(_probe_artist_info(lastfm, name, semaphore) for name in unprobed.values())
-    )
-    for key, info in zip(unprobed, infos, strict=True):
-        if info is not None and info.mbid is None and not info.tags:
-            dropped.add(key)
-
-    for key in sorted(dropped):
-        try:
-            if await musicbrainz.has_artist_named(names[key]):
-                dropped.discard(key)
-        except MusicBrainzApiError, httpx.HTTPError:
-            dropped.discard(key)
-    return dropped
-
-
-async def _probe_artist_info(
-    lastfm: LastfmClient, name: str, semaphore: asyncio.Semaphore
-) -> LastfmArtistInfo | None:
-    """None means a transient failure; a name unknown to Last.fm durably has
-    no info at all."""
-    async with semaphore:
-        try:
-            return await lastfm.get_artist_info(name)
-        except LastfmArtistNotFoundError:
-            return LastfmArtistInfo(
-                name=name, url=None, mbid=None, listeners=None, playcount=None, tags=[]
-            )
-        except LastfmApiError, httpx.HTTPError, json.JSONDecodeError:
-            return None
-
-
 async def sync_lastfm_artists(
     session: AsyncSession,
     lastfm: LastfmClient,
-    musicbrainz: MusicBrainzClient,
     user_id: uuid.UUID,
     username: str,
     kinds: Sequence[str],
@@ -142,18 +53,6 @@ async def sync_lastfm_artists(
     results = []
     for kind in kinds:
         signals, complete = await _fetch_signals(lastfm, username, kind)
-        joint_keys = await joint_credit_keys(
-            session, lastfm, musicbrainz, [(signal.name, signal.mbid) for signal in signals]
-        )
-        if joint_keys:
-            logger.warning(
-                "Dropped %d joint-credit artists from %s %s: %s",
-                len(joint_keys),
-                username,
-                kind,
-                "; ".join(sorted(s.name for s in signals if name_key(s.name) in joint_keys)),
-            )
-            signals = [s for s in signals if name_key(s.name) not in joint_keys]
         artist_ids = await upsert_lastfm_artists(session, signals)
         signal_by_artist = {artist_ids[name_key(signal.name)]: signal for signal in signals}
         results.append(
