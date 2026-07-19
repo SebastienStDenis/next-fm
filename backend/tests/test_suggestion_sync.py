@@ -23,6 +23,7 @@ from app.models import (
     User,
     UserArtistInterest,
 )
+from app.musicbrainz import MusicBrainzClient
 from app.suggestion_sync import (
     CONSENSUS_BONUS,
     INFO_FETCH_LIMIT,
@@ -512,3 +513,41 @@ async def test_sync_requires_authentication() -> None:
     response = await request("POST", SYNC_URL, session, AsyncMock(spec=LastfmClient))
 
     assert response.status_code == 401
+
+
+async def test_sync_drops_joint_credit_candidates(caplog) -> None:
+    seed = make_seed("Turnstile", synced_at=datetime.now(UTC))
+    seed_interest = interest(TOP_ARTIST_KIND, 100.0, artist_id=seed.artist_id)
+    session = make_session()
+    session.execute.side_effect = [
+        result_returning(make_account()),
+        result_with_scalars([seed_interest]),  # interests
+        result_with_scalars([]),  # exclusions
+        result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
+        result_with_scalars([edge(seed.artist_id, "Turnstile & Blood Orange", 0.9)]),  # edges
+        result_with_scalars([]),  # joint-credit registry lookup
+        result_with_scalars([]),  # upsert: nothing selected
+        result_with_scalars([]),  # exclusions re-read before the write
+        result_with_scalars([]),  # reconcile: no existing suggestion interests
+        result_with_scalars([seed]),  # enrichment: rows needing info
+    ]
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_top_artists.return_value = []
+    lastfm.get_artist_info.side_effect = lambda name: artist_info(
+        name, tags=[] if name == "Turnstile & Blood Orange" else ["hardcore"]
+    )
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+    musicbrainz.has_artist_named.return_value = False
+
+    response = await request(
+        "POST", SYNC_URL, session, lastfm, musicbrainz=musicbrainz, user=user()
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["candidates_scored"] == 0
+    assert body["suggestions_created"] == 0
+    assert added_objects(session, UserArtistInterest) == []
+    musicbrainz.has_artist_named.assert_awaited_once_with("Turnstile & Blood Orange")
+    assert "joint-credit" in caplog.text
+    assert "Turnstile & Blood Orange" in caplog.text

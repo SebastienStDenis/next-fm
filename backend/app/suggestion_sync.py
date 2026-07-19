@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import math
 import uuid
 from collections.abc import Awaitable, Callable
@@ -14,6 +15,7 @@ from app.artist_sync import (
     LOVED_TRACKS_KIND,
     TOP_ARTIST_KIND,
     ArtistSignal,
+    joint_credit_keys,
     name_key,
     sync_interests,
     upsert_lastfm_artists,
@@ -38,7 +40,10 @@ from app.models import (
     UserArtistExclusion,
     UserArtistInterest,
 )
+from app.musicbrainz import MusicBrainzClient
 from app.schemas import SuggestionSyncResult
+
+logger = logging.getLogger(__name__)
 
 SIMILAR_TTL = timedelta(days=30)
 INFO_TTL = timedelta(days=30)
@@ -89,7 +94,11 @@ class Candidate(BaseModel):
 
 
 async def sync_user_suggestions(
-    session: AsyncSession, lastfm: LastfmClient, user: User, username: str
+    session: AsyncSession,
+    lastfm: LastfmClient,
+    musicbrainz: MusicBrainzClient,
+    user: User,
+    username: str,
 ) -> SuggestionSyncResult:
     """Recompute the user's suggested artists and reconcile their
     similar_artist interest rows against the result.
@@ -137,6 +146,22 @@ async def sync_user_suggestions(
     edges = list(result.scalars())
     seed_names = {seed.artist_id: seed.name for seed in seeds}
     candidates = score_candidates(edges, affinities, seed_names)
+
+    # Only candidates that could pass a threshold are worth probing.
+    joint_keys = await joint_credit_keys(
+        session,
+        lastfm,
+        musicbrainz,
+        [(c.name, c.mbid) for c in candidates if c.score >= SUGGESTION_EXIT_SCORE],
+    )
+    if joint_keys:
+        logger.warning(
+            "Dropped %d joint-credit suggestion candidates for %s: %s",
+            len(joint_keys),
+            username,
+            "; ".join(sorted(c.name for c in candidates if c.name_key in joint_keys)),
+        )
+        candidates = [c for c in candidates if c.name_key not in joint_keys]
 
     blocked_keys = await _blocked_name_keys(lastfm, username)
     # Below the exit score a candidate fails both thresholds regardless of

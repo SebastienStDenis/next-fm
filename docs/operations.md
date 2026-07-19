@@ -73,7 +73,17 @@ and 1 day on Pro, which is why Sentry is the better place to look.
 
 ## Gotchas
 
-Three things that look like broken wiring and are not.
+Four things that look like broken wiring and are not.
+
+- **"Dropped N joint-credit artists" warnings are the filter working, not a
+  failure.** Artist and suggestion syncs drop Last.fm's auto-created
+  joint-credit pages ("Turnstile & Blood Orange") and log each batch at
+  WARNING (`joint_credit_keys` in `backend/app/artist_sync.py`), deliberately
+  clearing the Sentry threshold so every dropped name can be reviewed while
+  the filter earns trust. A real artist in the list is a false positive:
+  either it gains Last.fm tags/MBID on its own, or MusicBrainz is missing the
+  artist entity the rescue check looks for. Once the filter has proven itself,
+  demote these logs to INFO.
 
 - **`onRequestError` never fires under `next dev`.** Frontend server errors only
   report from a production build. Testing with `npm run dev` will show nothing

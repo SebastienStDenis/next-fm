@@ -131,7 +131,7 @@ class SyncActivities:
             _require_home_city(user)
             account = await _require_lastfm_account(session, user.id)
             results = await sync_lastfm_artists(
-                session, self._lastfm, user.id, account.username, SYNC_KINDS
+                session, self._lastfm, self._musicbrainz, user.id, account.username, SYNC_KINDS
             )
             await session.commit()
             return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)
@@ -141,7 +141,9 @@ class SyncActivities:
         async with _user_facing_errors(STEP_FAILED_SUGGESTIONS), session_factory() as session:
             user = await _require_user(session, user_id)
             account = await _require_lastfm_account(session, user.id)
-            result = await sync_user_suggestions(session, self._lastfm, user, account.username)
+            result = await sync_user_suggestions(
+                session, self._lastfm, self._musicbrainz, user, account.username
+            )
             await session.commit()
             return result
 
