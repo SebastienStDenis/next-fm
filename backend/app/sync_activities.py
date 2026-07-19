@@ -141,7 +141,9 @@ class SyncActivities:
         async with _user_facing_errors(STEP_FAILED_SUGGESTIONS), session_factory() as session:
             user = await _require_user(session, user_id)
             account = await _require_lastfm_account(session, user.id)
-            result = await sync_user_suggestions(session, self._lastfm, user, account.username)
+            result = await sync_user_suggestions(
+                session, self._lastfm, self._musicbrainz, user, account.username
+            )
             await session.commit()
             return result
 

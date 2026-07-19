@@ -1,8 +1,10 @@
 import asyncio
 import json
+import logging
 import math
+import re
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -38,7 +40,10 @@ from app.models import (
     UserArtistExclusion,
     UserArtistInterest,
 )
+from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.schemas import SuggestionSyncResult
+
+logger = logging.getLogger(__name__)
 
 SIMILAR_TTL = timedelta(days=30)
 INFO_TTL = timedelta(days=30)
@@ -68,6 +73,8 @@ SUGGESTION_BUDGET = 200
 OVERALL_TOP_ARTISTS_LIMIT = 1000
 EVIDENCE_PATH_COUNT = 3
 
+JOINT_CREDIT_PATTERN = re.compile(r"[,&]|\b(?:feat|ft|featuring|vs)\b\.?|\sx\s", re.IGNORECASE)
+
 
 class Path(BaseModel):
     """One seed-to-candidate similarity edge, weighted by the seed's affinity."""
@@ -89,7 +96,11 @@ class Candidate(BaseModel):
 
 
 async def sync_user_suggestions(
-    session: AsyncSession, lastfm: LastfmClient, user: User, username: str
+    session: AsyncSession,
+    lastfm: LastfmClient,
+    musicbrainz: MusicBrainzClient,
+    user: User,
+    username: str,
 ) -> SuggestionSyncResult:
     """Recompute the user's suggested artists and reconcile their
     similar_artist interest rows against the result.
@@ -137,6 +148,22 @@ async def sync_user_suggestions(
     edges = list(result.scalars())
     seed_names = {seed.artist_id: seed.name for seed in seeds}
     candidates = score_candidates(edges, affinities, seed_names)
+
+    # Only candidates that could pass a threshold are worth probing.
+    joint_keys = await joint_credit_keys(
+        session,
+        lastfm,
+        musicbrainz,
+        [(c.name, c.mbid) for c in candidates if c.score >= SUGGESTION_EXIT_SCORE],
+    )
+    if joint_keys:
+        logger.warning(
+            "Dropped %d joint-credit suggestion candidates for %s: %s",
+            len(joint_keys),
+            username,
+            "; ".join(sorted(c.name for c in candidates if c.name_key in joint_keys)),
+        )
+        candidates = [c for c in candidates if c.name_key not in joint_keys]
 
     blocked_keys = await _blocked_name_keys(lastfm, username)
     # Below the exit score a candidate fails both thresholds regardless of
@@ -306,6 +333,60 @@ def select_suggestions(
 
     kept.sort(key=lambda c: (-c.score, not incumbent(c), c.name_key))
     return kept[:SUGGESTION_BUDGET]
+
+
+async def joint_credit_keys(
+    session: AsyncSession,
+    lastfm: LastfmClient,
+    musicbrainz: MusicBrainzClient,
+    artists: Iterable[tuple[str, str | None]],
+) -> set[str]:
+    """Name keys among the given (name, mbid) pairs that are joint-credit pages
+    Last.fm auto-created from multi-artist scrobble credits ("Turnstile & Blood
+    Orange") rather than real artists.
+
+    A suspect is a separator-bearing name without an MBID; the verdict is zero
+    tags, which nobody applies to auto-created pages while real separator-bearing
+    names ("Earth, Wind & Fire") carry them even when Last.fm omits the MBID.
+    The registry answers for names it has info for; the rest cost one getInfo
+    each. A MusicBrainz artist entity with the exact name or alias then rescues
+    the would-be drops - MusicBrainz models joint credits as artist credits,
+    never entities, so its registry is the maintained exception list for real
+    separator-bearing names Last.fm has neither an MBID nor tags for. Any
+    upstream being unreachable keeps the name until the next sync."""
+    names = {
+        name_key(name): name
+        for name, mbid in artists
+        if mbid is None and JOINT_CREDIT_PATTERN.search(name)
+    }
+    if not names:
+        return set()
+
+    result = await session.execute(select(LastfmArtist).where(LastfmArtist.name_key.in_(names)))
+    unprobed = dict(names)
+    dropped: set[str] = set()
+    for row in result.scalars():
+        if row.info_synced_at is None:
+            continue
+        del unprobed[row.name_key]
+        if row.mbid is None and not row.tags:
+            dropped.add(row.name_key)
+
+    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+    infos = await asyncio.gather(
+        *(_fetch_info(lastfm, name, semaphore) for name in unprobed.values())
+    )
+    for key, info in zip(unprobed, infos, strict=True):
+        if info is not None and info.mbid is None and not info.tags:
+            dropped.add(key)
+
+    for key in sorted(dropped):
+        try:
+            if await musicbrainz.has_artist_named(names[key]):
+                dropped.discard(key)
+        except MusicBrainzApiError, httpx.HTTPError:
+            dropped.discard(key)
+    return dropped
 
 
 async def _refresh_seed_edges(

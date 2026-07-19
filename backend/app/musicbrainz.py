@@ -38,6 +38,26 @@ class MusicBrainzClient:
                 return spotify_id or None
         return None
 
+    async def has_artist_named(self, name: str) -> bool:
+        """Whether an artist entity exists whose name or alias equals the given
+        name (case-insensitive). MusicBrainz models joint scrobble credits as
+        artist credits, never entities, so entity existence separates real
+        separator-bearing names ("Earth, Wind & Fire") from credit strings."""
+        escaped = name.replace("\\", "\\\\").replace('"', '\\"')
+        response = await self._get(
+            "/artist",
+            params={"query": f'artist:"{escaped}" OR alias:"{escaped}"', "limit": 5, "fmt": "json"},
+        )
+        if response.status_code >= 400:
+            raise MusicBrainzApiError(response.status_code, response.text.strip() or None)
+        wanted = name.casefold()
+        for artist in response.json().get("artists") or []:
+            names = [artist.get("name") or ""]
+            names += [(alias.get("name") or "") for alias in artist.get("aliases") or []]
+            if any(candidate.casefold() == wanted for candidate in names):
+                return True
+        return False
+
     async def _get(self, path: str, params: dict) -> httpx.Response:
         async with self._throttle:
             loop = asyncio.get_running_loop()

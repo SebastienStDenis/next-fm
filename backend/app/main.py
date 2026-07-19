@@ -653,6 +653,7 @@ async def sync_suggestions_for_user(
     user: CurrentUserDep,
     session: SessionDep,
     lastfm: LastfmClientDep,
+    musicbrainz: MusicBrainzClientDep,
 ) -> SuggestionSyncResult:
     """Recompute the user's suggested artists from their taste (similar-artist
     edges, scoring, thresholds) and reconcile their suggestion interests."""
@@ -660,7 +661,7 @@ async def sync_suggestions_for_user(
     if account is None:
         raise HTTPException(status_code=404, detail="No Last.fm account linked")
 
-    result = await sync_user_suggestions(session, lastfm, user, account.username)
+    result = await sync_user_suggestions(session, lastfm, musicbrainz, user, account.username)
     await session.commit()
     return result
 
