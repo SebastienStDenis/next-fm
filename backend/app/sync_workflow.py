@@ -74,7 +74,8 @@ def _plural(count: int, noun: str) -> str:
 
 def _summarize_artists(result: ArtistSyncResult) -> str:
     artists = sum(kind.artists for kind in result.results)
-    return f"Imported {_plural(artists, 'artist')}"
+    created = sum(kind.interests_created for kind in result.results)
+    return f"Imported {_plural(artists, 'artist')} · {created} new"
 
 
 def _summarize_suggestions(result: SuggestionSyncResult) -> str:

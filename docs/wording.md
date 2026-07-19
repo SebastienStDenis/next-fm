@@ -53,7 +53,8 @@ can see in the product, never pipeline internals (seeds, candidates, scoring,
 cache freshness, interest rows, enrichment). Each summary opens with the
 step's past-tense verb and separates clauses with " · ":
 
-- Import listening history: "Imported {n} artists"
+- Import listening history: "Imported {n} artists · {m} new" ({n} counts
+  every artist in the listening history, {m} the ones first seen this run)
 - Suggest artists: "Suggested {n} artists · {m} new" ({n} counts every
   currently suggested artist, {m} the ones new this run)
 - Find concerts: "Found {n} new concerts"
