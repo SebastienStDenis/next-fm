@@ -111,10 +111,14 @@
   }
 }
 
-/* Reserve the scrollbar gutter so centered layouts don't shift horizontally
-   when content height changes (switching tabs, navigating between pages). */
+/* Always show the page scrollbar so centered layouts don't shift
+   horizontally when content height changes (switching tabs, navigating
+   between pages) or when a Radix overlay locks scrolling. scrollbar-gutter:
+   stable is not enough for the latter: the lock sets overflow: hidden on
+   body, which propagates to the viewport, and `stable` only reserves the
+   gutter for auto/scroll - the gutter collapses and the page jumps. */
 html {
-  scrollbar-gutter: stable;
+  overflow-y: scroll;
 }
 
 /* Minimal scrollbars everywhere: a 6px rounded border-colored thumb on a
@@ -146,9 +150,10 @@ html {
 
 /* Radix overlays (dialogs, selects) lock scroll via react-remove-scroll,
    which compensates for the vanishing scrollbar with a body margin. The
-   gutter never vanishes here (scrollbar-gutter: stable above), so the
-   compensation double-counts and shifts the page left while an overlay is
-   open. The doubled attribute outweighs the injected single-attribute rule. */
+   scrollbar never vanishes here (overflow-y: scroll above keeps the html
+   scrollbar out of body's overflow propagation), so the compensation
+   double-counts and shifts the page left while an overlay is open. The
+   doubled attribute outweighs the injected single-attribute rule. */
 body[data-scroll-locked][data-scroll-locked] {
   margin-right: 0 !important;
 }
