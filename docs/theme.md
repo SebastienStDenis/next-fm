@@ -44,10 +44,13 @@ shaped the values, and should shape future adjustments:
 - **Layer hierarchy in dark mode** is deliberately tight: background L 0.17,
   cards 0.215, active-tab champagne 0.76.
   Separation comes from these small steps plus borders and shadows, not
-  from brightness jumps. The tab strip is the one recessed surface: in dark
-  mode the tab list carries a translucent black wash (`dark:bg-black/25` in
-  `frontend/src/components/ui/tabs.tsx`) so it reads as a control well
-  below the page rather than yet another raised layer next to the cards.
+  from brightness jumps. Recessed surfaces step *down* with a translucent
+  black wash rather than up with a lighter tint (a lighter tint at 50%
+  alpha lands ~0.03 L above the card and disappears): the tab list carries
+  `dark:bg-black/25` (`frontend/src/components/ui/tabs.tsx`) so it reads
+  as a control well below the page, and the card footer carries the
+  quieter `dark:bg-black/15` (`frontend/src/components/ui/card.tsx`) so
+  it reads as a distinct band sunk into the card.
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
 
