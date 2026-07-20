@@ -46,11 +46,12 @@ shaped the values, and should shape future adjustments:
   Separation comes from these small steps plus borders and shadows, not
   from brightness jumps. Recessed surfaces step *down* with a translucent
   black wash rather than up with a lighter tint (a lighter tint at 50%
-  alpha lands ~0.03 L above the card and disappears): the tab list carries
-  `dark:bg-black/25` (`frontend/src/components/ui/tabs.tsx`) so it reads
-  as a control well below the page, and the card footer carries the
-  quieter `dark:bg-black/15` (`frontend/src/components/ui/card.tsx`) so
-  it reads as a distinct band sunk into the card.
+  alpha lands ~0.03 L above the card and disappears). Both recessed
+  surfaces use `dark:bg-black/25`, which lands within a hair of the page
+  background: the tab list (`frontend/src/components/ui/tabs.tsx`) reads
+  as a control well below the page, and the card footer
+  (`frontend/src/components/ui/card.tsx`) as a band sunk through the
+  card to the shell.
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
 
