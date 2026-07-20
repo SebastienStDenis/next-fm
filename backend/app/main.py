@@ -22,14 +22,8 @@ from temporalio.client import (
 from temporalio.common import WorkflowIDConflictPolicy
 from temporalio.service import RPCError, RPCStatusCode
 
-from app.accounts import linked_lastfm_account
-from app.artist_sync import SYNC_KINDS, sync_lastfm_artists
-from app.auth import CurrentUserDep, get_claims
-from app.bandsintown import BandsintownApiError, BandsintownClient
-from app.config import get_settings
-from app.db import get_session
-from app.event_sync import sync_user_events
-from app.lastfm import (
+from app.clients.bandsintown import BandsintownApiError, BandsintownClient
+from app.clients.lastfm import (
     LastfmApiError,
     LastfmClient,
     LastfmPrivateDataError,
@@ -37,13 +31,14 @@ from app.lastfm import (
     LastfmUserNotFoundError,
     visible_tags,
 )
-from app.matching import (
-    EVENT_MATCH_RADIUS_KM,
-    SIMILAR_ARTIST_KIND,
-    artist_qualifies,
-    distance_km,
-)
-from app.models import (
+from app.clients.musicbrainz import MusicBrainzApiError, MusicBrainzClient
+from app.clients.spotify import SpotifyApiError, SpotifyAuthError, SpotifyClient
+from app.clients.supabase_admin import SupabaseAdminClient, SupabaseAdminError
+from app.core.accounts import linked_lastfm_account
+from app.core.auth import CurrentUserDep, get_claims
+from app.core.config import get_settings
+from app.core.db import get_session
+from app.core.models import (
     Artist,
     ArtistTopTrack,
     BandsintownEvent,
@@ -59,16 +54,8 @@ from app.models import (
     UserArtistExclusion,
     UserArtistInterest,
 )
-from app.musicbrainz import MusicBrainzApiError, MusicBrainzClient
-from app.observability import configure_observability
-from app.playlist_sync import (
-    CITY_CONCERTS_KIND,
-    PINNED_PLAYLIST_CAP,
-    playlist_title,
-    settle_tombstone,
-    sync_user_playlists,
-)
-from app.schemas import (
+from app.core.observability import configure_observability
+from app.core.schemas import (
     ArtistInterestRead,
     ArtistRead,
     ArtistSyncResult,
@@ -91,11 +78,24 @@ from app.schemas import (
     UserRead,
     UserUpdate,
 )
-from app.spotify import SpotifyApiError, SpotifyAuthError, SpotifyClient
-from app.suggestion_sync import sync_user_suggestions
-from app.supabase_admin import SupabaseAdminClient, SupabaseAdminError
-from app.sync_workflow import SyncUserWorkflow, pending_steps, user_sync_workflow_id
-from app.temporal import connect_temporal
+from app.core.temporal import connect_temporal
+from app.sync.artist_sync import SYNC_KINDS, sync_lastfm_artists
+from app.sync.event_sync import sync_user_events
+from app.sync.matching import (
+    EVENT_MATCH_RADIUS_KM,
+    SIMILAR_ARTIST_KIND,
+    artist_qualifies,
+    distance_km,
+)
+from app.sync.playlist_sync import (
+    CITY_CONCERTS_KIND,
+    PINNED_PLAYLIST_CAP,
+    playlist_title,
+    settle_tombstone,
+    sync_user_playlists,
+)
+from app.sync.suggestion_sync import sync_user_suggestions
+from app.sync.sync_workflow import SyncUserWorkflow, pending_steps, user_sync_workflow_id
 
 logger = logging.getLogger(__name__)
 

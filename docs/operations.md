@@ -3,7 +3,7 @@
 *Written 2026-07-15 by Claude (Opus 4.8), updated 2026-07-16.*
 
 How you find out something broke, and what to do about it. Introduced by the
-Sentry wiring in `backend/app/observability.py`; keep this doc current as the
+Sentry wiring in `backend/app/core/observability.py`; keep this doc current as the
 alerting changes.
 
 The one-shot infrastructure setup lives in
@@ -33,7 +33,7 @@ input, and its retry count.
 
 ## Where the logs are
 
-`configure_observability()` (`backend/app/observability.py`) sends every
+`configure_observability()` (`backend/app/core/observability.py`) sends every
 `app.*` record to two places. Both are useful for different things.
 
 - **Render** - the raw stdout of `next-fm-api` and `next-fm-worker`, one stream
@@ -57,7 +57,7 @@ and 1 day on Pro, which is why Sentry is the better place to look.
   this codebase logs real failures at - a broken upstream, a failed sync step, a
   missing API key. At the default, almost nothing would be reported.
 - **Sync steps report the original exception, not the wrapper.** The
-  `_user_facing_errors` funnel (`backend/app/sync_activities.py`) logs with
+  `_user_facing_errors` funnel (`backend/app/sync/sync_activities.py`) logs with
   `exc_info` *before* re-raising as `ApplicationError`, so Sentry receives the
   real cause and its stack. Distinct causes stay distinct issues instead of
   collapsing into one issue per step. This is also why there is deliberately no
@@ -79,7 +79,7 @@ Four things that look like broken wiring and are not.
   working, not a failure.** Suggestion syncs drop Last.fm's auto-created
   joint-credit pages ("Turnstile & Blood Orange") from the candidate pool and
   log each batch at WARNING (`joint_credit_keys` in
-  `backend/app/suggestion_sync.py`), deliberately clearing the Sentry
+  `backend/app/sync/suggestion_sync.py`), deliberately clearing the Sentry
   threshold so every dropped name can be reviewed while the filter earns
   trust. Verdicts cache in `joint_credit_verdicts` for 90 days, so each name
   logs when first judged and again when its verdict expires and re-verifies,
@@ -119,7 +119,7 @@ operator-only: users can do nothing but wait.
 Re-authorize as the bot account, from `backend/`:
 
 ```sh
-uv run python -m app.spotify_auth
+uv run python -m cli.spotify_auth
 ```
 
 The script prints an authorize URL, and its own steps. In short:
@@ -151,10 +151,31 @@ token, so widening them means re-running this flow, not just editing the code.
 ### A sync is failing for one user
 
 Sentry names the exception; Temporal Cloud has the history. Find the workflow by
-its id (`user_sync_workflow_id`, in `backend/app/sync_workflow.py`) and read the
+its id (`user_sync_workflow_id`, in `backend/app/sync/sync_workflow.py`) and read the
 failed activity's attempts. Retries are capped at 3, with `SpotifyAuthError` and
 `LastfmPrivateDataError` marked non-retryable, so a permanent failure means the
 cause is real and not transient.
+
+### Seeding cities in a new environment
+
+The `cities` table is seeded manually, once per environment - deploys do not
+seed (the predeploy runs migrations only), and neither does `docker compose up`.
+The seed downloads the current GeoNames dumps and upserts every city, so
+re-running the same command later refreshes stale city data.
+
+From `backend/`, with `DATABASE_URL` pointing at the target database:
+
+```sh
+uv run python -m cli.seed
+```
+
+- **Locally**: the default `.env` already points at the Supabase CLI Postgres
+  (or use `docker compose run --rm api uv run python -m cli.seed`). After a
+  `supabase db reset`, the table is empty again - re-run the seed.
+- **In production**: run it from your machine with `DATABASE_URL` set to the
+  Supabase pooler URL from the Render **`next-fm` env group**. Migrations must
+  have run first (the table has to exist); city picking and matching are empty
+  until this has run once.
 
 ## Known gaps
 

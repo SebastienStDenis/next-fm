@@ -28,15 +28,15 @@ from temporalio.client import (
 from temporalio.service import RPCError, RPCStatusCode
 from temporalio.worker import Worker
 
-from app.bandsintown import BandsintownClient
-from app.config import Settings, get_settings
-from app.lastfm import LastfmClient
-from app.musicbrainz import MusicBrainzClient
-from app.observability import configure_observability
-from app.spotify import SpotifyClient
-from app.sync_activities import SyncActivities
-from app.sync_workflow import DispatchSyncsWorkflow, SyncUserWorkflow
-from app.temporal import connect_temporal
+from app.clients.bandsintown import BandsintownClient
+from app.clients.lastfm import LastfmClient
+from app.clients.musicbrainz import MusicBrainzClient
+from app.clients.spotify import SpotifyClient
+from app.core.config import Settings, get_settings
+from app.core.observability import configure_observability
+from app.core.temporal import connect_temporal
+from app.sync.sync_activities import SyncActivities
+from app.sync.sync_workflow import DispatchSyncsWorkflow, SyncUserWorkflow
 
 logger = logging.getLogger(__name__)
 

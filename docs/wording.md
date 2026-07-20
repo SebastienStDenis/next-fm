@@ -63,7 +63,7 @@ step's past-tense verb and separates clauses with " · ":
   because a city was unpinned)
 
 Failed steps show the activity's own user-phrased error message instead
-(`app.sync_activities._user_facing_errors`).
+(`app.sync.sync_activities._user_facing_errors`).
 
 ## Empty states
 

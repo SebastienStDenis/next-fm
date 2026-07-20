@@ -30,8 +30,9 @@ Full-stack monorepo: FastAPI backend, Next.js frontend, Supabase (Postgres and a
 ## Running locally
 
 ```sh
-supabase start                  # database, auth, Studio, Mailpit
-docker compose up --build       # API, web, Temporal, worker
+supabase start                                          # database, auth, Studio, Mailpit
+docker compose up --build                               # API, web, Temporal, worker
+docker compose run --rm api uv run python -m cli.seed   # first run only: seed the cities table
 ```
 
 `supabase start` runs the data and auth layer (it must be up before `docker compose up`):
@@ -41,11 +42,19 @@ docker compose up --build       # API, web, Temporal, worker
 - Mailpit on <http://localhost:54324> - captures all email sent locally (signup confirmation, password reset, email change); open it to click the links
 
 `docker compose up` runs the app services:
-- API on <http://localhost:8000> (applies migrations and seeds on startup, hot reload)
+- API on <http://localhost:8000> (applies migrations on startup, hot reload)
 - Web on <http://localhost:3000> (hot reload)
 - Temporal on `localhost:7233` (UI on <http://localhost:8080>) and the sync worker
 
 Tear down with `docker compose down` and, when done, `supabase stop`.
+
+On a fresh database, seed the cities table once (downloads the current [GeoNames](https://download.geonames.org) dumps):
+
+```sh
+docker compose run --rm api uv run python -m cli.seed
+```
+
+Re-run the same command any time to refresh the city data.
 
 Source directories are bind-mounted into the containers, so code edits hot-reload. Dependency and config-file changes (lockfiles, `pyproject.toml`, `next.config.ts`, ...) are baked into the images: rebuild with `docker compose up -d --build`.
 
@@ -72,7 +81,7 @@ docker compose down -v          # stop and wipe the Temporal volume
 docker compose logs -f api      # tail logs (api, web, temporal, or worker)
 docker compose up -d --build    # rebuild after dependency or config changes
 supabase stop                   # stop the data and auth layer (data persists)
-supabase db reset               # wipe the database (restart the api container to re-migrate and re-seed)
+supabase db reset               # wipe the database (restart the api container to re-migrate, then re-run the cities seed)
 psql postgresql://postgres:postgres@127.0.0.1:54322/postgres   # psql shell into the database
 ```
 
@@ -89,7 +98,7 @@ docker compose -p my-branch down -v           # tear it down
 cd backend
 uv sync
 uv run alembic upgrade head
-uv run python -m app.seed
+uv run python -m cli.seed       # once per fresh database
 uv run uvicorn app.main:app --reload
 ```
 
