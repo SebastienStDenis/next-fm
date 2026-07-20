@@ -39,7 +39,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/10 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -104,7 +104,7 @@ function DialogContent({
         <div
           data-slot="dialog-panel"
           className={cn(
-            "relative m-auto grid w-full min-w-[18rem] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground shadow-card ring-1 ring-foreground/10 inset-shadow-[0_1px_0_var(--glass-edge)] glass:bg-popover/75 glass:backdrop-blur-2xl glass:backdrop-saturate-125 sm:max-w-sm",
+            "relative m-auto grid w-full min-w-[18rem] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground shadow-card ring-1 ring-foreground/10 inset-shadow-[0_1px_0_var(--glass-edge)] glass:bg-(--glass-surface) glass:backdrop-blur-lg glass:backdrop-saturate-125 sm:max-w-sm",
             className
           )}
         >

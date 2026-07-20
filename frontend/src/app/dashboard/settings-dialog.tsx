@@ -155,7 +155,7 @@ export function SettingsDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="flex max-h-[calc(100dvh-4rem)] flex-col gap-0 overflow-hidden bg-background p-0 glass:bg-background/85 sm:max-w-xl"
+        className="flex max-h-[calc(100dvh-4rem)] flex-col gap-0 overflow-hidden bg-background p-0 glass:bg-(--glass-canvas) sm:max-w-xl"
       >
         <SettingsHeader
           signature={signature}

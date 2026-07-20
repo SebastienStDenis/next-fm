@@ -17,7 +17,7 @@ export function Haze({
     <div className={cn("relative", className)}>
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-x-4 -inset-y-0.5 rounded-3xl bg-background blur-md glass:bg-background/70"
+        className="pointer-events-none absolute -inset-x-4 -inset-y-0.5 rounded-3xl bg-background blur-md glass:bg-(--glass-wash)"
       />
       <div
         aria-hidden
