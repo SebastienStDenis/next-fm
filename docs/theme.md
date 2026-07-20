@@ -1,7 +1,6 @@
 # Theme
 
-*Written 2026-07-11 by Claude (Fable 5); depth and pill accents added
-2026-07-20.*
+*Written 2026-07-11 by Claude (Fable 5); depth effects added 2026-07-20.*
 
 The site's visual identity. When adjusting styling, follow these guidelines;
 when the theme changes, update this doc in the same change.
@@ -29,16 +28,9 @@ Everything lives in the shadcn/ui token set in `frontend/src/app/globals.css`
 (`:root` for light, `.dark` for dark), expressed in oklch. Guidelines that
 shaped the values, and should shape future adjustments:
 
-- **Low chroma in the surfaces.** Neutrals carry 0.005-0.03 chroma; the
-  primary stays under 0.075. If a surface or text tweak makes something look
-  "poppy", it has drifted off-theme.
-- **Pills are champagne chips.** `--secondary` - worn by the artist tag
-  badges and the "you might like ..." chips - is the one surface with real
-  chroma (0.055 light, 0.07 dark): a champagne/bronze chip with chestnut
-  text in light mode, warm ivory on bronze in dark. It is the magnesium
-  grille made into an accent - still inside the brown-champagne hue band,
-  never a new color - so pills read as deliberate accents on the card
-  instead of mirroring the surface tints.
+- **Low chroma everywhere.** Neutrals carry 0.005-0.03 chroma; even the
+  primary stays under 0.075. If a tweak makes something look "poppy", it has
+  drifted off-theme.
 - **Depth comes from shadow and sheen, not tint.** Cards carry `shadow-card`
   (the `--surface-shadow` token, a soft chestnut-tinted drop in light mode,
   a deeper black one in dark) alongside their hairline ring, so they lift
@@ -50,7 +42,7 @@ shaped the values, and should shape future adjustments:
 - **Dark mode avoids pure white.** Foreground text is warm ivory
   (L 0.86), captions L ~0.72 - readable (>= 6:1 on cards) without OLED glare.
 - **Layer hierarchy in dark mode** is deliberately tight: background L 0.17,
-  cards 0.215, champagne-chip pills ~0.37, active-tab champagne 0.76.
+  cards 0.215, pills/badges ~0.31, active-tab champagne 0.76.
   Separation comes from these small steps plus borders and shadows, not
   from brightness jumps. The tab strip is the one recessed surface: in dark
   mode the tab list carries a translucent black wash (`dark:bg-black/25` in
@@ -150,10 +142,8 @@ command palette), use the `no-scrollbar` utility.
 The primary token is deliberately present on every logged-in page: the active
 dashboard tab is a solid primary pill (chestnut in light, champagne in dark),
 the sliding tab indicator carries it between tabs, and primary buttons and
-focus rings use the same token. Secondary badges are the champagne chips
-described above; hovers and muted text stay on the tinted neutral tokens, so
-the page reads warm with exactly two accents - the chestnut/champagne primary
-and the champagne chip - that are two finishes of the same material.
+focus rings use the same token. Badges, hovers, and muted text use the tinted
+neutral tokens, so the whole page reads warm without competing accents.
 
 ## Status colors
 
