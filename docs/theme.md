@@ -1,6 +1,7 @@
 # Theme
 
-*Written 2026-07-11 by Claude (Fable 5); depth effects added 2026-07-20.*
+*Written 2026-07-11 by Claude (Fable 5); depth effects and liquid glass added
+2026-07-20.*
 
 The site's visual identity. When adjusting styling, follow these guidelines;
 when the theme changes, update this doc in the same change.
@@ -50,6 +51,43 @@ shaped the values, and should shape future adjustments:
   below the page rather than yet another raised layer next to the cards.
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
+
+## Liquid glass
+
+Surfaces are frosted glass in the same material vocabulary - champagne-tinted
+in light mode, chestnut in dark - never a color of their own. The pieces:
+
+- **The `glass:` variant** (`@custom-variant` in `globals.css`) gates every
+  translucent style behind `@supports (backdrop-filter)` and
+  `@media not (prefers-reduced-transparency: reduce)`. `glass:` utilities are
+  always layered over a solid base (`bg-popover glass:bg-popover/75 ...`), so
+  unsupporting browsers and reduced-transparency users get exactly the opaque
+  theme described above.
+- **Floating surfaces are true glass.** Dialogs, alert dialogs, popovers,
+  dropdown/select menus, and toasts carry the popover tint at 75% opacity with
+  `backdrop-blur` (2xl for dialogs, xl for menus) and `backdrop-saturate-125`,
+  so the content beneath ghosts through warm. The settings dialog swaps in the
+  background tint at 85% (its section cards need the recessed field behind
+  them). Toasts can't take a `glass:` utility (sonner reads `--normal-bg`),
+  so `globals.css` mirrors the same gates in a `.cn-toast` rule.
+- **Cards get the look, not the blur.** In-flow cards are `glass:bg-card/85`
+  with no `backdrop-filter`: the only thing behind them is the flat page
+  background, which blurs to itself, so the filter would be pure compositing
+  cost. Their glass read comes from the translucency and the specular edge.
+- **The specular edge** is `--glass-edge`, a 1px inset top highlight
+  (`inset-shadow-[0_1px_0_var(--glass-edge)]`) on every glass surface - white
+  at 70% in light mode, champagne at 10% in dark - the light-from-above catch
+  that sells the material. It rides Tailwind's inset-shadow slot, so it
+  composes with each surface's existing `ring` and shadow.
+- **The accent stays matte.** Primary buttons, the active-tab pill, and badges
+  are untouched: glass is a surface material here, and the chestnut/champagne
+  accent remains solid metal. The tab strip likewise keeps its flat recessed
+  wash - it sits on the page background, where frost has nothing to show.
+- **The landing haze refracts.** `frontend/src/app/haze.tsx` pairs its
+  feathered wash (now at 70% under `glass:`) with a second
+  `glass:backdrop-blur-[3px]` layer, so the soundwave dots soften as they pass
+  beneath the hero text - element blur feathers the wash's edges but never
+  touches what's behind it, hence the separate layer.
 
 ## Typography
 
