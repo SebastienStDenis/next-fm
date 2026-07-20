@@ -21,7 +21,7 @@ export function Haze({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-x-4 -inset-y-0.5 rounded-3xl glass:backdrop-blur-[3px]"
+        className="pointer-events-none absolute -inset-x-4 -inset-y-0.5 rounded-3xl glass:backdrop-blur-[5px]"
       />
       <div className="relative">{children}</div>
     </div>

@@ -63,9 +63,9 @@ in light mode, chestnut in dark - never a color of their own. The pieces:
   base (`bg-popover glass:bg-(--glass-surface) ...`), so unsupporting
   browsers get exactly the opaque theme described above.
 - **The `--glass-*` tokens** hold the translucent tints: `--glass-surface`
-  (popover at 62%, the floating chrome), `--glass-card` (card at 85%),
+  (popover at 62%, the floating chrome), `--glass-card` (card at 80%),
   `--glass-canvas` (background at 75%, the settings dialog), `--glass-wash`
-  (background at 70%, the landing haze). They resolve per mode through their
+  (background at 60%, the landing haze). They resolve per mode through their
   `var()` references, and a `prefers-reduced-transparency: reduce` block
   collapses them all back to opaque. The preference is honored via tokens,
   not a media gate inside the variant, deliberately: a browser that doesn't
@@ -86,11 +86,11 @@ in light mode, chestnut in dark - never a color of their own. The pieces:
   into it. Blur amounts are deliberately moderate (16px dialogs, 12px menus)
   for the same reason: heavier blur averages the low-contrast backdrop to a
   flat field and the translucency stops being visible.
-- **Cards get the look, not the blur.** In-flow cards are
-  `glass:bg-(--glass-card)` with no `backdrop-filter`: the only thing behind
-  them is the flat page background, which blurs to itself, so the filter
-  would be pure compositing cost. Their glass read comes from the
-  translucency and the specular edge.
+- **Cards are lightly frosted.** In-flow cards carry `--glass-card` with a
+  small `backdrop-blur-sm`: on the flat dashboard background the blur is
+  invisible, but wherever something does sit behind a card - the soundwave
+  dots behind the auth cards - it frosts through instead of showing crisp.
+  The blur stays small because card text is the primary reading surface.
 - **The specular edge** is `--glass-edge`, a 1px inset top highlight
   (`inset-shadow-[0_1px_0_var(--glass-edge)]`) on every glass surface - white
   at 70% in light mode, champagne at 10% in dark - the light-from-above catch
