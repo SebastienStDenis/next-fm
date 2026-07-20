@@ -174,15 +174,20 @@ function ArtistChip({
   const { triggerRef, open, onOpenChange, maxWidth } = usePinnedPopoverWidth();
   const suggested = relations[artist.id] === "suggested";
   const label = (
-    <span className="truncate">{artistChipLabel(artist, relations)}</span>
+    <>
+      {/* Suggestions carry the primary accent dot, echoing the score pill;
+          known-artist chips stay plain. */}
+      {suggested && (
+        <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+      )}
+      <span className="truncate">{artistChipLabel(artist, relations)}</span>
+    </>
   );
-  const badgeClass = `max-w-full font-normal ${
-    suggested ? "" : "text-muted-foreground"
-  }`;
+  const badgeClass = "max-w-full font-normal text-muted-foreground";
 
   if (!details) {
     return (
-      <Badge variant={suggested ? "secondary" : "outline"} className={badgeClass}>
+      <Badge variant="outline" className={badgeClass}>
         {label}
       </Badge>
     );
@@ -192,10 +197,8 @@ function ArtistChip({
       <PopoverTrigger asChild>
         <Badge
           asChild
-          variant={suggested ? "secondary" : "outline"}
-          className={`${badgeClass} cursor-pointer ${
-            suggested ? "hover:bg-secondary/80" : "hover:bg-muted"
-          }`}
+          variant="outline"
+          className={`${badgeClass} cursor-pointer hover:bg-muted`}
         >
           <button ref={triggerRef} type="button" title={`About ${artist.name}`}>
             {label}

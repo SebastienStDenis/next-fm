@@ -42,7 +42,7 @@ shaped the values, and should shape future adjustments:
 - **Dark mode avoids pure white.** Foreground text is warm ivory
   (L 0.86), captions L ~0.72 - readable (>= 6:1 on cards) without OLED glare.
 - **Layer hierarchy in dark mode** is deliberately tight: background L 0.17,
-  cards 0.215, and the primary-colored pills at champagne 0.76.
+  cards 0.215, active-tab champagne 0.76.
   Separation comes from these small steps plus borders and shadows, not
   from brightness jumps. The tab strip is the one recessed surface: in dark
   mode the tab list carries a translucent black wash (`dark:bg-black/25` in
@@ -142,11 +142,15 @@ command palette), use the `no-scrollbar` utility.
 The primary token is deliberately present on every logged-in page: the active
 dashboard tab is a solid primary pill (chestnut in light, champagne in dark),
 the sliding tab indicator carries it between tabs, and primary buttons and
-focus rings use the same token. Secondary badges - the artist tag pills and
-the "you might like ..." chips - wear the same accent: `--secondary` mirrors
-`--primary`, so every pill on the page is the one material (solid chestnut in
-light, solid champagne in dark). Hovers and muted text stay on the tinted
-neutral tokens.
+focus rings use the same token.
+
+Chips follow one quiet vocabulary: an outline badge in muted text. What
+varies is the accent dot - the `size-1.5` primary dot that marks
+*suggestion* wherever it appears: the score pill, the "you might like ..."
+chips on concert cards, and the dashboard panel dots. Artist tag pills and
+known-artist chips ("you listen to ...", play counts) are the same outline
+badge without the dot, so suggested and known read apart at a glance while
+every pill stays the same shape.
 
 ## Status colors
 
