@@ -52,9 +52,12 @@ shaped the values, and should shape future adjustments:
   glare - and the background is a true chestnut (L 0.193, chroma 0.021), so
   the shell reads as material rather than switched-off black.
 - **Layer hierarchy in dark mode** is deliberately tight: background L 0.193,
-  cards 0.242, pills/badges ~0.32, active-tab champagne 0.78. Separation
+  cards 0.242, pills/badges ~0.34, active-tab champagne 0.78. Separation
   comes from these small steps plus borders and shadows, not from brightness
-  jumps.
+  jumps. The tab strip is the one recessed surface: in dark mode the tab
+  list carries a translucent black wash (`dark:bg-black/25` in
+  `frontend/src/components/ui/tabs.tsx`) so it reads as a control well below
+  the page rather than yet another raised layer next to the cards.
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
 
