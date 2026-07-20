@@ -142,12 +142,13 @@ export function SoundwaveDots() {
       frame = requestAnimationFrame(loop);
     };
 
-    // Only bare page plays the field: the layout shells the dots show through,
-    // and nothing else. A click that lands on anything with content on it -
-    // text, a button, a card - is ordinary UI and leaves the field alone.
+    // Only bare page plays the field: the layout shells the dots show through
+    // (each page's main and the root wrapper flanking it), and nothing else. A
+    // click that lands on anything with content on it - text, a button, a
+    // card - is ordinary UI and leaves the field alone.
     const isBackground = (target: EventTarget | null) =>
-      target === document.body ||
-      (target instanceof HTMLElement && target.tagName === "MAIN");
+      target instanceof HTMLElement &&
+      (target.tagName === "MAIN" || "soundwaveBackground" in target.dataset);
 
     const handleClick = (event: MouseEvent) => {
       if (!isBackground(event.target)) return;

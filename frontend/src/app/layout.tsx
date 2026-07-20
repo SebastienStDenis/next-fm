@@ -33,7 +33,10 @@ export default function RootLayout({
             this wrapper, not on body: Floating UI reads a body wider than
             the window as a scrollbar gutter (when within ~25px) and shrinks
             popover collision bounds by the difference. */}
-        <div className="flex min-h-dvh min-w-80 flex-col">
+        <div
+          data-soundwave-background
+          className="flex min-h-dvh min-w-80 flex-col"
+        >
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
