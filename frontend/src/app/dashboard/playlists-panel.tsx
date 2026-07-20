@@ -385,15 +385,15 @@ function PlaylistCard({
                   {playlist.tracks.map((track) => (
                     <li
                       key={track.spotify_track_id}
-                      className="flex items-start gap-x-2 text-sm"
+                      className="flex items-baseline gap-x-1 text-sm"
                     >
                       <span
-                        className="flex h-5 shrink-0 items-center justify-center text-[10px] tabular-nums text-muted-foreground"
+                        className="shrink-0 text-center text-[10px] tabular-nums text-muted-foreground"
                         style={{
-                          minWidth: `${String(playlist.tracks.length).length}ch`,
+                          minWidth: `calc(${String(playlist.tracks.length).length}ch + 0.5ch)`,
                         }}
                       >
-                        {track.position + 1}
+                        {track.position + 1}.
                       </span>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-baseline gap-x-1">
