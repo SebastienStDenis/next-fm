@@ -40,6 +40,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --shadow-card: var(--surface-shadow);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -160,29 +161,31 @@ body {
 }
 
 /* Magnesium/chestnut: deep chestnut brown paired with a desaturated
-   champagne metal. Light mode is the magnesium side (champagne-taupe paper,
+   champagne metal. Light mode is the magnesium side (champagne paper,
    chestnut actions); dark mode is the chestnut shell with magnesium
-   accents. */
+   accents. Surfaces step apart tonally - champagne paper under near-white
+   cards in light, warm shell under lifted chestnut cards in dark - so the
+   page reads layered rather than as one flat field. */
 :root {
   --background: oklch(0.972 0.006 75);
   --foreground: oklch(0.21 0.02 45);
-  --card: oklch(0.986 0.004 75);
+  --card: oklch(0.984 0.005 75);
   --card-foreground: oklch(0.21 0.02 45);
-  --popover: oklch(0.986 0.004 75);
+  --popover: oklch(0.984 0.005 75);
   --popover-foreground: oklch(0.21 0.02 45);
   --primary: oklch(0.44 0.055 45);
   --primary-foreground: oklch(0.95 0.015 75);
-  --secondary: oklch(0.929 0.016 68);
+  --secondary: oklch(0.93 0.02 65);
   --secondary-foreground: oklch(0.32 0.035 50);
-  --muted: oklch(0.941 0.012 72);
-  --muted-foreground: oklch(0.465 0.028 52);
-  --accent: oklch(0.912 0.024 68);
+  --muted: oklch(0.94 0.015 70);
+  --muted-foreground: oklch(0.49 0.03 55);
+  --accent: oklch(0.91 0.03 65);
   --accent-foreground: oklch(0.3 0.045 50);
   --destructive: oklch(0.53 0.17 32);
   --success: oklch(0.57 0.13 145);
   --warning: oklch(0.66 0.11 72);
-  --border: oklch(0.888 0.013 72);
-  --input: oklch(0.888 0.013 72);
+  --border: oklch(0.885 0.02 70);
+  --input: oklch(0.885 0.02 70);
   --ring: oklch(0.55 0.052 48);
   --chart-1: oklch(0.44 0.055 45);
   --chart-2: oklch(0.62 0.06 70);
@@ -190,13 +193,20 @@ body {
   --chart-4: oklch(0.7 0.04 80);
   --chart-5: oklch(0.4 0.03 55);
   --radius: 0.625rem;
+  --surface-shadow:
+    0 1px 2px oklch(0.32 0.04 45 / 6%), 0 6px 20px -6px oklch(0.32 0.04 45 / 10%);
+  --sheen: radial-gradient(
+    80rem 36rem at 50% -12rem,
+    oklch(1 0.006 90 / 60%),
+    transparent
+  );
   --sidebar: oklch(0.958 0.008 75);
   --sidebar-foreground: oklch(0.21 0.02 45);
   --sidebar-primary: oklch(0.44 0.055 45);
   --sidebar-primary-foreground: oklch(0.95 0.015 75);
-  --sidebar-accent: oklch(0.912 0.024 68);
+  --sidebar-accent: oklch(0.91 0.03 65);
   --sidebar-accent-foreground: oklch(0.3 0.045 50);
-  --sidebar-border: oklch(0.888 0.013 72);
+  --sidebar-border: oklch(0.885 0.02 70);
   --sidebar-ring: oklch(0.55 0.052 48);
 }
 
@@ -218,21 +228,28 @@ body {
   --destructive: oklch(0.64 0.15 32);
   --success: oklch(0.7 0.12 145);
   --warning: oklch(0.76 0.1 72);
-  --border: oklch(0.85 0.05 70 / 17%);
-  --input: oklch(0.85 0.05 70 / 22%);
+  --border: oklch(0.85 0.05 70 / 14%);
+  --input: oklch(0.85 0.05 70 / 18%);
   --ring: oklch(0.66 0.06 65);
   --chart-1: oklch(0.76 0.072 70);
   --chart-2: oklch(0.6 0.08 45);
   --chart-3: oklch(0.7 0.09 30);
   --chart-4: oklch(0.8 0.04 80);
   --chart-5: oklch(0.55 0.03 55);
+  --surface-shadow:
+    0 1px 2px oklch(0 0 0 / 30%), 0 8px 24px -8px oklch(0 0 0 / 40%);
+  --sheen: radial-gradient(
+    80rem 36rem at 50% -12rem,
+    oklch(0.34 0.045 55 / 35%),
+    transparent
+  );
   --sidebar: oklch(0.215 0.016 53);
   --sidebar-foreground: oklch(0.86 0.02 75);
   --sidebar-primary: oklch(0.76 0.072 70);
   --sidebar-primary-foreground: oklch(0.23 0.03 48);
   --sidebar-accent: oklch(0.342 0.044 61);
   --sidebar-accent-foreground: oklch(0.88 0.025 70);
-  --sidebar-border: oklch(0.85 0.05 70 / 17%);
+  --sidebar-border: oklch(0.85 0.05 70 / 14%);
   --sidebar-ring: oklch(0.66 0.06 65);
 }
 
@@ -264,6 +281,11 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* A faint light-from-above wash at the top of the page; the fixed size
+       keeps it a sheen on the chrome rather than a gradient the content
+       scrolls through. */
+    background-image: var(--sheen);
+    background-repeat: no-repeat;
   }
   html {
     @apply font-sans;

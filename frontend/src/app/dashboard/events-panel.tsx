@@ -174,15 +174,25 @@ function ArtistChip({
   const { triggerRef, open, onOpenChange, maxWidth } = usePinnedPopoverWidth();
   const suggested = relations[artist.id] === "suggested";
   const label = (
-    <span className="truncate">{artistChipLabel(artist, relations)}</span>
+    <>
+      {/* Suggestions carry the primary accent dot, echoing the score pill;
+          known-artist chips stay plain. */}
+      {suggested && (
+        <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+      )}
+      <span className="truncate">{artistChipLabel(artist, relations)}</span>
+    </>
   );
-  const badgeClass = `max-w-full font-normal ${
-    suggested ? "" : "text-muted-foreground"
+  // pl-1.5 sets the dot concentric with the pill's rounded end, matching the
+  // score pill's px-1.5.
+  const badgeClass = `max-w-full font-normal text-muted-foreground ${
+    suggested ? "pl-1.5" : ""
   }`;
+  const variant = suggested ? "accent" : "outline";
 
   if (!details) {
     return (
-      <Badge variant={suggested ? "secondary" : "outline"} className={badgeClass}>
+      <Badge variant={variant} className={badgeClass}>
         {label}
       </Badge>
     );
@@ -192,9 +202,11 @@ function ArtistChip({
       <PopoverTrigger asChild>
         <Badge
           asChild
-          variant={suggested ? "secondary" : "outline"}
+          variant={variant}
           className={`${badgeClass} cursor-pointer ${
-            suggested ? "hover:bg-secondary/80" : "hover:bg-muted"
+            suggested
+              ? "hover:bg-primary/8 dark:hover:bg-primary/12"
+              : "hover:bg-muted"
           }`}
         >
           <button ref={triggerRef} type="button" title={`About ${artist.name}`}>

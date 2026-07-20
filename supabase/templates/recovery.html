@@ -7,10 +7,10 @@
     <meta name="supported-color-schemes" content="light dark">
     <style>
       @media (prefers-color-scheme: dark) {
-        .email-card { background: #201713 !important; border-color: #41362d !important; }
+        .email-card { background: #201713 !important; border-color: #3b3028 !important; }
         .email-brand, .email-heading, .email-body { color: #d9cfc3 !important; }
         .email-muted { color: #b3a393 !important; }
-        .email-hr { border-color: #41362d !important; }
+        .email-hr { border-color: #3b3028 !important; }
         .email-button { background: #cfaa7f !important; }
         .email-button-text { color: #291910 !important; }
         .email-link { color: #cfaa7f !important; }
@@ -21,7 +21,7 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:480px;background:#fcfaf7;border-radius:12px;border:1px solid #e0d9d1;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:480px;background:#fcf9f6;border-radius:12px;border:1px solid #e2d7cb;">
             <tr>
               <td style="padding:32px 40px;">
                 <p class="email-brand" style="margin:0 0 24px;font-size:15px;font-weight:600;letter-spacing:-0.01em;color:#201511;">NextFM</p>
@@ -36,12 +36,12 @@
                     </td>
                   </tr>
                 </table>
-                <p class="email-muted" style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#67554b;">Or paste this link into your browser:</p>
-                <p class="email-muted" style="margin:0 0 24px;font-size:13px;line-height:1.6;word-break:break-all;color:#67554b;">
+                <p class="email-muted" style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6e5c50;">Or paste this link into your browser:</p>
+                <p class="email-muted" style="margin:0 0 24px;font-size:13px;line-height:1.6;word-break:break-all;color:#6e5c50;">
                   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password" class="email-link" style="color:#6c4939;text-decoration:underline;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password</a>
                 </p>
-                <hr class="email-hr" style="border:none;border-top:1px solid #e0d9d1;margin:0 0 20px;">
-                <p class="email-muted" style="margin:0;font-size:13px;line-height:1.6;color:#67554b;">
+                <hr class="email-hr" style="border:none;border-top:1px solid #e2d7cb;margin:0 0 20px;">
+                <p class="email-muted" style="margin:0;font-size:13px;line-height:1.6;color:#6e5c50;">
                   This link expires in one hour. If you didn't request a password reset, you can safely ignore this email.
                 </p>
               </td>

@@ -50,7 +50,7 @@ export function interestLabel(interest: Interest): string {
 
 export function ScoreBadge({ userArtist }: { userArtist: UserArtist }) {
   return (
-    <Badge variant="outline" className="shrink-0 px-1.5 text-muted-foreground">
+    <Badge variant="accent" className="shrink-0 px-1.5">
       <span className="size-1.5 rounded-full bg-primary" aria-hidden />
       score {scoreOf(userArtist).toFixed(2)}
     </Badge>
@@ -113,7 +113,11 @@ export function ArtistDetails({
       {tags.length > 0 && (
         <div className={`flex flex-wrap gap-1.5 ${tagsClassName}`}>
           {tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="max-w-full">
+            <Badge
+              key={tag}
+              variant="outline"
+              className="max-w-full font-normal text-muted-foreground"
+            >
               {/* A badge never wraps internally, so a tag longer than the
                   card ellipsizes instead of clipping mid-letter. */}
               <span className="truncate">{tag}</span>

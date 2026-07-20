@@ -1,6 +1,6 @@
 # Theme
 
-*Written 2026-07-11 by Claude (Fable 5).*
+*Written 2026-07-11 by Claude (Fable 5); depth effects added 2026-07-20.*
 
 The site's visual identity. When adjusting styling, follow these guidelines;
 when the theme changes, update this doc in the same change.
@@ -17,7 +17,7 @@ grille. The two modes are the two sides of that material pairing:
   champagne metal as the action color.
 
 The general vibe: matte metal and wood rather than stage lights and neon.
-Warm, muted, a little hi-fi. Every hue in the system sits between 45° and 75°
+Warm, muted, a little hi-fi. Every hue in the system sits between 45° and 80°
 in oklch (brown → champagne); nothing is allowed to drift yellow, orange, or
 red enough to read as a "colorful accent" - the accent is a material, not a
 color.
@@ -28,20 +28,26 @@ Everything lives in the shadcn/ui token set in `frontend/src/app/globals.css`
 (`:root` for light, `.dark` for dark), expressed in oklch. Guidelines that
 shaped the values, and should shape future adjustments:
 
-- **Low chroma everywhere.** Neutrals carry 0.004-0.03 chroma; even the
+- **Low chroma everywhere.** Neutrals carry 0.005-0.03 chroma; even the
   primary stays under 0.075. If a tweak makes something look "poppy", it has
   drifted off-theme.
-- **Warmth lives in surfaces and text, not in lines.** Borders and input
-  edges are the greyest tokens in the system (chroma ~0.013 in light mode),
-  so hairlines read crisp rather than rosy. Dark-mode borders are translucent
-  champagne - 17% over cards, 22% on inputs - enough to define a card edge
-  and make a field read as a field without breaking the tight layer
-  hierarchy.
+- **Depth comes from shadow and sheen, not tint.** Cards carry `shadow-card`
+  (the `--surface-shadow` token, a soft chestnut-tinted drop in light mode,
+  a deeper black one in dark) alongside their hairline ring, so they lift
+  off the page even where the card-vs-background tint gap is subtle.
+  `--sheen` is a faint fixed-size radial wash at the top of the page
+  (light-from-above in light mode, a warm glow in dark), painted once on
+  `body`; it shades the chrome while content lower on the page sits on the
+  flat background.
 - **Dark mode avoids pure white.** Foreground text is warm ivory
   (L 0.86), captions L ~0.72 - readable (>= 6:1 on cards) without OLED glare.
 - **Layer hierarchy in dark mode** is deliberately tight: background L 0.17,
-  cards 0.215, pills/badges ~0.31, active-tab champagne 0.76. Separation
-  comes from these small steps plus borders, not from brightness jumps.
+  cards 0.215, active-tab champagne 0.76.
+  Separation comes from these small steps plus borders and shadows, not
+  from brightness jumps. The tab strip is the one recessed surface: in dark
+  mode the tab list carries a translucent black wash (`dark:bg-black/25` in
+  `frontend/src/components/ui/tabs.tsx`) so it reads as a control well
+  below the page rather than yet another raised layer next to the cards.
 - **Text selection** is themed (champagne highlight, chestnut text) as a
   small flourish.
 
@@ -136,8 +142,20 @@ command palette), use the `no-scrollbar` utility.
 The primary token is deliberately present on every logged-in page: the active
 dashboard tab is a solid primary pill (chestnut in light, champagne in dark),
 the sliding tab indicator carries it between tabs, and primary buttons and
-focus rings use the same token. Badges, hovers, and muted text use the tinted
-neutral tokens, so the whole page reads warm without competing accents.
+focus rings use the same token.
+
+Chips follow one quiet vocabulary: an outline badge in muted text. What
+varies is the suggestion treatment - the badge `accent` variant plus the
+`size-1.5` primary dot - marking *suggestion* wherever it appears: the
+score pill and the "you might like ..." chips on concert cards (the
+dashboard panel dots share the dot motif). The `accent` variant is the
+standard hairline-bordered chip washed with the primary at 3% (6% dark);
+hover deepens the wash to 8% (12% dark). Enough to lift a suggestion chip
+above the plain chips without turning it into a button. The dot sits concentric with the pill's rounded
+end (`px-1.5`/`pl-1.5` against the default `px-2`). Artist tag pills and
+known-artist chips ("you listen to ...", play counts) are the plain outline
+badge, so suggested and known read apart at a glance while every pill stays
+the same shape.
 
 ## Status colors
 
