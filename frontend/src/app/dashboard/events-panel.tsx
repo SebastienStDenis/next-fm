@@ -431,7 +431,9 @@ export function EventsPanel({
                             folds between day and time (right-aligned), rather
                             than the whole date dropping below the title. */}
                         <CardTitle className="flex items-baseline gap-x-2">
-                          <span className="min-w-0">{eventName(userEvent)}</span>
+                          <span className="min-w-0 text-balance">
+                            {eventName(userEvent)}
+                          </span>
                           <span className="ml-auto text-right text-xs font-normal text-muted-foreground">
                             <span className="whitespace-nowrap">
                               {dateFormat.format(startsAt)},
