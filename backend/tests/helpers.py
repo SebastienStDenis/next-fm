@@ -3,10 +3,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 from httpx import ASGITransport, AsyncClient, Response
 
-from app.auth import Claims, get_claims, get_current_user
-from app.bandsintown import BandsintownClient
-from app.db import get_session
-from app.lastfm import LastfmClient
+from app.clients.bandsintown import BandsintownClient
+from app.clients.lastfm import LastfmClient
+from app.clients.musicbrainz import MusicBrainzClient
+from app.clients.spotify import SpotifyClient
+from app.core.auth import Claims, get_claims, get_current_user
+from app.core.db import get_session
+from app.core.models import User
 from app.main import (
     app,
     get_bandsintown_client,
@@ -17,9 +20,6 @@ from app.main import (
     get_supabase_admin,
     get_temporal_client,
 )
-from app.models import User
-from app.musicbrainz import MusicBrainzClient
-from app.spotify import SpotifyClient
 
 
 def make_session() -> AsyncMock:

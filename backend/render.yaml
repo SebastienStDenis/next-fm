@@ -1,0 +1,32 @@
+# Render Blueprint: the FastAPI api and the Temporal worker, both built from
+# backend/Dockerfile. Shared configuration lives in the `next-fm` env
+# group (created in the Render dashboard); see docs/2026-07-08-production-deployment-plan.md.
+services:
+  - type: web
+    name: next-fm-api
+    runtime: docker
+    plan: starter
+    region: ohio
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    # Runs once per deploy (not per replica), before the new version goes live,
+    # so schema changes land exactly once and the worker never races the
+    # migration. Keep it a single command: Render wraps this in its own sh -c,
+    # so inline chaining ("a && b") collides - use a script if steps grow.
+    preDeployCommand: uv run alembic upgrade head
+    envVars:
+      - fromGroup: next-fm
+
+  - type: worker
+    name: next-fm-worker
+    runtime: docker
+    plan: starter
+    region: ohio
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # The image's CMD starts uvicorn; the worker runs the poller instead. No
+    # watchfiles wrapper here - that only exists to hot-reload local edits.
+    dockerCommand: uv run python -m app.worker
+    envVars:
+      - fromGroup: next-fm

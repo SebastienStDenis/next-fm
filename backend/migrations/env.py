@@ -6,8 +6,8 @@ from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app.config import get_settings
-from app.models import Base
+from app.core.config import get_settings
+from app.core.models import Base
 
 # Database prerequisites the schema depends on but Alembic autogenerate can't
 # express: the pg_trgm extension (backing the cities trigram indexes) and

@@ -3,7 +3,6 @@ services:
     build: ./backend
     command: >
       sh -c "uv run alembic upgrade head &&
-             uv run python -m app.seed &&
              uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@host.docker.internal:54322/postgres
@@ -24,6 +23,7 @@ services:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./backend/app:/app/app
+      - ./backend/cli:/app/cli
       - ./backend/migrations:/app/migrations
       - ./backend/tests:/app/tests
     extra_hosts:
