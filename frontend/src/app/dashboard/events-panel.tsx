@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ExternalLink, Pencil, Undo2, X } from "lucide-react";
+import { ExternalLink, MapPin, Pencil, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -57,12 +57,17 @@ export type UserEvent = {
 };
 
 // Event times are stored as venue-local time labeled UTC, so formatting in
-// UTC displays the original local time.
+// UTC displays the original local time. Day and time are formatted apart so
+// the card can wrap between them and nowhere else.
 const dateFormat = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
   month: "short",
   day: "numeric",
   year: "numeric",
+  timeZone: "UTC",
+});
+
+const timeFormat = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
   timeZone: "UTC",
@@ -416,22 +421,40 @@ export function EventsPanel({
             <ul className="grid grid-cols-[minmax(0,26rem)] gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
               {visibleEvents.map((userEvent) => {
                 const { event, url, artists } = userEvent;
+                const startsAt = new Date(event.starts_at);
                 return (
                   <li key={event.id} className="flex">
                     <Card size="sm" className="flex-1">
                       <CardHeader>
-                        {/* gap-y-1 matches the header gap, so a wrapped date
-                            sits as close to the title above as to the venue
-                            line below; ml-auto keeps it right-aligned on its
-                            own line, matching the Tickets link. */}
-                        <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        {/* The date shares the title's line: when the row is
+                            tight the title wraps within its slot and the date
+                            folds between day and time (right-aligned), rather
+                            than the whole date dropping below the title. */}
+                        <CardTitle className="flex items-baseline gap-x-2">
                           <span className="min-w-0">{eventName(userEvent)}</span>
-                          <span className="ml-auto text-xs font-normal text-muted-foreground">
-                            {dateFormat.format(new Date(event.starts_at))}
+                          <span className="ml-auto text-right text-xs font-normal text-muted-foreground">
+                            <span className="whitespace-nowrap">
+                              {dateFormat.format(startsAt)},
+                            </span>{" "}
+                            <span className="whitespace-nowrap">
+                              {timeFormat.format(startsAt)}
+                            </span>
                           </span>
                         </CardTitle>
-                        <CardDescription>
-                          {event.venue_name} · {placeLabel(event)}
+                        {/* text-xs steps the venue line below the title,
+                            matching the date and the Tickets link; mt-2 plus
+                            the header's gap-1 opens the same 12px the artist
+                            cards have between title and body. */}
+                        <CardDescription className="mt-2 flex items-start gap-1 text-xs">
+                          {/* mt-px centers the 14px icon in the 16px first
+                              line, so it holds position if the text wraps. */}
+                          <MapPin
+                            className="mt-px size-3.5 shrink-0"
+                            aria-hidden
+                          />
+                          <span className="min-w-0">
+                            {event.venue_name} · {placeLabel(event)}
+                          </span>
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="mt-auto flex flex-wrap items-center gap-2">
