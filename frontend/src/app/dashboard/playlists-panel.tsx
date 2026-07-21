@@ -388,7 +388,7 @@ function PlaylistCard({
                       className="flex items-start gap-x-1 text-sm"
                     >
                       <span
-                        className="flex h-5 shrink-0 items-center justify-center text-[10px] tabular-nums text-muted-foreground"
+                        className="flex h-5 shrink-0 translate-y-[0.25px] items-center justify-center text-[10px] tabular-nums text-muted-foreground"
                         style={{
                           minWidth: `calc(${String(playlist.tracks.length).length}ch + 0.5ch)`,
                         }}
