@@ -445,9 +445,9 @@ export function EventsPanel({
                             {timeFormat.format(startsAt)}
                           </span>
                         </CardTitle>
-                        {/* text-xs steps the venue line below the title,
-                            matching the date and the Tickets link. */}
-                        <CardDescription className="flex items-start gap-1 text-xs">
+                        {/* 13px steps the venue line below the title without
+                            fading it all the way to the text-xs metadata. */}
+                        <CardDescription className="flex items-start gap-1 text-[13px]/4">
                           {/* mt-px centers the 14px icon in the 16px first
                               line, so it holds position if the text wraps. */}
                           <MapPin
