@@ -32,7 +32,7 @@ import { EmptyState, EmptyStateCell } from "./empty-state";
 import { eventTitle, type UserEvent } from "./events-panel";
 import { RunSyncText } from "./run-sync-message";
 import { SortSelect, type SortOption } from "./sort-select";
-import type { UserArtist } from "./taste-panel";
+import { playsOf, rankOf, type UserArtist } from "./taste-panel";
 
 // The concerts matched near one of the user's cities (home or pinned),
 // keyed by that city so the footer popover can group by it - the venue's
@@ -142,22 +142,28 @@ function byName(a: UserArtist, b: UserArtist): number {
   return a.artist.name.localeCompare(b.artist.name);
 }
 
-type SortKey = "score" | "name" | "concert";
+type SortKey = "score" | "plays" | "name" | "concert";
 
 const sortOptions: readonly SortOption<SortKey>[] = [
   { value: "score", label: "Score" },
+  { value: "plays", label: "Most plays" },
   { value: "name", label: "Name" },
   { value: "concert", label: "Next concert" },
 ];
 
 // Next concert orders by each artist's soonest show across the user's
 // cities; artists with nothing coming up trail alphabetically. Score keeps
-// you-listen-to cards (no suggestion score) below every suggestion.
+// you-listen-to cards (no suggestion score) below every suggestion; Most
+// plays is its inverse, sinking artists without listening history. Plays
+// order mirrors the Listening History panel: Last.fm's play-based
+// top-artist rank first, raw playcount breaking ties for the unranked.
 function makeComparators(
   soonestConcert: Map<string, string>,
 ): Record<SortKey, (a: UserArtist, b: UserArtist) => number> {
   return {
     score: (a, b) => scoreOf(b) - scoreOf(a) || byName(a, b),
+    plays: (a, b) =>
+      rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b),
     name: byName,
     concert: (a, b) => {
       const aDate = soonestConcert.get(a.artist.id);

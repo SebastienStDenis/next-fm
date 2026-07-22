@@ -53,14 +53,14 @@ const sortOptions: readonly SortOption<SortKey>[] = [
   { value: "hidden", label: "Hidden first" },
 ];
 
-function rankOf(userArtist: UserArtist): number {
+export function rankOf(userArtist: UserArtist): number {
   const rank = userArtist.interests.find(
     (interest) => interest.kind === "lastfm_top_artist",
   )?.evidence.rank;
   return rank ?? Number.MAX_SAFE_INTEGER;
 }
 
-function playsOf(userArtist: UserArtist): number {
+export function playsOf(userArtist: UserArtist): number {
   return (
     userArtist.interests.find((interest) => interest.kind === "lastfm_top_artist")
       ?.evidence.playcount ?? -1
