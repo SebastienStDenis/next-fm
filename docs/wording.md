@@ -1,6 +1,6 @@
 # Wording conventions
 
-*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-19 by Claude (Fable 5).*
+*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-22 by Claude (Fable 5).*
 
 User-facing copy (web UI, sync step labels and summaries, emails) uses one
 vocabulary. When adding or editing copy, follow these rules; when the product
@@ -87,12 +87,17 @@ cards would use; Listening History and tracklist messages are plain text.
 | Concerts tab | Run a sync in [Settings] to find concerts. | Home view: "No concerts found near {city}. NextFM will find new concerts as they're announced." Browsing another city: "No concerts found. Try a different city." |
 | Playlists tab | Run a sync in [Settings] to generate playlists. | No playlists generated. NextFM will generate them on the next daily sync. |
 
-`[Settings]` opens the settings dialog (`/dashboard#settings`). Two related
+`[Settings]` opens the settings dialog (`/dashboard#settings`). Three related
 fixed messages:
 
-- Concerts hidden by the filter toggles: a card-sized ghost box in the
-  concerts grid, after any visible concerts: "{n} concert(s) hidden by
+- Artists or concerts hidden by the filter toggles ("Suggested artists" /
+  "Artists you listen to", on both tabs): a card-sized ghost box in the tab's
+  grid, after any visible cards: "{n} artist(s)/concert(s) hidden by
   filters."
+- The Artists tab's messages describe its suggestions, so they fill the tab
+  only when there are also no artists you listen to; otherwise the message is
+  a card-sized cell in the grid, kept while the Suggested artists filter is
+  on.
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
 

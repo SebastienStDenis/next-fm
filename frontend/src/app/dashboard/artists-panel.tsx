@@ -18,12 +18,19 @@ import {
   PopoverTrigger,
   usePinnedPopoverWidth,
 } from "@/components/ui/popover";
+import { Toggle } from "@/components/ui/toggle";
 
-import { ArtistDetails, ScoreBadge, scoreOf } from "./artist-details";
+import { AnimatedHeight } from "./animated-height";
+import {
+  ArtistDetails,
+  KnownInterestBadges,
+  ScoreBadge,
+  scoreOf,
+} from "./artist-details";
 import type { City } from "./city-panel";
-import { EmptyStateCell } from "./empty-state";
+import { EmptyState, EmptyStateCell } from "./empty-state";
 import { eventTitle, type UserEvent } from "./events-panel";
-import { RunSyncMessage } from "./run-sync-message";
+import { RunSyncText } from "./run-sync-message";
 import { SortSelect, type SortOption } from "./sort-select";
 import type { UserArtist } from "./taste-panel";
 
@@ -144,7 +151,8 @@ const sortOptions: readonly SortOption<SortKey>[] = [
 ];
 
 // Next concert orders by each artist's soonest show across the user's
-// cities; artists with nothing coming up trail alphabetically.
+// cities; artists with nothing coming up trail alphabetically. Score keeps
+// you-listen-to cards (no suggestion score) below every suggestion.
 function makeComparators(
   soonestConcert: Map<string, string>,
 ): Record<SortKey, (a: UserArtist, b: UserArtist) => number> {
@@ -185,16 +193,46 @@ function concertsByArtist(events: UserEvent[]): Map<string, UserEvent[]> {
   return byArtist;
 }
 
-export function SuggestedArtistsPanel({
+// Why the suggestions half of the panel is empty: the sync hasn't produced
+// them yet, or it ran and found none (see docs/wording.md).
+function NoSuggestionsMessage({ synced }: { synced: boolean }) {
+  return synced ? (
+    <>
+      No artists suggested. If you just signed up for Last.fm, wait for
+      Last.fm to capture future listening history. NextFM will suggest new
+      artists as your listening history changes.
+    </>
+  ) : (
+    <RunSyncText action="suggest artists" />
+  );
+}
+
+export function ArtistsPanel({
   suggestedArtists,
+  knownArtists,
   cityConcerts,
   synced,
 }: {
   suggestedArtists: UserArtist[];
+  // The you-listen-to side of the view: known artists not already surfaced
+  // as suggestions and not hidden by the user.
+  knownArtists: UserArtist[];
   cityConcerts: CityConcerts[];
   synced: boolean;
 }) {
+  const [showSuggested, setShowSuggested] = useState(true);
+  const [showKnown, setShowKnown] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("score");
+
+  // Without any artist to show there is nothing to filter or sort: just the
+  // explanation, full width, in place of the controls.
+  if (suggestedArtists.length === 0 && knownArtists.length === 0) {
+    return (
+      <EmptyStateCell>
+        <NoSuggestionsMessage synced={synced} />
+      </EmptyStateCell>
+    );
+  }
 
   const multiCity = cityConcerts.length > 1;
   const cityIndexes = cityConcerts.map(({ events }) => concertsByArtist(events));
@@ -211,69 +249,115 @@ export function SuggestedArtistsPanel({
       }
     }
   }
-  const sortedArtists = [...suggestedArtists].sort(
-    makeComparators(soonestConcert)[sortKey],
+  const suggestedIds = new Set(
+    suggestedArtists.map(({ artist }) => artist.id),
   );
+  const visibleArtists = [
+    ...(showSuggested ? suggestedArtists : []),
+    ...(showKnown ? knownArtists : []),
+  ].sort(makeComparators(soonestConcert)[sortKey]);
+  const hiddenCount =
+    suggestedArtists.length + knownArtists.length - visibleArtists.length;
 
   return (
     <div>
-      {suggestedArtists.length === 0 ? (
-        synced ? (
-          <EmptyStateCell>
-            No artists suggested. If you just signed up for Last.fm, wait for
-            Last.fm to capture future listening history. NextFM will suggest
-            new artists as your listening history changes.
-          </EmptyStateCell>
-        ) : (
-          <RunSyncMessage action="suggest artists" />
-        )
-      ) : (
-        <>
-          <div className="mb-3 flex justify-end">
-            <SortSelect
-              value={sortKey}
-              onValueChange={setSortKey}
-              options={sortOptions}
-            />
-          </div>
-          <ul className="grid grid-cols-[minmax(0,26rem)] gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
-            {sortedArtists.map((userArtist) => {
-              const sections = cityConcerts
-                .map(({ city }, index) => ({
-                  city,
-                  concerts: cityIndexes[index].get(userArtist.artist.id) ?? [],
-                }))
-                .filter((section) => section.concerts.length > 0);
-              return (
-                <li key={userArtist.artist.id} className="min-w-0">
-                  <Card size="sm" className="h-full">
-                    {/* items-start rides the h-5 badge on the title's first
-                        line when a long name wraps. */}
-                    <CardHeader className="flex items-start justify-between gap-2">
-                      <CardTitle className="min-w-0 break-words">
-                        {userArtist.artist.name}
-                      </CardTitle>
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex flex-wrap gap-2">
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={showSuggested}
+            onPressedChange={setShowSuggested}
+          >
+            Suggested artists
+          </Toggle>
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={showKnown}
+            onPressedChange={setShowKnown}
+          >
+            Artists you listen to
+          </Toggle>
+        </div>
+        {/* ml-auto rather than justify-between on the row: it also keeps the
+            picker right-aligned when it wraps to its own line. */}
+        <SortSelect
+          value={sortKey}
+          onValueChange={setSortKey}
+          options={sortOptions}
+          className="ml-auto"
+        />
+      </div>
+      <AnimatedHeight>
+        <ul className="grid grid-cols-[minmax(0,26rem)] gap-3 sm:grid-cols-[repeat(2,minmax(0,26rem))] lg:grid-cols-3">
+          {visibleArtists.map((userArtist) => {
+            const suggested = suggestedIds.has(userArtist.artist.id);
+            const sections = cityConcerts
+              .map(({ city }, index) => ({
+                city,
+                concerts: cityIndexes[index].get(userArtist.artist.id) ?? [],
+              }))
+              .filter((section) => section.concerts.length > 0);
+            return (
+              <li key={userArtist.artist.id} className="min-w-0">
+                <Card size="sm" className="h-full">
+                  {/* items-start rides the h-5 badge on the title's first
+                      line when a long name wraps. */}
+                  <CardHeader className="flex items-start justify-between gap-2">
+                    <CardTitle className="min-w-0 break-words">
+                      {userArtist.artist.name}
+                    </CardTitle>
+                    {/* The artist's headline number: the score for a
+                        suggestion, the listening-history pills for an artist
+                        you listen to - matching the concert chips' popover. */}
+                    {suggested ? (
                       <ScoreBadge userArtist={userArtist} />
-                    </CardHeader>
-                    <CardContent className="flex flex-1 flex-col gap-1">
-                      <ArtistDetails
+                    ) : (
+                      <KnownInterestBadges
                         userArtist={userArtist}
-                        tagsClassName="mt-auto pt-2"
-                      />
-                    </CardContent>
-                    {sections.length > 0 && (
-                      <ConcertsFooter
-                        sections={sections}
-                        multiCity={multiCity}
+                        className="justify-end"
                       />
                     )}
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        </>
-      )}
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col gap-1">
+                    <ArtistDetails
+                      userArtist={userArtist}
+                      tagsClassName="mt-auto pt-2"
+                    />
+                  </CardContent>
+                  {sections.length > 0 && (
+                    <ConcertsFooter
+                      sections={sections}
+                      multiCity={multiCity}
+                    />
+                  )}
+                </Card>
+              </li>
+            );
+          })}
+          {/* The tab's headline content is suggestions: when the filter asks
+              for them and there are none, the explanation keeps its slot even
+              while you-listen-to cards fill the rest of the grid. */}
+          {showSuggested && suggestedArtists.length === 0 && (
+            <li className="flex">
+              <EmptyState className="flex-1 content-center">
+                <NoSuggestionsMessage synced={synced} />
+              </EmptyState>
+            </li>
+          )}
+          {/* Filtered-out artists keep a slot in the grid: a ghost cell
+              sized like the cards it stands in for. */}
+          {hiddenCount > 0 && (
+            <li className="flex">
+              <EmptyState className="flex-1 content-center">
+                {hiddenCount} {hiddenCount === 1 ? "artist" : "artists"} hidden
+                by filters.
+              </EmptyState>
+            </li>
+          )}
+        </ul>
+      </AnimatedHeight>
     </div>
   );
 }

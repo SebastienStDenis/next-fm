@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
+import { ArtistsPanel, type CityConcerts } from "./artists-panel";
 import { type City } from "./city-panel";
 import { DashboardNotice } from "./dashboard-notice";
 import { EventsPanel, type UserEvent } from "./events-panel";
@@ -13,10 +14,6 @@ import { type LastfmAccount } from "./lastfm-panel";
 import { PlaylistsPanel, type Playlist } from "./playlists-panel";
 import { SettingsContent } from "./settings-content";
 import { SettingsDialog, SETTINGS_HASH } from "./settings-dialog";
-import {
-  SuggestedArtistsPanel,
-  type CityConcerts,
-} from "./suggested-artists-panel";
 import { SyncStepNote } from "./sync-step-note";
 import { TAB_COOKIE } from "./tab-cookie";
 import { Tabs } from "./tabs";
@@ -55,9 +52,10 @@ export default async function DashboardPage() {
   }
 
   // Known-artist events are fetched regardless of the user's global setting;
-  // the events panel hides them behind its own view-side filter. Pinned-city
-  // events ride along, kept per city, so the artist cards can group upcoming
-  // concerts by the cities the user tracks - home first, pins in order.
+  // the Artists and Concerts tabs hide them behind their own view-side
+  // filters. Pinned-city events ride along, kept per city, so the artist
+  // cards can group upcoming concerts by the cities the user tracks - home
+  // first, pins in order.
   const pinnedCities: City[] = [];
   for (const playlist of playlists) {
     const pinned = playlist.city;
@@ -72,7 +70,10 @@ export default async function DashboardPage() {
   const [events, ...pinnedEventLists] = await Promise.all([
     fetchJson<UserEvent[]>("/me/events?include_known_artists=true", "events"),
     ...pinnedCities.map((pinnedCity) =>
-      fetchJson<UserEvent[]>(`/me/events?geonameid=${pinnedCity.geonameid}`, "events"),
+      fetchJson<UserEvent[]>(
+        `/me/events?geonameid=${pinnedCity.geonameid}&include_known_artists=true`,
+        "events",
+      ),
     ),
   ]);
   const cityConcerts: CityConcerts[] = [
@@ -102,6 +103,14 @@ export default async function DashboardPage() {
       ...knownArtists.map(({ artist }) => [artist.id, "known" as const]),
       ...suggestedArtists.map(({ artist }) => [artist.id, "suggested" as const]),
     ]);
+  // The Artists tab's you-listen-to cards: known artists not already surfaced
+  // as suggestions (an artist that is both renders as the suggestion, the
+  // same precedence the concert chips use) and not hidden by the user.
+  const knownOnlyArtists = knownArtists.filter(
+    (userArtist) =>
+      !userArtist.excluded &&
+      artistRelations[userArtist.artist.id] === "known",
+  );
   // Full artist records by id, for the artist popovers on concert cards.
   const artistsById: Record<string, UserArtist> = Object.fromEntries(
     userArtists.map((userArtist) => [userArtist.artist.id, userArtist]),
@@ -136,7 +145,7 @@ export default async function DashboardPage() {
     .filter((playlist) => playlist.spotify_url === null)
     .map((playlist) => playlist.id)
     .sort();
-  // The tab count matches the panel's default view: suggested artists only.
+  // Tab counts match each panel's default view: suggested artists only.
   const suggestedEventCount = events.filter((userEvent) =>
     userEvent.artists.some(
       (artist) => artistRelations[artist.id] === "suggested",
@@ -175,8 +184,9 @@ export default async function DashboardPage() {
                 />
               ),
               content: (
-                <SuggestedArtistsPanel
+                <ArtistsPanel
                   suggestedArtists={suggestedArtists}
+                  knownArtists={knownOnlyArtists}
                   cityConcerts={cityConcerts}
                   synced={syncStepCompleted(sync, "suggestions")}
                 />
