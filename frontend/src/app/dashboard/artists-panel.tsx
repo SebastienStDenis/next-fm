@@ -27,6 +27,7 @@ import {
   ScoreBadge,
   scoreOf,
 } from "./artist-details";
+import { KNOWN_ARTIST_KINDS } from "./artist-kinds";
 import type { City } from "./city-panel";
 import { EmptyState, EmptyStateCell } from "./empty-state";
 import { eventTitle, type UserEvent } from "./events-panel";
@@ -142,28 +143,38 @@ function byName(a: UserArtist, b: UserArtist): number {
   return a.artist.name.localeCompare(b.artist.name);
 }
 
-type SortKey = "score" | "plays" | "name" | "concert";
+type SortKey = "match" | "name" | "concert";
 
 const sortOptions: readonly SortOption<SortKey>[] = [
-  { value: "score", label: "Score" },
-  { value: "plays", label: "Most plays" },
+  { value: "match", label: "Best match" },
   { value: "name", label: "Name" },
   { value: "concert", label: "Next concert" },
 ];
 
+// Known is judged by known-kind interests rather than which list an artist
+// came from, matching the Concerts tab's Best match: an artist can be both
+// known and suggested, and listening history is the stronger signal.
+function isKnown(userArtist: UserArtist): boolean {
+  return userArtist.interests.some((interest) =>
+    KNOWN_ARTIST_KINDS.has(interest.kind),
+  );
+}
+
 // Next concert orders by each artist's soonest show across the user's
-// cities; artists with nothing coming up trail alphabetically. Score keeps
-// you-listen-to cards (no suggestion score) below every suggestion; Most
-// plays is its inverse, sinking artists without listening history. Plays
-// order mirrors the Listening History panel: Last.fm's play-based
-// top-artist rank first, raw playcount breaking ties for the unranked.
+// cities; artists with nothing coming up trail alphabetically. Best match
+// mirrors the Concerts tab: artists you already listen to lead - in the
+// Listening History panel's plays order (Last.fm's play-based top-artist
+// rank, raw playcount for the unranked) - and suggestions follow by score.
 function makeComparators(
   soonestConcert: Map<string, string>,
 ): Record<SortKey, (a: UserArtist, b: UserArtist) => number> {
   return {
-    score: (a, b) => scoreOf(b) - scoreOf(a) || byName(a, b),
-    plays: (a, b) =>
-      rankOf(a) - rankOf(b) || playsOf(b) - playsOf(a) || byName(a, b),
+    match: (a, b) =>
+      Number(isKnown(b)) - Number(isKnown(a)) ||
+      rankOf(a) - rankOf(b) ||
+      playsOf(b) - playsOf(a) ||
+      scoreOf(b) - scoreOf(a) ||
+      byName(a, b),
     name: byName,
     concert: (a, b) => {
       const aDate = soonestConcert.get(a.artist.id);
@@ -228,7 +239,7 @@ export function ArtistsPanel({
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("score");
+  const [sortKey, setSortKey] = useState<SortKey>("match");
 
   // Without any artist to show there is nothing to filter or sort: just the
   // explanation, full width, in place of the controls.
