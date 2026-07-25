@@ -3,7 +3,8 @@
 Both faces are by Indian Type Foundry, downloaded from Fontshare and used under
 the ITF Free Font License. They are self-hosted rather than loaded from the
 Fontshare CDN so the app makes no third-party font requests; `next/font/local`
-in `../layout.tsx` declares them.
+in `index.ts` declares them, which is what lets the root layout and the
+standalone `global-error.tsx` document set the same faces.
 
 - `satoshi-variable.woff2`, `satoshi-variable-italic.woff2` - Satoshi, the body
   face (https://www.fontshare.com/fonts/satoshi). Variable across `wght`

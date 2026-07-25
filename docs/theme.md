@@ -1,6 +1,7 @@
 # Theme
 
-*Written 2026-07-11 by Claude (Fable 5); depth effects added 2026-07-20.*
+*Written 2026-07-11 by Claude (Fable 5); depth effects added 2026-07-20; fallback
+pages added 2026-07-25.*
 
 The site's visual identity. When adjusting styling, follow these guidelines;
 when the theme changes, update this doc in the same change.
@@ -69,9 +70,19 @@ shaped the values, and should shape future adjustments:
   in. And the titles of the artist and concert cards, in both their card and
   popover forms, through `DISPLAY_TITLE_CLASS` - these name the music the app
   is for, so they are the one place a list of names is worth setting as display
-  type. The `About` page `h1` is the deliberate exception: it is a one-word
-  title on a page that is otherwise all prose, and it wants the same weight as
-  the name it explains.
+  type.
+- **Two deliberate exceptions take it anyway.** The `About` page `h1`: a
+  one-word title on a page that is otherwise all prose, which wants the same
+  weight as the name it explains. And the titles of the three fallback pages -
+  `not-found.tsx`, `error.tsx`, `global-error.tsx`. By the rule above they
+  would not qualify, being neither the mark nor the catalogue; they take the
+  face because each is the only thing on its page, and a lone line of body copy
+  in the middle of an empty viewport reads as an unstyled browser default -
+  which is the exact impression these pages exist to avoid. Both exceptions sit
+  at `text-2xl`; remember `size-adjust` paints Array about 15% larger than the
+  step says, so they land nearer 28px. The `NextFM` inside the fallback
+  messages still stays plain, by the small-print rule below - it is a status
+  message's subject, not the mark being introduced.
 - **The mark is not set in the display face below 14px, and prose does not
   repeat it.** The system messages that name the product - the empty states,
   the intro aside - write `NextFM` as plain text. They run at `text-xs` in
@@ -94,13 +105,10 @@ shaped the values, and should shape future adjustments:
   carries metadata beside the title, and that metadata stays on the body face:
   the date on a concert card, and every `Badge` (the score pill, the interest
   and tag chips - a badge is never a title, so `font-sans` lives in the
-  primitive). `global-error.tsx` is excluded for a different reason: it
-  replaces the root layout and imports nothing from the app, so it has no font
-  variables to inherit - the `NextFM` in its message is the one that stays on
-  the body face.
+  primitive).
 - **Array is scaled up to sit level with Satoshi.** Its caps draw 14% shorter
   at the same `font-size`, so an unadjusted heading reads a size small.
-  `size-adjust: 115%` on the `@font-face` in `layout.tsx` corrects this once,
+  `size-adjust: 115%` on the `@font-face` in `app/fonts/index.ts` corrects this once,
   rather than every use bumping its `text-*` step - the type scale keeps
   meaning what it says. Use `size-adjust` only to make one face sit level with
   the other; the moment it is reached for to make something *bigger*, that
