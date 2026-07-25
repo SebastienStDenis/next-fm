@@ -22,6 +22,11 @@ const array = localFont({
   ],
   variable: "--font-display",
   display: "swap",
+  // Array draws 12% shorter in the caps and 7% shorter in the x-height than
+  // Geist at the same font-size, so a heading set in it reads a size small.
+  // size-adjust scales the glyphs instead of the type scale, which keeps
+  // text-2xl meaning text-2xl and lets every use inherit the correction.
+  declarations: [{ prop: "size-adjust", value: "110%" }],
 });
 
 export const metadata: Metadata = {

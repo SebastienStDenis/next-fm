@@ -64,13 +64,21 @@ shaped the values, and should shape future adjustments:
   popovers. Nothing else takes it - subsection labels, asides, and the
   metadata that rides inside a title row stay Geist, because Array is drawn
   wide and blocky for large sizes and turns to mush below ~14px.
-- **Two exceptions opt back out**, both because they sit in a title slot
-  without being a title: the date on a concert card, which is metadata sharing
-  the `CardTitle` row, and the Spotify save tip, which is a full sentence at
-  `text-xs` in a `PopoverTitle`. Both set `font-sans` explicitly.
-  `global-error.tsx` is excluded for a different reason: it replaces the root
-  layout and imports nothing from the app, so it has no font variables to
-  inherit.
+- **Things that merely sit in a title slot opt back out.** A title row often
+  carries metadata beside the title, and that metadata stays on the body face:
+  the date on a concert card, every `Badge` (the score pill, the interest and
+  tag chips - a badge is never a title, so `font-sans` lives in the primitive),
+  and the Spotify save tip, a full sentence at `text-xs` that happens to be a
+  `PopoverTitle`. `global-error.tsx` is excluded for a different reason: it
+  replaces the root layout and imports nothing from the app, so it has no font
+  variables to inherit.
+- **Array is scaled up to sit level with Geist.** It draws 12% shorter in the
+  caps and 7% shorter in the x-height at the same `font-size`, so an unadjusted
+  heading reads a size small. `size-adjust: 110%` on the `@font-face` in
+  `layout.tsx` corrects this once, rather than every use bumping its `text-*`
+  step - the type scale keeps meaning what it says. The cost is width: Array
+  ends up ~17% wider than Geist, which is the pressure to watch on titles that
+  truncate.
 - **Explanatory asides are small italics.** Text that annotates a heading or
   section (the intro paragraph, dashboard tab descriptions, settings section
   descriptions, listener counts) renders `text-xs text-muted-foreground
