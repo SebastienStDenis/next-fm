@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <!-- The bot-account avatar's mark at tab size; paired with icon-light.svg,
        which differs only in the two fills below. Palette, grille and the N's
-       cap-height sizing mirror brand/avatar.html; the path is Geist N at
-       wght 560. See docs/theme.md. -->
+       cap-height sizing mirror brand/avatar.html; the path is Satoshi N at
+       wght 540. See docs/theme.md. -->
   <style>
     .bg { fill: #140e0b }
     .mark { fill: #cfaa7f }
@@ -19,5 +19,5 @@
     <rect class="bg" width="100" height="100" />
     <rect width="100" height="100" fill="url(#grille)" />
   </g>
-  <path class="mark" d="M27.87 77V23H38.99L62.92 65.01V23H72.13V77H60.7L37.08 36.1V77Z" />
+  <path class="mark" d="M36.39 77H28.71V23H36.43L65.78 67.35H63.61V23H71.29V77H63.61L34.25 32.68H36.39Z" />
 </svg>

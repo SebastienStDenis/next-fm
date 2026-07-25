@@ -4,7 +4,9 @@ export default function AboutPage() {
   return (
     <main className="mx-auto w-full max-w-xl p-8">
       <HomeLink />
-      <h1 className="mt-2 mb-6 text-2xl font-semibold tracking-tight">About</h1>
+      <h1 className="mt-2 mb-6 font-heading text-2xl font-semibold tracking-tight">
+        About
+      </h1>
       <div className="space-y-6">
         <section>
           <h2 className="text-sm font-medium">What NextFM does</h2>

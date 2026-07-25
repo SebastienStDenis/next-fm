@@ -238,7 +238,10 @@ export function EventsPanel({
                           <span className="min-w-0 text-balance">
                             {eventName(userEvent)}
                           </span>
-                          <span className="ml-auto shrink-0 text-right text-xs font-normal text-muted-foreground">
+                          {/* The date rides inside the title row but is
+                              metadata, not the title: it stays on the body
+                              face rather than inheriting the display one. */}
+                          <span className="ml-auto shrink-0 text-right font-sans text-xs font-normal text-muted-foreground">
                             <span className="block">
                               {concertDateFormat.format(startsAt)}
                             </span>

@@ -53,6 +53,44 @@ shaped the values, and should shape future adjustments:
 
 ## Typography
 
+- **Two faces, split by role**, both from Fontshare and both self-hosted from
+  `frontend/src/app/fonts/`. Satoshi (`--font-sans`) sets everything by
+  default, from the `font-sans` on `<html>`; it ships as a variable font, so
+  every weight the UI asks for is a real one, and it carries a true italic
+  rather than a slanted upright. Array (`--font-display`) is the display face,
+  reached through the `--font-heading` token so the pairing can be changed in
+  one line of `globals.css`. It is worn by titles that name a surface: the four
+  page `h1`s (home, dashboard, welcome, about) and the `CardTitle`/
+  `DialogTitle`/`AlertDialogTitle`/`PopoverTitle` primitives, which is what
+  carries it to settings sections, welcome steps, auth cards, and the artist
+  and concert popovers. Nothing else takes it - subsection labels, asides, and
+  the metadata that rides inside a title row stay Satoshi, because Array is
+  drawn wide and blocky for large sizes and turns to mush below ~14px.
+- **Things that merely sit in a title slot opt back out.** A title row often
+  carries metadata beside the title, and that metadata stays on the body face:
+  the date on a concert card, every `Badge` (the score pill, the interest and
+  tag chips - a badge is never a title, so `font-sans` lives in the primitive),
+  and the Spotify save tip, a full sentence at `text-xs` that happens to be a
+  `PopoverTitle`. `global-error.tsx` is excluded for a different reason: it
+  replaces the root layout and imports nothing from the app, so it has no font
+  variables to inherit.
+- **Array is scaled up to sit level with Satoshi.** Its caps draw 14% shorter
+  at the same `font-size`, so an unadjusted heading reads a size small.
+  `size-adjust: 115%` on the `@font-face` in `layout.tsx` corrects this once,
+  rather than every use bumping its `text-*` step - the type scale keeps
+  meaning what it says. Use `size-adjust` only to make one face sit level with
+  the other; the moment it is reached for to make something *bigger*, that
+  belongs in the `text-*` class, where it reads as the hierarchy decision it
+  is. Two costs come with it: the painted size no longer matches the declared
+  one (`text-2xl` paints ~15% larger than it says), and Array ends up ~27%
+  wider than Satoshi, which is the pressure to watch on titles that truncate.
+- **The two faces disagree about proportions, and caps win.** Array has a tall
+  x-height relative to its caps; Satoshi has a short one. No single
+  `size-adjust` satisfies both, so it is set to match cap heights, which is
+  what carries a heading. The lowercase in an Array title consequently runs
+  noticeably larger than the body text around it - intentional, not drift.
+  Satoshi itself is left unadjusted: it is the reference the other face is
+  measured against, and scaling it would only distort its drawn color.
 - **Explanatory asides are small italics.** Text that annotates a heading or
   section (the intro paragraph, dashboard tab descriptions, settings section
   descriptions, listener counts) renders `text-xs text-muted-foreground
@@ -198,6 +236,16 @@ guarded by a `color-scheme` meta tag; light-mode inline styles are the
 fallback for clients that ignore both. If the token values in `globals.css`
 change meaningfully, re-derive the hex snapshot here too.
 
+Typography is the one thing the emails deliberately do not carry over. They
+set a system stack rather than Satoshi, and that is not an oversight to fix
+when the typeface changes: Gmail and Outlook strip `@font-face`, so a webfont
+would reach a minority of readers while the rest silently fell back, and
+fetching one from the site would turn every open into a remote request - the
+same signal a tracking pixel sends, and blocked by default in many clients for
+that reason. The stack resolves to each platform's native UI face, which is as
+close to deliberate as email typography gets. The palette and the layout carry
+the brand here; the letterforms do not.
+
 ## Favicon
 
 `frontend/public/icon-{light,dark}.svg` is the same mark at tab size, and
@@ -221,5 +269,13 @@ Firefox has ignored a `media` attribute on the `<link>` since 2019. The cost is
 that the icon needs JS: the served default is the light variant, so a dark-mode
 tab shows it briefly before hydration. Deriving the mark by hand would drift
 from `brand/avatar.html`, so the palette is sampled from the rendered avatars
-and the path is Geist `N` at wght 560 pulled from `brand/geist-latin.woff2`;
-re-derive from there if either changes.
+and the path is Satoshi `N` at wght 540 pulled from
+`brand/satoshi-variable.woff2`; re-derive from there if either changes.
+
+That 540 is deliberately below the weight body copy runs at. Satoshi's ladder
+is shifted up a step to correct its short x-height, and a capital has no
+x-height to correct - inheriting the shift would just make the mark heavy.
+
+The mark stays in the body face rather than the display one: it is shown at
+16-32px in a tab, where Array's stepped construction breaks up, and it reads
+as the product's name rather than as a heading.

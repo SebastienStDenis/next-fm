@@ -19,7 +19,6 @@ import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-  PopoverTitle,
 } from "@/components/ui/popover";
 import { GHOST_PILL_CLASS } from "@/components/ghost-pill";
 import type { Playlist } from "@/lib/api-types";
@@ -294,14 +293,17 @@ function PlaylistCard({
                     aria-hidden
                     className="pointer-events-none absolute top-[0.625rem] -left-[2px] size-1.5 -translate-y-1/2 rotate-45 bg-primary"
                   />
-                  <PopoverTitle className="min-w-0">
+                  {/* Deliberately not a PopoverTitle: this is a coach mark, a
+                      full sentence at text-xs, and the display face that comes
+                      with that slot turns to mush at this size. */}
+                  <span className="min-w-0">
                     Save{" "}
                     <CirclePlus
                       className="inline size-3.5 -translate-y-px align-middle"
                       aria-hidden
                     />{" "}
                     in Spotify to listen anywhere
-                  </PopoverTitle>
+                  </span>
                   <button
                     type="button"
                     aria-label="Dismiss"

@@ -38,7 +38,10 @@
 
   // Proportions of the canvas edge, so any size renders identically.
   const CAP_RATIO = 0.54; // N cap height
-  const WEIGHT = 560;
+  // Below the weight body copy runs at, on purpose: the site shifts Satoshi's
+  // ladder up a step to correct its short x-height, and a capital has no
+  // x-height to correct. Inheriting that shift would just make the mark heavy.
+  const WEIGHT = 540;
   const COLUMNS = num("cols", 12); // grille perforations across the edge
   const DOT_ALPHA = num("alpha", 0.7);
   const DOT_RADIUS = num("dot", 0.0075);
@@ -78,12 +81,12 @@
   // Centers on the N's own ink rather than its em box, which sits low.
   const drawMark = () => {
     let fontSize = SIZE;
-    ctx.font = `${WEIGHT} ${fontSize}px Geist`;
+    ctx.font = `${WEIGHT} ${fontSize}px Satoshi`;
     const probe = ctx.measureText("N");
     const capAtProbe = probe.actualBoundingBoxAscent + probe.actualBoundingBoxDescent;
     fontSize = (CAP_RATIO * SIZE * fontSize) / capAtProbe;
 
-    ctx.font = `${WEIGHT} ${fontSize}px Geist`;
+    ctx.font = `${WEIGHT} ${fontSize}px Satoshi`;
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     const m = ctx.measureText("N");
@@ -100,8 +103,8 @@
     document.title = "ready";
   };
 
-  const font = new FontFace("Geist", "url(geist-latin.woff2) format('woff2')", {
-    weight: "100 900",
+  const font = new FontFace("Satoshi", "url(satoshi-variable.woff2) format('woff2')", {
+    weight: "300 900",
   });
   font.load().then((loaded) => {
     document.fonts.add(loaded);

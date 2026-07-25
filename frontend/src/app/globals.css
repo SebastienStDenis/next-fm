@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display, var(--font-sans));
   --font-sans: var(--font-sans);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -38,6 +38,18 @@
 }
 
 @theme {
+  /* Satoshi is drawn light: at a nominal weight it lays down about a fifth
+     less ink than a UI sans usually does, so the interface reads thin if the
+     ladder is taken at face value. Shifted one step up rather than rewriting
+     every `font-*` class - `font-medium` still means "the step above normal",
+     it just resolves to a weight that holds its colour at these sizes. The
+     shift exists to correct the face's low x-height, so anything set in caps
+     alone should not inherit it (see the brand mark in `brand/README.md`). */
+  --font-weight-normal: 500;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 800;
+
   --animate-fade-in: fade-in 250ms ease-out;
   --animate-slide-in-up: slide-in-up 250ms ease-out;
   --animate-slide-out-up: slide-out-up 250ms ease-out forwards;
@@ -254,7 +266,10 @@ body {
     background-repeat: no-repeat;
   }
   html {
-    @apply font-sans;
+    /* font-normal is the shifted normal, not the browser's 400: the ramp above
+       only reaches text that sets a `font-*` class, and most body copy sets
+       none. */
+    @apply font-sans font-normal;
   }
   q {
     quotes: "\201C" "\201D" "\2018" "\2019";
