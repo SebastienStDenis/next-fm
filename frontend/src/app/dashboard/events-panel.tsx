@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import type { ArtistRelation, City, UserArtist, UserEvent } from "@/lib/api-types";
-import { hasVirtualKeyboard } from "@/lib/utils";
+import { cn, hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "@/components/animated-height";
+import { DISPLAY_TITLE_CLASS } from "@/components/display-title";
 import { ArtistChip } from "./artist-chip";
 import { CitySearchBox } from "@/components/city-search-box";
 import {
@@ -234,15 +235,27 @@ export function EventsPanel({
                             right-hand column (shrink-0), keeping it beside
                             the title; the title takes the remaining width
                             and wraps within its slot only when it must. */}
-                        <CardTitle className="flex items-baseline gap-x-2">
+                        <CardTitle
+                          className={cn(
+                            "flex items-start gap-x-2",
+                            DISPLAY_TITLE_CLASS,
+                          )}
+                        >
                           <span className="min-w-0 text-balance">
                             {eventName(userEvent)}
                           </span>
                           {/* The date rides inside the title row but is
                               metadata, not the title: it stays on the body
-                              face rather than inheriting the display one. */}
+                              face rather than inheriting the display one.
+                              Its first line takes the title's line height so
+                              the two sit centred on one band - a shared
+                              baseline would leave the smaller text looking
+                              low, since the title's caps rise much higher from
+                              it. items-start keeps the date on the first line
+                              when a long name wraps below it. 22px is that
+                              band: the title's text-base at leading-snug. */}
                           <span className="ml-auto shrink-0 text-right font-sans text-xs font-normal text-muted-foreground">
-                            <span className="block">
+                            <span className="block leading-[22px]">
                               {concertDateFormat.format(startsAt)}
                             </span>
                             {concertTimeFormat.format(startsAt)}

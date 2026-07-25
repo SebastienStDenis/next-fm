@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { AuthCard } from "@/components/auth-card";
+import { Brand } from "@/components/brand";
 import { InlineNav } from "@/components/inline-nav";
 import { QueryNotice } from "@/components/query-notice";
 import { LoginForm } from "./login-form";
@@ -15,7 +16,7 @@ export default function LoginPage() {
   return (
     <AuthCard
       title="Log in"
-      description="Welcome back to NextFM."
+      description={<>Welcome back to <Brand />.</>}
       before={
         <Suspense>
           <QueryNotice errors={ERRORS} />

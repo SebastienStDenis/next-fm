@@ -21,6 +21,11 @@ import type { City, UserArtist, UserEvent } from "@/lib/api-types";
 
 import { AnimatedHeight } from "@/components/animated-height";
 import {
+  DISPLAY_TITLE_CLASS,
+  TITLE_RIDER_CLASS,
+} from "@/components/display-title";
+import { cn } from "@/lib/utils";
+import {
   ArtistDetails,
   KnownInterestBadges,
   ScoreBadge,
@@ -291,23 +296,27 @@ export function ArtistsPanel({
             return (
               <li key={userArtist.artist.id} className="min-w-0">
                 <Card size="sm" className="h-full">
-                  {/* items-start rides the h-5 badge on the title's first
-                      line when a long name wraps. */}
+                  {/* items-start rides the badge on the title's first line
+                      when a long name wraps. */}
                   <CardHeader className="flex items-start justify-between gap-2">
-                    <CardTitle className="min-w-0 break-words">
+                    <CardTitle
+                      className={cn("min-w-0 break-words", DISPLAY_TITLE_CLASS)}
+                    >
                       {userArtist.artist.name}
                     </CardTitle>
                     {/* The artist's headline number: the score for a
                         suggestion, the listening-history pills for an artist
                         you listen to - matching the concert chips' popover. */}
-                    {suggested ? (
-                      <ScoreBadge userArtist={userArtist} />
-                    ) : (
-                      <KnownInterestBadges
-                        userArtist={userArtist}
-                        className="justify-end"
-                      />
-                    )}
+                    <span className={TITLE_RIDER_CLASS}>
+                      {suggested ? (
+                        <ScoreBadge userArtist={userArtist} />
+                      ) : (
+                        <KnownInterestBadges
+                          userArtist={userArtist}
+                          className="justify-end"
+                        />
+                      )}
+                    </span>
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col gap-1">
                     <ArtistDetails

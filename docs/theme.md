@@ -59,21 +59,45 @@ shaped the values, and should shape future adjustments:
   every weight the UI asks for is a real one, and it carries a true italic
   rather than a slanted upright. Array (`--font-display`) is the display face,
   reached through the `--font-heading` token so the pairing can be changed in
-  one line of `globals.css`. It is worn by titles that name a surface: the four
-  page `h1`s (home, dashboard, welcome, about) and the `CardTitle`/
-  `DialogTitle`/`AlertDialogTitle`/`PopoverTitle` primitives, which is what
-  carries it to settings sections, welcome steps, auth cards, and the artist
-  and concert popovers. Nothing else takes it - subsection labels, asides, and
-  the metadata that rides inside a title row stay Satoshi, because Array is
-  drawn wide and blocky for large sizes and turns to mush below ~14px.
+  one line of `globals.css`.
+- **The display face is worn by the name and the catalogue, and nothing else.**
+  Two things take it. The product name where it is being introduced to the
+  reader - the page `h1`s, the auth cards' descriptions, the `About` section
+  heading - through the `Brand` component. It stays upright (`not-italic`):
+  Array has no italic cut, so inside an italic aside the browser would slant
+  it rather than draw it, and the mark does not lean with the sentence it sits
+  in. And the titles of the artist and concert cards, in both their card and
+  popover forms, through `DISPLAY_TITLE_CLASS` - these name the music the app
+  is for, so they are the one place a list of names is worth setting as display
+  type. The `About` page `h1` is the deliberate exception: it is a one-word
+  title on a page that is otherwise all prose, and it wants the same weight as
+  the name it explains.
+- **The mark is not set in the display face below 14px, and prose does not
+  repeat it.** The system messages that name the product - the empty states,
+  the intro aside - write `NextFM` as plain text. They run at `text-xs` in
+  muted grey, where Array is past its legible floor and where the name is only
+  the subject of a sentence about what will happen, not the thing being
+  introduced. The same restraint governs repetition: `About` sets the mark in
+  its section heading and then writes the name plainly (or as *it*) in the
+  prose beneath, because a page speckled with display type reads as trademark
+  anxiety rather than as a brand.
+- **Everything else stays on the body face**, including things that look like
+  they would qualify: the `Settings` header, settings section titles, playlist
+  card titles, the concerts popover, auth card titles, and the welcome page's
+  own title line (where only the `NextFM` inside it is display). The title
+  primitives - `CardTitle`, `DialogTitle`, `AlertDialogTitle`, `PopoverTitle` -
+  carry no face of their own; a title takes Array by opting in, so the default
+  cannot quietly spread it. Array is drawn wide and blocky for large sizes and
+  turns to mush below ~14px, and a UI where every title shouts has no emphasis
+  left for the two things that should.
 - **Things that merely sit in a title slot opt back out.** A title row often
   carries metadata beside the title, and that metadata stays on the body face:
-  the date on a concert card, every `Badge` (the score pill, the interest and
-  tag chips - a badge is never a title, so `font-sans` lives in the primitive),
-  and the Spotify save tip, a full sentence at `text-xs` that happens to be a
-  `PopoverTitle`. `global-error.tsx` is excluded for a different reason: it
+  the date on a concert card, and every `Badge` (the score pill, the interest
+  and tag chips - a badge is never a title, so `font-sans` lives in the
+  primitive). `global-error.tsx` is excluded for a different reason: it
   replaces the root layout and imports nothing from the app, so it has no font
-  variables to inherit.
+  variables to inherit - the `NextFM` in its message is the one that stays on
+  the body face.
 - **Array is scaled up to sit level with Satoshi.** Its caps draw 14% shorter
   at the same `font-size`, so an unadjusted heading reads a size small.
   `size-adjust: 115%` on the `@font-face` in `layout.tsx` corrects this once,

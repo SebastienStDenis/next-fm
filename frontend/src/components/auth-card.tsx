@@ -19,7 +19,7 @@ export function AuthCard({
   children,
 }: {
   title: string;
-  description?: string;
+  description?: ReactNode;
   before?: ReactNode;
   contentClassName?: string;
   footer?: ReactNode;

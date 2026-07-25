@@ -114,8 +114,7 @@ function PopoverTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
     <div
       data-slot="popover-title"
-      /* font-[400]: see CardTitle - Array has no step between 400 and 600. */
-      className={cn("font-heading font-[400]", className)}
+      className={cn("font-medium", className)}
       {...props}
     />
   )
