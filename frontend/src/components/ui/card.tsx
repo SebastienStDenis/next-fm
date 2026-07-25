@@ -38,9 +38,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        /* font-[400], not a named step: Array is cut at 400/600/700 with
-           nothing between, and a named step would land on its 600. */
-        "font-heading text-base leading-snug font-[400] group-data-[size=sm]/card:text-sm",
+        "text-base leading-snug font-medium",
         className
       )}
       {...props}

@@ -20,6 +20,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
+import { TITLE_RIDER_CLASS } from "@/components/display-title";
 import { GHOST_PILL_CLASS } from "@/components/ghost-pill";
 import type { Playlist } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -248,10 +249,13 @@ function PlaylistCard({
       >
         <CardHeader>
           <CardTitle className="flex items-start gap-2">
-            {/* mt-[7px] centers the dot on the cap height of the first line of
-                the text-base/leading-snug title (items-start keeps it pinned
-                to the top line, not floating beside a wrapped name). */}
-            <span className="mt-[7px] shrink-0 animate-fade-in" aria-hidden>
+            {/* items-start keeps the dot pinned to the title's first line
+                rather than floating beside a wrapped name; the rider box
+                centres it on that line. */}
+            <span
+              className={cn(TITLE_RIDER_CLASS, "animate-fade-in")}
+              aria-hidden
+            >
               <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary" />
             </span>
             <span className="min-w-0">{playlist.name}</span>
