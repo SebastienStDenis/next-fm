@@ -4,16 +4,16 @@ import * as Sentry from "@sentry/nextjs";
 import { useEffect, useSyncExternalStore } from "react";
 
 import "./globals.css";
-import { satoshi } from "./fonts";
+import { fontVariables } from "./fonts";
 
 /**
  * Replaces the root layout when the layout itself fails, so it renders its own
  * document and deliberately runs no app code - whatever broke the layout must
- * not be able to break this page too. The stylesheet and the body face are the
- * exceptions: both are inert build output, and without them the fallback would
- * be a browser-default page that looks like it belongs to no product. The
- * display face stays out, per docs/theme.md - nothing here is the mark or a
- * catalogue title.
+ * not be able to break this page too. The stylesheet and the font variables are
+ * the exceptions: both are inert build output, and without them the fallback
+ * would be a browser-default page that looks like it belongs to no product.
+ * Both faces come along, because this title takes the display face - the
+ * fallback pages are the exception docs/theme.md carves for them.
  *
  * Next.js catches the error before it reaches any global handler, so this
  * `captureException` is the only thing that tells Sentry a root-layout failure
@@ -35,13 +35,17 @@ export default function GlobalError({
   return (
     <html
       lang="en"
-      className={["h-full antialiased font-sans", satoshi.variable, dark && "dark"]
+      className={[
+        "h-full antialiased font-sans",
+        ...fontVariables,
+        dark && "dark",
+      ]
         .filter(Boolean)
         .join(" ")}
     >
       <body className="min-h-full min-w-80 flex items-center justify-center bg-background p-6 text-foreground">
         <main className="flex flex-col items-center gap-4 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
             Something went wrong
           </h1>
           <p className="max-w-prose text-sm text-muted-foreground">

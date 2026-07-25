@@ -39,8 +39,7 @@ export const array = localFont({
   declarations: [{ prop: "size-adjust", value: "115%" }],
 });
 
-// The pairing the app runs on. `global-error.tsx` takes `satoshi.variable`
-// alone: it renders its own document, and the body face is the only one it
-// sets - with `--font-display` unset there, `--font-heading` falls back to the
-// body face rather than to nothing.
+// The pairing the app runs on. Both the root layout and the standalone
+// `global-error.tsx` document set it, so a title reaches the same display face
+// whichever of the two rendered it.
 export const fontVariables = [satoshi.variable, array.variable];

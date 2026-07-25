@@ -11,7 +11,7 @@ export default function NotFound() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
       <Haze>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
           Page not found
         </h1>
       </Haze>
