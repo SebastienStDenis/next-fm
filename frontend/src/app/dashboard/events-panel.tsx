@@ -246,8 +246,13 @@ export function EventsPanel({
                           </span>
                           {/* The date rides inside the title row but is
                               metadata, not the title: it stays on the body
-                              face rather than inheriting the display one. */}
-                          <span className="ml-auto shrink-0 text-right font-sans text-xs font-normal text-muted-foreground">
+                              face rather than inheriting the display one.
+                              -mt-[3px] is optical, not layout: the row shares
+                              a baseline, but the title's caps rise ~3px higher
+                              than the date's from that baseline, and the eye
+                              reads the two cap tops - not the baseline - as
+                              the line they sit on. */}
+                          <span className="-mt-[3px] ml-auto shrink-0 text-right font-sans text-xs font-normal text-muted-foreground">
                             <span className="block">
                               {concertDateFormat.format(startsAt)}
                             </span>
