@@ -1,7 +1,10 @@
 "use client";
 
 import { CHIP_CLASS } from "@/components/chip";
-import { DISPLAY_TITLE_CLASS } from "@/components/display-title";
+import {
+  DISPLAY_TITLE_CLASS,
+  TITLE_RIDER_CLASS,
+} from "@/components/display-title";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -106,11 +109,16 @@ export function ArtistChip({
             )}
           >
             <span className="min-w-0 break-words">{artist.name}</span>
-            {suggested ? (
-              <ScoreBadge userArtist={details} />
-            ) : (
-              <KnownInterestBadges userArtist={details} className="justify-end" />
-            )}
+            <span className={TITLE_RIDER_CLASS}>
+              {suggested ? (
+                <ScoreBadge userArtist={details} />
+              ) : (
+                <KnownInterestBadges
+                  userArtist={details}
+                  className="justify-end"
+                />
+              )}
+            </span>
           </PopoverTitle>
         </PopoverHeader>
         {/* gap-1 and the tags' pt-2 mirror the Artists-tab card body, so the

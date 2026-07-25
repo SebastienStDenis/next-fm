@@ -237,7 +237,7 @@ export function EventsPanel({
                             and wraps within its slot only when it must. */}
                         <CardTitle
                           className={cn(
-                            "flex items-baseline gap-x-2",
+                            "flex items-start gap-x-2",
                             DISPLAY_TITLE_CLASS,
                           )}
                         >
@@ -247,13 +247,15 @@ export function EventsPanel({
                           {/* The date rides inside the title row but is
                               metadata, not the title: it stays on the body
                               face rather than inheriting the display one.
-                              -mt-[3px] is optical, not layout: the row shares
-                              a baseline, but the title's caps rise ~3px higher
-                              than the date's from that baseline, and the eye
-                              reads the two cap tops - not the baseline - as
-                              the line they sit on. */}
-                          <span className="-mt-[3px] ml-auto shrink-0 text-right font-sans text-xs font-normal text-muted-foreground">
-                            <span className="block">
+                              Its first line takes the title's line height so
+                              the two sit centred on one band - a shared
+                              baseline would leave the smaller text looking
+                              low, since the title's caps rise much higher from
+                              it. items-start keeps the date on the first line
+                              when a long name wraps below it. 22px is that
+                              band: the title's text-base at leading-snug. */}
+                          <span className="ml-auto shrink-0 text-right font-sans text-xs font-normal text-muted-foreground">
+                            <span className="block leading-[22px]">
                               {concertDateFormat.format(startsAt)}
                             </span>
                             {concertTimeFormat.format(startsAt)}
