@@ -100,7 +100,7 @@ export function ArtistDetails({
     <>
       {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
       {(userArtist.listeners != null || tags.length > 0) && (
-        <div className={cn("flex flex-col gap-1", tagsClassName)}>
+        <div className={cn("flex flex-col gap-2", tagsClassName)}>
           {userArtist.listeners != null && (
             <p className="text-xs text-muted-foreground italic">
               {listenersFormat.format(userArtist.listeners)} listeners
