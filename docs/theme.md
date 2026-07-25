@@ -236,6 +236,16 @@ guarded by a `color-scheme` meta tag; light-mode inline styles are the
 fallback for clients that ignore both. If the token values in `globals.css`
 change meaningfully, re-derive the hex snapshot here too.
 
+Typography is the one thing the emails deliberately do not carry over. They
+set a system stack rather than Satoshi, and that is not an oversight to fix
+when the typeface changes: Gmail and Outlook strip `@font-face`, so a webfont
+would reach a minority of readers while the rest silently fell back, and
+fetching one from the site would turn every open into a remote request - the
+same signal a tracking pixel sends, and blocked by default in many clients for
+that reason. The stack resolves to each platform's native UI face, which is as
+close to deliberate as email typography gets. The palette and the layout carry
+the brand here; the letterforms do not.
+
 ## Favicon
 
 `frontend/public/icon-{light,dark}.svg` is the same mark at tab size, and
