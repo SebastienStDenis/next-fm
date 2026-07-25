@@ -41,4 +41,8 @@ shoot() {
 
 for mode in light dark; do
   shoot "$here/nextfm-$mode.png" "mode=$mode" || exit 1
+  # The display-face cut: the N set in Array, on a plain field. Array's own
+  # stepped construction supplies the texture the grille gives the other pair,
+  # so the two together would read as noise.
+  shoot "$here/nextfm-array-$mode.png" "mode=$mode&face=array&grille=off" || exit 1
 done

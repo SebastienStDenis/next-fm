@@ -14,13 +14,17 @@
 <canvas id="c"></canvas>
 <script>
   // Renders one next.fm bot-account avatar. Query params:
-  //   mode=light|dark   which side of the palette
-  //   size=<px>         output edge length (default 1024)
-  //   cols, dot         grille pitch and perforation radius, for retuning
+  //   mode=light|dark    which side of the palette
+  //   face=satoshi|array which typeface sets the N
+  //   grille=on|off      the perforation field behind the mark
+  //   size=<px>          output edge length (default 1024)
+  //   cols, dot          grille pitch and perforation radius, for retuning
   // The palette values mirror the tokens in frontend/src/app/globals.css; when
   // those change, re-derive here and regenerate.
   const params = new URLSearchParams(location.search);
   const mode = params.get("mode") === "dark" ? "dark" : "light";
+  const faceKey = params.get("face") === "array" ? "array" : "satoshi";
+  const SHOW_GRILLE = params.get("grille") !== "off";
   const SIZE = Number(params.get("size") || 1024);
   const num = (key, fallback) =>
     params.has(key) ? Number(params.get(key)) : fallback;
@@ -36,12 +40,38 @@
     },
   }[mode];
 
+  // Each face is sized by cap height, so the mark keeps its vertical presence
+  // whichever one sets it. Array takes the larger cap despite being the wider
+  // drawing: it builds its N out of discrete dots, and at the ~180px an avatar
+  // is actually shown at, a smaller setting lets neighbouring dots antialias
+  // into each other until the strokes go solid and the point of the face is
+  // lost. It still clears the circle both services crop to with margin.
+  //
+  // Satoshi's weight sits below the weight body copy runs at, on purpose: the
+  // site shifts its ladder up a step to correct a short x-height, and a
+  // capital has no x-height to correct. Array is cut at 400 and 600 with
+  // nothing between; 600 is the one that carries at icon sizes.
+  const FACES = {
+    satoshi: {
+      family: "Satoshi",
+      file: "satoshi-variable.woff2",
+      range: "300 900",
+      weight: 540,
+      capRatio: 0.54,
+    },
+    array: {
+      family: "Array",
+      file: "array-600.woff2",
+      range: "600",
+      weight: 600,
+      capRatio: 0.58,
+    },
+  };
+  const FACE = FACES[faceKey];
+
   // Proportions of the canvas edge, so any size renders identically.
-  const CAP_RATIO = 0.54; // N cap height
-  // Below the weight body copy runs at, on purpose: the site shifts Satoshi's
-  // ladder up a step to correct its short x-height, and a capital has no
-  // x-height to correct. Inheriting that shift would just make the mark heavy.
-  const WEIGHT = 540;
+  const CAP_RATIO = FACE.capRatio; // N cap height
+  const WEIGHT = FACE.weight;
   const COLUMNS = num("cols", 12); // grille perforations across the edge
   const DOT_ALPHA = num("alpha", 0.7);
   const DOT_RADIUS = num("dot", 0.0075);
@@ -81,12 +111,12 @@
   // Centers on the N's own ink rather than its em box, which sits low.
   const drawMark = () => {
     let fontSize = SIZE;
-    ctx.font = `${WEIGHT} ${fontSize}px Satoshi`;
+    ctx.font = `${WEIGHT} ${fontSize}px ${FACE.family}`;
     const probe = ctx.measureText("N");
     const capAtProbe = probe.actualBoundingBoxAscent + probe.actualBoundingBoxDescent;
     fontSize = (CAP_RATIO * SIZE * fontSize) / capAtProbe;
 
-    ctx.font = `${WEIGHT} ${fontSize}px Satoshi`;
+    ctx.font = `${WEIGHT} ${fontSize}px ${FACE.family}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     const m = ctx.measureText("N");
@@ -98,13 +128,13 @@
   const render = () => {
     ctx.fillStyle = PALETTE.background;
     ctx.fillRect(0, 0, SIZE, SIZE);
-    drawGrille();
+    if (SHOW_GRILLE) drawGrille();
     drawMark();
     document.title = "ready";
   };
 
-  const font = new FontFace("Satoshi", "url(satoshi-variable.woff2) format('woff2')", {
-    weight: "300 900",
+  const font = new FontFace(FACE.family, `url(${FACE.file}) format('woff2')`, {
+    weight: FACE.range,
   });
   font.load().then((loaded) => {
     document.fonts.add(loaded);

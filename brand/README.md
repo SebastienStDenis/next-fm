@@ -22,6 +22,34 @@ at full size and turning into nothing where it is actually used.
 Both services crop avatars to a circle; the mark is sized to clear the
 inscribed circle with margin, so the square and circle crops both work.
 
+## The display-face cut
+
+A second, unshipped pair sets the same `N` in Array - the display face - and
+drops the grille:
+
+| File | |
+| --- | --- |
+| `nextfm-array-light.png`, `nextfm-array-dark.png` | 1024px avatars |
+| `icon-array-light.svg`, `icon-array-dark.svg` | the same mark as vector |
+
+Array draws its letters as a field of discrete dots, so the perforation
+texture moves out of the background and into the glyph. The grille comes off
+because of that, not to simplify: run both and the two dot fields sit at
+different pitches over each other and read as noise.
+
+The mark takes a larger cap height here than the Satoshi one (0.58 against
+0.54) even though Array is the wider drawing. The dots have to stay separated
+after the downscale to display size; set smaller, neighbouring dots antialias
+into each other and the strokes go solid, which is the one thing this cut is
+for. It still clears the circle crop by 9% of the box.
+
+**Judge this cut at the size it would be used.** It is strongest at 180px and
+96px, holds at 48px, and goes muddy at the 16px a browser tab uses - where the
+Satoshi mark stays legible. The vectors are kept in this folder rather than
+`frontend/public/` for that reason: as an avatar it is the stronger mark, as a
+favicon it is not. Promoting it means copying the two SVGs into
+`frontend/public/` and pointing `frontend/src/app/favicon-sync.tsx` at them.
+
 ## Regenerating
 
 ```sh
@@ -30,11 +58,16 @@ inscribed circle with margin, so the square and circle crops both work.
 ```
 
 `avatar.html` renders one avatar to a canvas, and `generate.sh` screenshots it
-in headless Chrome. `satoshi-variable.woff2` is the same file the site serves,
-vendored so the mark stays identical if `node_modules` is not built.
+in headless Chrome; one run writes all four PNGs. Both faces are vendored here
+(`satoshi-variable.woff2`, `array-600.woff2`) as the same files the site
+serves, so the marks stay identical if `node_modules` is not built.
 
-The `N` is set at `wght 540`, which is *lighter* than the weight body copy
-runs at. The site shifts Satoshi's whole ladder up a step to correct its short
+`avatar.html` takes `face=satoshi|array` and `grille=on|off` alongside the
+existing params, so either cut can be previewed directly in a browser before
+regenerating.
+
+The Satoshi `N` is set at `wght 540`, which is *lighter* than the weight body
+copy runs at. The site shifts Satoshi's whole ladder up a step to correct its short
 x-height (see `docs/theme.md`); a capital has no x-height needing that, so the
 mark comes out overweight if it inherits the shift. Judge any change to this
 number on the rendered mark, not against the body ladder.
