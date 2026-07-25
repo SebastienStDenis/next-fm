@@ -294,7 +294,9 @@ function PlaylistCard({
                     aria-hidden
                     className="pointer-events-none absolute top-[0.625rem] -left-[2px] size-1.5 -translate-y-1/2 rotate-45 bg-primary"
                   />
-                  <PopoverTitle className="min-w-0">
+                  {/* A coach mark, not a title: a full sentence at text-xs,
+                      where the display face turns to mush. */}
+                  <PopoverTitle className="min-w-0 font-sans">
                     Save{" "}
                     <CirclePlus
                       className="inline size-3.5 -translate-y-px align-middle"
