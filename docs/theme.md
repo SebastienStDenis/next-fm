@@ -259,11 +259,13 @@ Firefox has ignored a `media` attribute on the `<link>` since 2019. The cost is
 that the icon needs JS: the served default is the light variant, so a dark-mode
 tab shows it briefly before hydration. Deriving the mark by hand would drift
 from `brand/avatar.html`, so the palette is sampled from the rendered avatars
-and the path is Geist `N` at wght 560 pulled from `brand/geist-latin.woff2`;
-re-derive from there if either changes.
+and the path is Satoshi `N` at wght 540 pulled from
+`brand/satoshi-variable.woff2`; re-derive from there if either changes.
 
-Note that Geist no longer appears anywhere in the UI - the app moved to
-Satoshi and Array. The favicon and the avatars are the last of it, so the mark
-is currently drawn in a face the product itself never shows. Re-cutting the
-`N` from Satoshi (or from Array, if the mark should carry the display voice)
-is an open branding decision, deliberately not taken here.
+That 540 is deliberately below the weight body copy runs at. Satoshi's ladder
+is shifted up a step to correct its short x-height, and a capital has no
+x-height to correct - inheriting the shift would just make the mark heavy.
+
+The mark stays in the body face rather than the display one: it is shown at
+16-32px in a tab, where Array's stepped construction breaks up, and it reads
+as the product's name rather than as a heading.

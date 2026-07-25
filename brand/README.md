@@ -4,7 +4,7 @@ Icons for the project, used as favicons and account profile pictures.
 
 ## The files
 
-Two 1024x1024 PNGs, an `N` set in Geist over the palette in `docs/theme.md`:
+Two 1024x1024 PNGs, an `N` set in Satoshi over the palette in `docs/theme.md`:
 
 | File | Background | Mark |
 | --- | --- | --- |
@@ -30,8 +30,14 @@ inscribed circle with margin, so the square and circle crops both work.
 ```
 
 `avatar.html` renders one avatar to a canvas, and `generate.sh` screenshots it
-in headless Chrome. `geist-latin.woff2` is the same Geist subset the site
-serves, vendored so the mark stays identical if `node_modules` is not built.
+in headless Chrome. `satoshi-variable.woff2` is the same file the site serves,
+vendored so the mark stays identical if `node_modules` is not built.
+
+The `N` is set at `wght 540`, which is *lighter* than the weight body copy
+runs at. The site shifts Satoshi's whole ladder up a step to correct its short
+x-height (see `docs/theme.md`); a capital has no x-height needing that, so the
+mark comes out overweight if it inherits the shift. Judge any change to this
+number on the rendered mark, not against the body ladder.
 
 The grille is retunable by query param (`cols` for the pitch, `dot` for the
 perforation radius, `alpha` for its opacity) - open `avatar.html` directly to
@@ -44,5 +50,7 @@ regenerate (same arrangement as the email templates, see `docs/theme.md`).
 
 The site favicon (`frontend/public/icon-{light,dark}.svg`) is the same mark
 drawn as vector for tab sizes, not one of these PNGs - it samples its palette
-from them and its `N` from `geist-latin.woff2`. Re-derive it alongside any
-change here.
+from them and its `N` from `satoshi-variable.woff2`. Re-derive it alongside any
+change here: instantiate the variable font at the weight above, take the `N`
+outline, and scale it so its cap height is `CAP_RATIO` of the 100-unit viewBox,
+centred on both axes.

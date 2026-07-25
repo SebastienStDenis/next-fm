@@ -38,14 +38,13 @@
 }
 
 @theme {
-  /* Satoshi lays down ~20% less ink than Geist did at the same weight, so the
-     whole UI read thin after the swap. The ramp is shifted one step up rather
-     than every `font-*` class being rewritten: `font-medium` still means "the
-     step above normal", it just resolves to a weight that matches what Geist
-     drew. Measured against Geist: 400->500 lands within 1%, and the pairing
-     drifts a few percent light by the top of the ramp. Deliberately not in the
-     `inline` theme block above - these have to stay real custom properties so
-     the font picker can retune them at runtime. */
+  /* Satoshi is drawn light: at a nominal weight it lays down about a fifth
+     less ink than a UI sans usually does, so the interface reads thin if the
+     ladder is taken at face value. Shifted one step up rather than rewriting
+     every `font-*` class - `font-medium` still means "the step above normal",
+     it just resolves to a weight that holds its colour at these sizes. The
+     shift exists to correct the face's low x-height, so anything set in caps
+     alone should not inherit it (see the brand mark in `brand/README.md`). */
   --font-weight-normal: 500;
   --font-weight-medium: 600;
   --font-weight-semibold: 700;

@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import localFont from "next/font/local";
-import { Be_Vietnam_Pro, Geist } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { FaviconSync } from "./favicon-sync";
-import { FontPicker } from "./font-picker";
 import { SoundwaveBackground } from "./soundwave-background";
 
 // Both faces are Fontshare, so both are self-hosted. Satoshi carries a real
@@ -28,35 +26,6 @@ const satoshi = localFont({
     },
   ],
   variable: "--font-sans",
-  display: "swap",
-});
-
-// TEMPORARY - the three alternates behind the body-face picker, alongside
-// Satoshi. Delete these, `FontPicker`, and its mount in the body once the
-// comparison is settled; Satoshi above is the only one the app itself needs.
-const geist = Geist({ subsets: ["latin"], variable: "--font-alt-geist" });
-
-const beVietnam = Be_Vietnam_Pro({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  style: ["normal", "italic"],
-  variable: "--font-alt-be-vietnam",
-});
-
-const generalSans = localFont({
-  src: [
-    {
-      path: "./fonts/general-sans-variable.woff2",
-      weight: "200 700",
-      style: "normal",
-    },
-    {
-      path: "./fonts/general-sans-variable-italic.woff2",
-      weight: "200 700",
-      style: "italic",
-    },
-  ],
-  variable: "--font-alt-general-sans",
   display: "swap",
 });
 
@@ -96,15 +65,10 @@ export default function RootLayout({
         "h-full antialiased font-sans",
         satoshi.variable,
         array.variable,
-        geist.variable,
-        beVietnam.variable,
-        generalSans.variable,
       )}
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        {/* TEMPORARY - remove with `font-picker.tsx` and the alternate faces. */}
-        <FontPicker />
         {/* min-w-80: below 320px the page scrolls horizontally instead of
             squeezing layouts past their breaking point. The floor lives on
             this wrapper, not on body: Floating UI reads a body wider than
