@@ -1,6 +1,7 @@
 # Theme
 
-*Written 2026-07-11 by Claude (Fable 5); depth effects added 2026-07-20.*
+*Written 2026-07-11 by Claude (Fable 5); depth effects added 2026-07-20; fallback
+pages added 2026-07-25.*
 
 The site's visual identity. When adjusting styling, follow these guidelines;
 when the theme changes, update this doc in the same change.
@@ -94,13 +95,14 @@ shaped the values, and should shape future adjustments:
   carries metadata beside the title, and that metadata stays on the body face:
   the date on a concert card, and every `Badge` (the score pill, the interest
   and tag chips - a badge is never a title, so `font-sans` lives in the
-  primitive). `global-error.tsx` is excluded for a different reason: it
-  replaces the root layout and imports nothing from the app, so it has no font
-  variables to inherit - the `NextFM` in its message is the one that stays on
-  the body face.
+  primitive). The fallback pages - `not-found.tsx`, `error.tsx` and
+  `global-error.tsx` - title themselves on the body face too: a page telling
+  you a link is dead or a load failed is neither the mark nor the catalogue,
+  and the `NextFM` inside their messages is a status message's subject, so it
+  stays plain by the rule above.
 - **Array is scaled up to sit level with Satoshi.** Its caps draw 14% shorter
   at the same `font-size`, so an unadjusted heading reads a size small.
-  `size-adjust: 115%` on the `@font-face` in `layout.tsx` corrects this once,
+  `size-adjust: 115%` on the `@font-face` in `app/fonts/index.ts` corrects this once,
   rather than every use bumping its `text-*` step - the type scale keeps
   meaning what it says. Use `size-adjust` only to make one face sit level with
   the other; the moment it is reached for to make something *bigger*, that

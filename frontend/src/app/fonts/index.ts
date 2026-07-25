@@ -39,7 +39,8 @@ export const array = localFont({
   declarations: [{ prop: "size-adjust", value: "115%" }],
 });
 
-// The `font-sans` and `font-heading` utilities read these variables, so any
-// document root must carry them - including the one global-error renders in
-// place of the root layout.
+// The pairing the app runs on. `global-error.tsx` takes `satoshi.variable`
+// alone: it renders its own document, and the body face is the only one it
+// sets - with `--font-display` unset there, `--font-heading` falls back to the
+// body face rather than to nothing.
 export const fontVariables = [satoshi.variable, array.variable];
