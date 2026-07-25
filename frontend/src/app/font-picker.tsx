@@ -10,23 +10,40 @@ import { useEffect, useState } from "react";
  */
 
 // Satoshi is the one the app ships; the rest are here to be compared against
-// it. `ramp` is the weight ladder each face wants: Satoshi lays down ~20% less
-// ink than Geist, so it is set a step up, and judging the two on the same
-// ladder would just show one of them at the wrong weight.
+// it. Each face carries the corrections it needs to be judged fairly, since
+// showing them all raw would mostly show whose defaults happen to suit this
+// UI. `ramp` is the weight ladder: Satoshi lays down ~20% less ink than Geist,
+// so it is set a step up. `tracking` is set where a face is drawn with
+// sidebearings this UI does not want - Be Vietnam Pro is spaced for stacked
+// Vietnamese diacritics, which reads loose in English at these sizes.
 const FACES = [
-  { id: "satoshi", label: "Satoshi", varName: "--font-sans", ramp: "up" },
-  { id: "geist", label: "Geist", varName: "--font-alt-geist", ramp: "base" },
+  {
+    id: "satoshi",
+    label: "Satoshi",
+    varName: "--font-sans",
+    ramp: "up",
+    tracking: "normal",
+  },
+  {
+    id: "geist",
+    label: "Geist",
+    varName: "--font-alt-geist",
+    ramp: "base",
+    tracking: "normal",
+  },
   {
     id: "general-sans",
     label: "General Sans",
     varName: "--font-alt-general-sans",
     ramp: "up",
+    tracking: "normal",
   },
   {
     id: "be-vietnam",
     label: "Be Vietnam",
     varName: "--font-alt-be-vietnam",
     ramp: "base",
+    tracking: "-0.025em",
   },
 ] as const;
 
@@ -51,6 +68,10 @@ function apply(faceId: FaceId, rampOverride: RampId | null) {
   for (const [step, value] of Object.entries(ramp)) {
     root.style.setProperty(`--font-weight-${step}`, String(value));
   }
+  // Inherited, so it reaches the display face too on the few titles that set
+  // no tracking of their own. Left that way on purpose: scoping it would cost
+  // more machinery than this throwaway bar is worth.
+  root.style.letterSpacing = face.tracking;
 }
 
 export function FontPicker() {
