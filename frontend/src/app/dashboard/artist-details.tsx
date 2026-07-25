@@ -99,12 +99,7 @@ export function ArtistDetails({
   return (
     <>
       {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
-      {userArtist.listeners != null && (
-        <p className="text-xs text-muted-foreground italic">
-          {listenersFormat.format(userArtist.listeners)} listeners
-        </p>
-      )}
-      {tags.length > 0 && (
+      {(tags.length > 0 || userArtist.listeners != null) && (
         <div className={cn("flex flex-wrap gap-1.5", tagsClassName)}>
           {tags.map((tag) => (
             <Badge
@@ -117,6 +112,11 @@ export function ArtistDetails({
               <span className="truncate">{tag}</span>
             </Badge>
           ))}
+          {userArtist.listeners != null && (
+            <span className="self-center text-xs whitespace-nowrap text-muted-foreground italic">
+              {listenersFormat.format(userArtist.listeners)} listeners
+            </span>
+          )}
         </div>
       )}
     </>
