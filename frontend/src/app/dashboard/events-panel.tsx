@@ -16,7 +16,6 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ArtistRelation, City, UserArtist, UserEvent } from "@/lib/api-types";
 import { cn, hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "@/components/animated-height";
-import { Brand } from "@/components/brand";
 import { DISPLAY_TITLE_CLASS } from "@/components/display-title";
 import { ArtistChip } from "./artist-chip";
 import { CitySearchBox } from "@/components/city-search-box";
@@ -215,14 +214,9 @@ export function EventsPanel({
         <AnimatedHeight>
           {visibleEvents.length === 0 && hiddenCount === 0 ? (
             <EmptyStateCell>
-              {cityView ? (
-                "No concerts found. Try a different city."
-              ) : (
-                <>
-                  No concerts found near {city.name}. <Brand /> will find new
-                  concerts as they&apos;re announced.
-                </>
-              )}
+              {cityView
+                ? "No concerts found. Try a different city."
+                : `No concerts found near ${city.name}. NextFM will find new concerts as they're announced.`}
             </EmptyStateCell>
           ) : (
             <ul className={CARD_GRID_CLASS}>

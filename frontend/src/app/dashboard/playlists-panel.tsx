@@ -20,7 +20,6 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
-import { Brand } from "@/components/brand";
 import { GHOST_PILL_CLASS } from "@/components/ghost-pill";
 import type { Playlist } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -120,7 +119,7 @@ export function PlaylistsPanel({
   if (playlists.length === 0) {
     return synced ? (
       <EmptyStateCell>
-        No playlists generated. <Brand /> will generate them on the next daily
+        No playlists generated. NextFM will generate them on the next daily
         sync.
       </EmptyStateCell>
     ) : (
@@ -348,7 +347,7 @@ function PlaylistCard({
             <CollapsibleContent>
               {playlist.tracks.length === 0 ? (
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  No tracks found. <Brand /> will add new ones as your listening
+                  No tracks found. NextFM will add new ones as your listening
                   history and upcoming concerts change.
                 </p>
               ) : (

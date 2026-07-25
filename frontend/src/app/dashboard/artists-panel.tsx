@@ -20,7 +20,6 @@ import {
 import type { City, UserArtist, UserEvent } from "@/lib/api-types";
 
 import { AnimatedHeight } from "@/components/animated-height";
-import { Brand } from "@/components/brand";
 import { DISPLAY_TITLE_CLASS } from "@/components/display-title";
 import { cn } from "@/lib/utils";
 import {
@@ -209,7 +208,7 @@ function NoSuggestionsMessage({ synced }: { synced: boolean }) {
   return synced ? (
     <>
       No artists suggested. If you just signed up for Last.fm, wait for
-      Last.fm to capture future listening history. <Brand /> will suggest new
+      Last.fm to capture future listening history. NextFM will suggest new
       artists as your listening history changes.
     </>
   ) : (

@@ -61,17 +61,26 @@ shaped the values, and should shape future adjustments:
   reached through the `--font-heading` token so the pairing can be changed in
   one line of `globals.css`.
 - **The display face is worn by the name and the catalogue, and nothing else.**
-  Two things take it. The product name, everywhere it appears, including
-  mid-sentence in body copy - that is the `Brand` component, which is the only
-  way `NextFM` should ever be written in the UI. It stays upright inside the
-  italic asides (`not-italic`): Array has no italic cut, so the browser would
-  slant it rather than draw it, and the mark does not lean with the sentence
-  it sits in. And the titles of the artist
-  and concert cards, in both their card and popover forms, through
-  `DISPLAY_TITLE_CLASS` - these name the music the app is for, so they are the
-  one place a list of names is worth setting as display type. The `About` page
-  `h1` is the deliberate exception: it is a one-word title on a page that is
-  otherwise all prose, and it wants the same weight as the name it explains.
+  Two things take it. The product name where it is being introduced to the
+  reader - the page `h1`s, the auth cards' descriptions, the `About` section
+  heading - through the `Brand` component. It stays upright (`not-italic`):
+  Array has no italic cut, so inside an italic aside the browser would slant
+  it rather than draw it, and the mark does not lean with the sentence it sits
+  in. And the titles of the artist and concert cards, in both their card and
+  popover forms, through `DISPLAY_TITLE_CLASS` - these name the music the app
+  is for, so they are the one place a list of names is worth setting as display
+  type. The `About` page `h1` is the deliberate exception: it is a one-word
+  title on a page that is otherwise all prose, and it wants the same weight as
+  the name it explains.
+- **The mark is not set in the display face below 14px, and prose does not
+  repeat it.** The system messages that name the product - the empty states,
+  the intro aside - write `NextFM` as plain text. They run at `text-xs` in
+  muted grey, where Array is past its legible floor and where the name is only
+  the subject of a sentence about what will happen, not the thing being
+  introduced. The same restraint governs repetition: `About` sets the mark in
+  its section heading and then writes the name plainly (or as *it*) in the
+  prose beneath, because a page speckled with display type reads as trademark
+  anxiety rather than as a brand.
 - **Everything else stays on the body face**, including things that look like
   they would qualify: the `Settings` header, settings section titles, playlist
   card titles, the concerts popover, auth card titles, and the welcome page's

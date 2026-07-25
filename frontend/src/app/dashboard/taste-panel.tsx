@@ -4,7 +4,6 @@ import { useDeferredValue, useState, useTransition } from "react";
 import { EyeOff, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Brand } from "@/components/brand";
 import { CHIP_CLASS } from "@/components/chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -133,15 +132,9 @@ export function TastePanel({
         // Already inside the section's bordered panel, so no dashed box here -
         // just the centered empty-state text.
         <p className="px-6 py-8 text-center text-xs leading-5 text-muted-foreground">
-          {synced ? (
-            <>
-              No listening history imported. If you just signed up for Last.fm,
-              wait for Last.fm to capture future listening history. <Brand />{" "}
-              will import new listening history as it appears.
-            </>
-          ) : (
-            "Run a sync above to import listening history."
-          )}
+          {synced
+            ? "No listening history imported. If you just signed up for Last.fm, wait for Last.fm to capture future listening history. NextFM will import new listening history as it appears."
+            : "Run a sync above to import listening history."}
         </p>
       ) : (
         <>
