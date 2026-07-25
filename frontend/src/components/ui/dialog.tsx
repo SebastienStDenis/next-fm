@@ -178,7 +178,8 @@ function DialogTitle({
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        /* font-[400]: see CardTitle - Array has no step between 400 and 600. */
+        "font-heading text-base leading-none font-[400]",
         className
       )}
       {...props}

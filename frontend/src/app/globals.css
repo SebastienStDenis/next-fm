@@ -38,6 +38,19 @@
 }
 
 @theme {
+  /* Satoshi lays down ~20% less ink than Geist did at the same weight, so the
+     whole UI read thin after the swap. The ramp is shifted one step up rather
+     than every `font-*` class being rewritten: `font-medium` still means "the
+     step above normal", it just resolves to a weight that matches what Geist
+     drew. Measured against Geist: 400->500 lands within 1%, and the pairing
+     drifts a few percent light by the top of the ramp. Deliberately not in the
+     `inline` theme block above - these have to stay real custom properties so
+     the font picker can retune them at runtime. */
+  --font-weight-normal: 500;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 800;
+
   --animate-fade-in: fade-in 250ms ease-out;
   --animate-slide-in-up: slide-in-up 250ms ease-out;
   --animate-slide-out-up: slide-out-up 250ms ease-out forwards;
@@ -254,7 +267,10 @@ body {
     background-repeat: no-repeat;
   }
   html {
-    @apply font-sans;
+    /* font-normal is the shifted normal, not the browser's 400: the ramp above
+       only reaches text that sets a `font-*` class, and most body copy sets
+       none. */
+    @apply font-sans font-normal;
   }
   q {
     quotes: "\201C" "\201D" "\2018" "\2019";
