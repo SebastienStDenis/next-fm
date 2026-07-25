@@ -254,12 +254,12 @@ can't reach the tokens either. It is vector rather than a scaled avatar: a
 favicon is seen at 16-32px, and a downscaled photograph of a mark is never as
 crisp as the mark drawn for that size.
 
-The favicon sets its `N` in Array, the display face, where the avatars set
-theirs in Satoshi. Array draws its letters as a field of discrete dots, so the
-perforation texture the avatars carry as a grille behind the mark lives inside
-the glyph instead, and no grille is drawn - two dot fields at different pitches
-over each other read as noise. The two surfaces are therefore deliberately not
-the same image, which is the one thing to know before "fixing" either to match.
+The mark sets its `N` in Array, the display face, on a plain field. Array
+draws its letters as a field of discrete dots, so the perforated look sits in
+the letterform rather than behind it; nothing is drawn on the field, because a
+second dot field at a different pitch under this one reads as noise. The
+favicon and the avatars are the same mark, so a change to one is a change to
+both.
 
 The tile is rounded at 20% of its edge - the usual app-icon proportion, and far
 looser than `--radius` would give if scaled down to this size, which would read
@@ -284,9 +284,13 @@ The dots cost legibility at the smallest size. At 128px and 64px the mark is
 unmistakably a dot field; by 16px the dots have merged and it reads as a dense
 block with an `N` in it rather than a clean letter. That was weighed and
 accepted - the texture is the more distinctive mark, and 16px favicons are
-identified by silhouette and colour more than by letterform. If it ever needs
-walking back, the same `N` in Satoshi at wght 540 is the crisper 16px option,
-and `brand/avatar.html` still renders that face.
+identified by silhouette and colour more than by letterform.
+
+The mark is the glyph exactly as Array draws it. Its diagonal meets the right
+stem a row above the baseline, leaving the bottom of the stems clear - the
+typeface's drawing, not a sizing error. Trimming rows off the dot grid does
+seat the diagonal in the corner, but only by squaring off a letter that is
+then wider than it is tall; the glyph is left alone instead.
 
 The path is also why these files are ~15KB rather than ~1KB: a dot-matrix `N`
 is around a hundred separate contours. They are fetched once and cached, so
