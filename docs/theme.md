@@ -53,6 +53,18 @@ shaped the values, and should shape future adjustments:
 
 ## Typography
 
+- **Two faces, split by role.** Geist (`--font-sans`) sets everything by
+  default, from the `font-sans` on `<html>`. Array (`--font-display`, self-hosted
+  from `frontend/src/app/fonts/`) is the display face, reached through the
+  `--font-heading` token so the pairing can be changed in one line of
+  `globals.css`. It is worn by titles that name a surface: the four page `h1`s
+  (home, dashboard, welcome, about) and the `CardTitle`/`DialogTitle`/
+  `AlertDialogTitle` primitives, which is what carries it to settings sections,
+  welcome steps, and the auth cards. Nothing else takes it - subsection labels,
+  event names, and asides stay Geist, because Array is drawn wide and blocky for
+  large sizes and turns to mush below ~14px. `global-error.tsx` is also
+  deliberately excluded: it replaces the root layout and imports nothing from
+  the app, so it has no font variables to inherit.
 - **Explanatory asides are small italics.** Text that annotates a heading or
   section (the intro paragraph, dashboard tab descriptions, settings section
   descriptions, listener counts) renders `text-xs text-muted-foreground

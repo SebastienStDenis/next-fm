@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Geist } from "next/font/google";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 
 import { ThemeProvider } from "@/components/theme-provider";
@@ -10,6 +11,18 @@ import { FaviconSync } from "./favicon-sync";
 import { SoundwaveBackground } from "./soundwave-background";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+
+// Array (Fontshare) is self-hosted rather than loaded from next/font/google
+// because it is not a Google font. It has no variable axis, so each weight is
+// its own file; only the two the headings actually set are shipped.
+const array = localFont({
+  src: [
+    { path: "./fonts/array-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/array-600.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--font-display",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "NextFM",
@@ -24,7 +37,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full antialiased font-sans", geist.variable)}
+      className={cn(
+        "h-full antialiased font-sans",
+        geist.variable,
+        array.variable,
+      )}
       suppressHydrationWarning
     >
       <body className="min-h-full">

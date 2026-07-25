@@ -29,7 +29,9 @@ export default async function Home() {
         <QueryNotice notices={NOTICES} />
       </Suspense>
       <Haze>
-        <h1 className="text-3xl font-semibold tracking-tight">NextFM</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">
+          NextFM
+        </h1>
       </Haze>
       {/* Tagline and intro get their own washes so each hugs its own width.
           The tagline's bottom padding extends its wash down and the intro's
