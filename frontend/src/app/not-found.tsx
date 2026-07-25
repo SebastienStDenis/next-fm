@@ -16,11 +16,6 @@ export default function NotFound() {
         </h1>
       </Haze>
       <Haze>
-        <p className="max-w-md text-center text-muted-foreground">
-          This page doesn’t exist. The link may be wrong or out of date.
-        </p>
-      </Haze>
-      <Haze>
         <Button asChild size="lg">
           <Link href="/">Home</Link>
         </Button>
