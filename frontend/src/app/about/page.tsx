@@ -10,7 +10,7 @@ export default function AboutPage() {
       </h1>
       <div className="space-y-6">
         <section>
-          <h2 className="text-sm font-medium">
+          <h2 className="text-base font-medium">
             What <Brand /> does
           </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
@@ -22,7 +22,7 @@ export default function AboutPage() {
           </p>
         </section>
         <section>
-          <h2 className="text-sm font-medium">How suggested artists work</h2>
+          <h2 className="text-base font-medium">How suggested artists work</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             NextFM looks at who sounds similar to the artists you listen to
             most and keeps the strongest matches - each one shows its reason,
@@ -32,7 +32,7 @@ export default function AboutPage() {
           </p>
         </section>
         <section>
-          <h2 className="text-sm font-medium">Your playlist</h2>
+          <h2 className="text-base font-medium">Your playlist</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             A few top tracks from each suggested artist playing near your
             city. You can pin extra cities to follow concerts where you
@@ -41,7 +41,7 @@ export default function AboutPage() {
           </p>
         </section>
         <section>
-          <h2 className="text-sm font-medium">Playlist order</h2>
+          <h2 className="text-base font-medium">Playlist order</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Tracks are ordered by concert date, soonest first, and the playlist
             is capped at 100 tracks. To catch new concerts fastest, sort the
@@ -51,7 +51,7 @@ export default function AboutPage() {
           </p>
         </section>
         <section>
-          <h2 className="text-sm font-medium">Contact</h2>
+          <h2 className="text-base font-medium">Contact</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Questions, feedback and bug reports are welcome at{" "}
             <a
