@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { useSearchParams } from "next/navigation";
 
+import { OnScreen } from "@/components/on-screen";
 import {
   Tabs as TabsRoot,
   TabsContent,
@@ -83,7 +84,9 @@ export function Tabs({
         </TabsList>
         {/* forceMount keeps inactive panels in the DOM so their in-progress
             state (sync summaries, search inputs) survives switching; the hidden
-            attribute handles visibility instead. */}
+            attribute handles visibility instead. OnScreen carries that same
+            hidden/shown state down the React tree, for the parts of a panel
+            that portal out of it (a Popover) and would otherwise outlive it. */}
         {tabs.map((tab) => (
           <TabsContent
             key={tab.key}
@@ -91,17 +94,19 @@ export function Tabs({
             forceMount
             hidden={active !== tab.key}
           >
-            {(tab.description || tab.note) && (
-              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-                {tab.description && (
-                  <p className="text-xs text-muted-foreground italic">
-                    {tab.description}
-                  </p>
-                )}
-                {tab.note && <div className="ml-auto">{tab.note}</div>}
-              </div>
-            )}
-            <div>{tab.content}</div>
+            <OnScreen value={active === tab.key}>
+              {(tab.description || tab.note) && (
+                <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {tab.description && (
+                    <p className="text-xs text-muted-foreground italic">
+                      {tab.description}
+                    </p>
+                  )}
+                  {tab.note && <div className="ml-auto">{tab.note}</div>}
+                </div>
+              )}
+              <div>{tab.content}</div>
+            </OnScreen>
           </TabsContent>
         ))}
       </TabsRoot>
