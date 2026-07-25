@@ -1,3 +1,4 @@
+import { Brand } from "@/components/brand";
 import { HomeLink } from "@/components/home-link";
 
 export default function AboutPage() {
@@ -9,10 +10,12 @@ export default function AboutPage() {
       </h1>
       <div className="space-y-6">
         <section>
-          <h2 className="text-sm font-medium">What NextFM does</h2>
+          <h2 className="text-sm font-medium">
+            What <Brand /> does
+          </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            NextFM finds live music you would love but don’t know yet. Your
-            Last.fm listening history tells NextFM what you like, concert
+            <Brand /> finds live music you would love but don’t know yet. Your
+            Last.fm listening history tells <Brand /> what you like, concert
             listings tell it who is playing near you, and the overlap becomes
             a Spotify playlist of artists worth discovering while they’re in
             town.
@@ -21,7 +24,7 @@ export default function AboutPage() {
         <section>
           <h2 className="text-sm font-medium">How suggested artists work</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            NextFM looks at who sounds similar to the artists you listen to
+            <Brand /> looks at who sounds similar to the artists you listen to
             most and keeps the strongest matches - each one shows its reason, like
             <q>because you listen to DIIV</q>. Artists you already
             know are left out, but an artist you’ve only played a few times can
@@ -57,7 +60,7 @@ export default function AboutPage() {
             >
               contact@nextfm.net
             </a>
-            . NextFM’s source code lives on{" "}
+            . <Brand />’s source code lives on{" "}
             <a
               href="https://github.com/SebastienStDenis/next-fm"
               target="_blank"

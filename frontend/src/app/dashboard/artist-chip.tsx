@@ -1,6 +1,7 @@
 "use client";
 
 import { CHIP_CLASS } from "@/components/chip";
+import { DISPLAY_TITLE_CLASS } from "@/components/display-title";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -98,7 +99,12 @@ export function ArtistChip({
               listen to. Mirrors the Artists-tab card title row: the row
               never wraps, a long name wraps beside the in-line badge, and
               items-start keeps the badge on the first line. */}
-          <PopoverTitle className="flex items-start justify-between gap-2">
+          <PopoverTitle
+            className={cn(
+              "flex items-start justify-between gap-2",
+              DISPLAY_TITLE_CLASS,
+            )}
+          >
             <span className="min-w-0 break-words">{artist.name}</span>
             {suggested ? (
               <ScoreBadge userArtist={details} />

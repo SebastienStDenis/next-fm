@@ -20,6 +20,9 @@ import {
 import type { City, UserArtist, UserEvent } from "@/lib/api-types";
 
 import { AnimatedHeight } from "@/components/animated-height";
+import { Brand } from "@/components/brand";
+import { DISPLAY_TITLE_CLASS } from "@/components/display-title";
+import { cn } from "@/lib/utils";
 import {
   ArtistDetails,
   KnownInterestBadges,
@@ -206,7 +209,7 @@ function NoSuggestionsMessage({ synced }: { synced: boolean }) {
   return synced ? (
     <>
       No artists suggested. If you just signed up for Last.fm, wait for
-      Last.fm to capture future listening history. NextFM will suggest new
+      Last.fm to capture future listening history. <Brand /> will suggest new
       artists as your listening history changes.
     </>
   ) : (
@@ -294,7 +297,9 @@ export function ArtistsPanel({
                   {/* items-start rides the h-5 badge on the title's first
                       line when a long name wraps. */}
                   <CardHeader className="flex items-start justify-between gap-2">
-                    <CardTitle className="min-w-0 break-words">
+                    <CardTitle
+                      className={cn("min-w-0 break-words", DISPLAY_TITLE_CLASS)}
+                    >
                       {userArtist.artist.name}
                     </CardTitle>
                     {/* The artist's headline number: the score for a

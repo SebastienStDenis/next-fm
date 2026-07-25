@@ -14,8 +14,10 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import type { ArtistRelation, City, UserArtist, UserEvent } from "@/lib/api-types";
-import { hasVirtualKeyboard } from "@/lib/utils";
+import { cn, hasVirtualKeyboard } from "@/lib/utils";
 import { AnimatedHeight } from "@/components/animated-height";
+import { Brand } from "@/components/brand";
+import { DISPLAY_TITLE_CLASS } from "@/components/display-title";
 import { ArtistChip } from "./artist-chip";
 import { CitySearchBox } from "@/components/city-search-box";
 import {
@@ -213,9 +215,14 @@ export function EventsPanel({
         <AnimatedHeight>
           {visibleEvents.length === 0 && hiddenCount === 0 ? (
             <EmptyStateCell>
-              {cityView
-                ? "No concerts found. Try a different city."
-                : `No concerts found near ${city.name}. NextFM will find new concerts as they're announced.`}
+              {cityView ? (
+                "No concerts found. Try a different city."
+              ) : (
+                <>
+                  No concerts found near {city.name}. <Brand /> will find new
+                  concerts as they&apos;re announced.
+                </>
+              )}
             </EmptyStateCell>
           ) : (
             <ul className={CARD_GRID_CLASS}>
@@ -234,7 +241,12 @@ export function EventsPanel({
                             right-hand column (shrink-0), keeping it beside
                             the title; the title takes the remaining width
                             and wraps within its slot only when it must. */}
-                        <CardTitle className="flex items-baseline gap-x-2">
+                        <CardTitle
+                          className={cn(
+                            "flex items-baseline gap-x-2",
+                            DISPLAY_TITLE_CLASS,
+                          )}
+                        >
                           <span className="min-w-0 text-balance">
                             {eventName(userEvent)}
                           </span>
