@@ -63,7 +63,10 @@ shaped the values, and should shape future adjustments:
 - **The display face is worn by the name and the catalogue, and nothing else.**
   Two things take it. The product name, everywhere it appears, including
   mid-sentence in body copy - that is the `Brand` component, which is the only
-  way `NextFM` should ever be written in the UI. And the titles of the artist
+  way `NextFM` should ever be written in the UI. It stays upright inside the
+  italic asides (`not-italic`): Array has no italic cut, so the browser would
+  slant it rather than draw it, and the mark does not lean with the sentence
+  it sits in. And the titles of the artist
   and concert cards, in both their card and popover forms, through
   `DISPLAY_TITLE_CLASS` - these name the music the app is for, so they are the
   one place a list of names is worth setting as display type. The `About` page
