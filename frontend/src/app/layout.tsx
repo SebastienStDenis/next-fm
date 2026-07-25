@@ -26,7 +26,7 @@ const array = localFont({
   // Geist at the same font-size, so a heading set in it reads a size small.
   // size-adjust scales the glyphs instead of the type scale, which keeps
   // text-2xl meaning text-2xl and lets every use inherit the correction.
-  declarations: [{ prop: "size-adjust", value: "110%" }],
+  declarations: [{ prop: "size-adjust", value: "115%" }],
 });
 
 export const metadata: Metadata = {

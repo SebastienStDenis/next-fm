@@ -74,10 +74,11 @@ shaped the values, and should shape future adjustments:
   variables to inherit.
 - **Array is scaled up to sit level with Geist.** It draws 12% shorter in the
   caps and 7% shorter in the x-height at the same `font-size`, so an unadjusted
-  heading reads a size small. `size-adjust: 110%` on the `@font-face` in
+  heading reads a size small. `size-adjust: 115%` on the `@font-face` in
   `layout.tsx` corrects this once, rather than every use bumping its `text-*`
-  step - the type scale keeps meaning what it says. The cost is width: Array
-  ends up ~17% wider than Geist, which is the pressure to watch on titles that
+  step - the type scale keeps meaning what it says. It lands the caps a hair
+  over Geist's, which is what a display face wants. The cost is width: Array
+  ends up ~20% wider than Geist, which is the pressure to watch on titles that
   truncate.
 - **Explanatory asides are small italics.** Text that annotates a heading or
   section (the intro paragraph, dashboard tab descriptions, settings section
