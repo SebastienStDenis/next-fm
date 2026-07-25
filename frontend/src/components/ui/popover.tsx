@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
+import { useOnScreen } from "@/components/on-screen"
 import { cn } from "@/lib/utils"
 
 function Popover({
@@ -64,6 +65,10 @@ function PopoverContent({
   // Radix collides against the window; negative side paddings push those
   // edges out to the page's edges when the window is narrower than the page.
   const overhang = usePageOverhangX()
+  // Leaving the surface takes the content with it, in the same render that
+  // hides the surface: closing normally animates out, but a trigger that stops
+  // being laid out has no anchor left to animate against.
+  const onScreen = useOnScreen()
   const basePadding =
     typeof collisionPadding === "number"
       ? {
@@ -73,6 +78,7 @@ function PopoverContent({
           left: collisionPadding,
         }
       : collisionPadding
+  if (!onScreen) return null
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
