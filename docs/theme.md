@@ -248,17 +248,24 @@ the brand here; the letterforms do not.
 
 ## Favicon
 
-`frontend/public/icon-{light,dark}.svg` is the same mark at tab size, and
-carries the same palette copy again - the browser rasterizes it outside the
-app, so it can't reach the tokens either. It is vector rather than a scaled
-avatar: a favicon is seen at 16-32px, where the grille has already antialiased
-away to a faint tint and only the `N` still reads.
+`frontend/public/icon-{light,dark}.svg` is the mark at tab size, and carries
+the same palette copy again - the browser rasterizes it outside the app, so it
+can't reach the tokens either. It is vector rather than a scaled avatar: a
+favicon is seen at 16-32px, and a downscaled photograph of a mark is never as
+crisp as the mark drawn for that size.
+
+The mark sets its `N` in Array, the display face, on a plain field. Array
+draws its letters as a field of discrete dots, so the perforated look sits in
+the letterform rather than behind it; nothing is drawn on the field, because a
+second dot field at a different pitch under this one reads as noise. The
+favicon and the avatars are the same mark, so a change to one is a change to
+both.
 
 The tile is rounded at 20% of its edge - the usual app-icon proportion, and far
 looser than `--radius` would give if scaled down to this size, which would read
 as square. The avatars stay square because both services crop them to a circle
-anyway. The radius lives on a clip path rather than on each rect, so the grille
-cannot spill past the corners.
+anyway. The radius lives on a clip path rather than on each rect, so nothing
+can spill past the corners.
 
 The two files are identical but for the two fills, and neither carries a
 `prefers-color-scheme` query: `frontend/src/app/favicon-sync.tsx` picks between
@@ -269,13 +276,22 @@ Firefox has ignored a `media` attribute on the `<link>` since 2019. The cost is
 that the icon needs JS: the served default is the light variant, so a dark-mode
 tab shows it briefly before hydration. Deriving the mark by hand would drift
 from `brand/avatar.html`, so the palette is sampled from the rendered avatars
-and the path is Satoshi `N` at wght 540 pulled from
-`brand/satoshi-variable.woff2`; re-derive from there if either changes.
+and the path is Array `N` at wght 600 pulled from `brand/array-600.woff2`,
+scaled so its cap height is 58% of the box; re-derive from there if either
+changes.
 
-That 540 is deliberately below the weight body copy runs at. Satoshi's ladder
-is shifted up a step to correct its short x-height, and a capital has no
-x-height to correct - inheriting the shift would just make the mark heavy.
+The dots cost legibility at the smallest size. At 128px and 64px the mark is
+unmistakably a dot field; by 16px the dots have merged and it reads as a dense
+block with an `N` in it rather than a clean letter. That was weighed and
+accepted - the texture is the more distinctive mark, and 16px favicons are
+identified by silhouette and colour more than by letterform.
 
-The mark stays in the body face rather than the display one: it is shown at
-16-32px in a tab, where Array's stepped construction breaks up, and it reads
-as the product's name rather than as a heading.
+The mark is the glyph exactly as Array draws it. Its diagonal meets the right
+stem a row above the baseline, leaving the bottom of the stems clear - the
+typeface's drawing, not a sizing error. Trimming rows off the dot grid does
+seat the diagonal in the corner, but only by squaring off a letter that is
+then wider than it is tall; the glyph is left alone instead.
+
+The path is also why these files are ~15KB rather than ~1KB: a dot-matrix `N`
+is around a hundred separate contours. They are fetched once and cached, so
+the size buys texture rather than costing anything ongoing.

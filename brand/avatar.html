@@ -16,14 +16,11 @@
   // Renders one next.fm bot-account avatar. Query params:
   //   mode=light|dark   which side of the palette
   //   size=<px>         output edge length (default 1024)
-  //   cols, dot         grille pitch and perforation radius, for retuning
   // The palette values mirror the tokens in frontend/src/app/globals.css; when
   // those change, re-derive here and regenerate.
   const params = new URLSearchParams(location.search);
   const mode = params.get("mode") === "dark" ? "dark" : "light";
   const SIZE = Number(params.get("size") || 1024);
-  const num = (key, fallback) =>
-    params.has(key) ? Number(params.get(key)) : fallback;
 
   const PALETTE = {
     light: {
@@ -36,15 +33,18 @@
     },
   }[mode];
 
-  // Proportions of the canvas edge, so any size renders identically.
-  const CAP_RATIO = 0.54; // N cap height
-  // Below the weight body copy runs at, on purpose: the site shifts Satoshi's
-  // ladder up a step to correct its short x-height, and a capital has no
-  // x-height to correct. Inheriting that shift would just make the mark heavy.
-  const WEIGHT = 540;
-  const COLUMNS = num("cols", 12); // grille perforations across the edge
-  const DOT_ALPHA = num("alpha", 0.7);
-  const DOT_RADIUS = num("dot", 0.0075);
+  // The mark is the N of Array, the display face, which draws its letters as a
+  // field of discrete dots - so the perforated look sits in the letterform and
+  // the field behind it stays plain. Array is cut at 400 and 600 with nothing
+  // between; 600 is the one that carries at the sizes an avatar is seen at.
+  const FONT_FILE = "array-600.woff2";
+  const WEIGHT = 600;
+  // Proportion of the canvas edge, so any size renders identically. Set large
+  // for a display face: the dots have to stay separated after the downscale to
+  // ~180px, and a smaller setting lets neighbours antialias into each other
+  // until the strokes go solid. It still clears the circle both services crop
+  // avatars to by 9% of the edge.
+  const CAP_RATIO = 0.58;
 
   const canvas = document.getElementById("c");
   canvas.width = SIZE;
@@ -53,58 +53,37 @@
   canvas.style.height = SIZE + "px";
   const ctx = canvas.getContext("2d");
 
-  // The champagne metal grille of the headphones the palette is modeled on: an
-  // even perforation field, spaced open so it reads as material rather than
-  // pattern.
-  // The field is deliberately more present than the same texture would be
-  // in-app, and both numbers below are load-bearing for that. An avatar is
-  // shown at ~180px and smaller, where a perforation this size lands under a
-  // pixel: antialiasing then spreads it across its neighbours and drains the
-  // contrast, so a token-quiet alpha renders as nothing at all. The dot has to
-  // clear a pixel at display size and the alpha has to survive being averaged
-  // with the background. Judge any change to either at 180px and 96px, not at
-  // full size, where everything looks fine.
-  const drawGrille = () => {
-    const gap = SIZE / COLUMNS;
-    ctx.fillStyle = PALETTE.primary;
-    ctx.globalAlpha = DOT_ALPHA;
-    for (let y = gap / 2; y < SIZE; y += gap) {
-      for (let x = gap / 2; x < SIZE; x += gap) {
-        ctx.beginPath();
-        ctx.arc(x, y, DOT_RADIUS * SIZE, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    ctx.globalAlpha = 1;
-  };
-
-  // Centers on the N's own ink rather than its em box, which sits low.
+  // Centers on the N's own ink on both axes. Neither alignment does this by
+  // itself: `alphabetic` sits the glyph on its baseline, and `center` centers
+  // the advance width, which only matches the ink when the two sidebearings
+  // are equal. Array's are 0 and 100, so trusting the advance hangs the mark a
+  // visible step to the left of the tile.
   const drawMark = () => {
     let fontSize = SIZE;
-    ctx.font = `${WEIGHT} ${fontSize}px Satoshi`;
+    ctx.font = `${WEIGHT} ${fontSize}px Array`;
     const probe = ctx.measureText("N");
     const capAtProbe = probe.actualBoundingBoxAscent + probe.actualBoundingBoxDescent;
     fontSize = (CAP_RATIO * SIZE * fontSize) / capAtProbe;
 
-    ctx.font = `${WEIGHT} ${fontSize}px Satoshi`;
+    ctx.font = `${WEIGHT} ${fontSize}px Array`;
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     const m = ctx.measureText("N");
-    const inkCenter = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+    const inkCenterY = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+    const inkCenterX = (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
     ctx.fillStyle = PALETTE.primary;
-    ctx.fillText("N", SIZE / 2, SIZE / 2 - inkCenter);
+    ctx.fillText("N", SIZE / 2 - inkCenterX, SIZE / 2 - inkCenterY);
   };
 
   const render = () => {
     ctx.fillStyle = PALETTE.background;
     ctx.fillRect(0, 0, SIZE, SIZE);
-    drawGrille();
     drawMark();
     document.title = "ready";
   };
 
-  const font = new FontFace("Satoshi", "url(satoshi-variable.woff2) format('woff2')", {
-    weight: "300 900",
+  const font = new FontFace("Array", `url(${FONT_FILE}) format('woff2')`, {
+    weight: String(WEIGHT),
   });
   font.load().then((loaded) => {
     document.fonts.add(loaded);
