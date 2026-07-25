@@ -24,13 +24,8 @@ inscribed circle with margin, so the square and circle crops both work.
 
 ## The display-face cut
 
-A second, unshipped pair sets the same `N` in Array - the display face - and
-drops the grille:
-
-| File | |
-| --- | --- |
-| `nextfm-array-light.png`, `nextfm-array-dark.png` | 1024px avatars |
-| `icon-array-light.svg`, `icon-array-dark.svg` | the same mark as vector |
+A second pair sets the same `N` in Array - the display face - and drops the
+grille: `nextfm-array-light.png` and `nextfm-array-dark.png`.
 
 Array draws its letters as a field of discrete dots, so the perforation
 texture moves out of the background and into the glyph. The grille comes off
@@ -43,12 +38,12 @@ after the downscale to display size; set smaller, neighbouring dots antialias
 into each other and the strokes go solid, which is the one thing this cut is
 for. It still clears the circle crop by 9% of the box.
 
-**Judge this cut at the size it would be used.** It is strongest at 180px and
-96px, holds at 48px, and goes muddy at the 16px a browser tab uses - where the
-Satoshi mark stays legible. The vectors are kept in this folder rather than
-`frontend/public/` for that reason: as an avatar it is the stronger mark, as a
-favicon it is not. Promoting it means copying the two SVGs into
-`frontend/public/` and pointing `frontend/src/app/favicon-sync.tsx` at them.
+This is the cut the **site favicon** uses - see `docs/theme.md`, and
+`frontend/public/icon-{light,dark}.svg` for the vector drawn from the same
+face. The avatar PNGs the bot account uses are still the Satoshi pair above.
+The two surfaces are deliberately different images, not a mismatch to
+reconcile: the avatar is seen at ~180px where the grille is legible as
+material, the favicon at 16-32px where it would have vanished anyway.
 
 ## Regenerating
 
@@ -81,9 +76,14 @@ The palette is duplicated as literals in `avatar.html` rather than imported
 from `globals.css`; if the tokens there change meaningfully, re-derive and
 regenerate (same arrangement as the email templates, see `docs/theme.md`).
 
-The site favicon (`frontend/public/icon-{light,dark}.svg`) is the same mark
-drawn as vector for tab sizes, not one of these PNGs - it samples its palette
-from them and its `N` from `satoshi-variable.woff2`. Re-derive it alongside any
-change here: instantiate the variable font at the weight above, take the `N`
-outline, and scale it so its cap height is `CAP_RATIO` of the 100-unit viewBox,
-centred on both axes.
+The site favicon (`frontend/public/icon-{light,dark}.svg`) is the display-face
+cut drawn as vector for tab sizes, not a scaled PNG - it samples its palette
+from these files and its `N` from `array-600.woff2`. Re-derive it alongside any
+change here: take the `N` outline and scale it so its cap height is the array
+face's `capRatio` of the 100-unit viewBox, centred on both axes.
+
+Centre on the glyph's **ink**, not its advance width. Array's `N` carries
+sidebearings of 0 and 100, so anything that centres the advance - canvas
+`textAlign: "center"` included - hangs the mark a visible step left of the
+tile. Satoshi's are equal, which is why this only surfaced once the second
+face arrived.

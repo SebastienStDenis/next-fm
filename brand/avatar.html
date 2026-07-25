@@ -108,7 +108,11 @@
     ctx.globalAlpha = 1;
   };
 
-  // Centers on the N's own ink rather than its em box, which sits low.
+  // Centers on the N's own ink on both axes. Neither alignment does this by
+  // itself: `alphabetic` sits the glyph on its baseline, and `center` centers
+  // the advance width, which only matches the ink when the two sidebearings
+  // are equal. Satoshi's are; Array's are 0 and 100, so trusting the advance
+  // hangs its N a visible step to the left of the tile.
   const drawMark = () => {
     let fontSize = SIZE;
     ctx.font = `${WEIGHT} ${fontSize}px ${FACE.family}`;
@@ -120,9 +124,10 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     const m = ctx.measureText("N");
-    const inkCenter = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+    const inkCenterY = (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+    const inkCenterX = (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
     ctx.fillStyle = PALETTE.primary;
-    ctx.fillText("N", SIZE / 2, SIZE / 2 - inkCenter);
+    ctx.fillText("N", SIZE / 2 - inkCenterX, SIZE / 2 - inkCenterY);
   };
 
   const render = () => {
