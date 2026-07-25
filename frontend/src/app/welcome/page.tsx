@@ -51,9 +51,8 @@ export default async function WelcomePage() {
   // sync (docs/design/2026-07-12-welcome-flow-plan.md).
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center p-8">
-      <span className="text-sm text-muted-foreground">NextFM</span>
-      <h1 className="mt-2 font-heading text-2xl font-semibold">
-        Welcome, {user.name}
+      <h1 className="font-heading text-2xl font-semibold">
+        Welcome to NextFM, {user.name}
       </h1>
       <IntroText className="mt-1 text-xs text-muted-foreground italic" />
       <WelcomeFlow ready={ready}>
