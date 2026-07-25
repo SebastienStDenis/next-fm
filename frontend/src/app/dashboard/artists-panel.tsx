@@ -295,7 +295,7 @@ export function ArtistsPanel({
               .filter((section) => section.events.length > 0);
             return (
               <li key={userArtist.artist.id} className="min-w-0">
-                <Card size="sm" className="h-full">
+                <Card size="sm" className="h-full gap-2">
                   {/* items-start rides the badge on the title's first line
                       when a long name wraps. */}
                   <CardHeader className="flex items-start justify-between gap-2">
