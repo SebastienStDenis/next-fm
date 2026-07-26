@@ -102,7 +102,10 @@ function ConcertsFooter({
     sections.flatMap(({ events }) => events.map(({ event }) => event.id)),
   ).size;
   return (
-    <CardFooter className="p-0">
+    // mt-1 tops up the card's gap-2: the tight gap is meant for the
+    // title-to-body seam, and the tags need the full breathing room above
+    // the footer that a footerless card gets from its bottom padding.
+    <CardFooter className="mt-1 p-0">
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger
           ref={triggerRef}
