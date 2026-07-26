@@ -117,7 +117,7 @@ export function ArtistDetails({
             </div>
           )}
           {userArtist.listeners != null && (
-            <p className="text-xs text-muted-foreground italic">
+            <p className="pl-1 text-xs text-muted-foreground italic">
               {listenersFormat.format(userArtist.listeners)} listeners
             </p>
           )}
