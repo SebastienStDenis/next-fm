@@ -101,6 +101,11 @@ export function ArtistDetails({
       {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
       {(userArtist.listeners != null || tags.length > 0) && (
         <div className={cn("flex flex-col gap-2", tagsClassName)}>
+          {userArtist.listeners != null && (
+            <p className="pl-0.5 text-xs text-muted-foreground italic">
+              {listenersFormat.format(userArtist.listeners)} listeners
+            </p>
+          )}
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {tags.map((tag) => (
@@ -115,11 +120,6 @@ export function ArtistDetails({
                 </Badge>
               ))}
             </div>
-          )}
-          {userArtist.listeners != null && (
-            <p className="pl-0.5 text-xs text-muted-foreground italic">
-              {listenersFormat.format(userArtist.listeners)} listeners
-            </p>
           )}
         </div>
       )}
