@@ -165,7 +165,7 @@ daily." beside a go-to-dashboard button (see
 ## Form placeholders
 
 Input placeholders are instructions, not labels: "Search for a city", "Enter
-your Last.fm username". The accessible label keeps the plain noun phrase.
+a Last.fm username". The accessible label keeps the plain noun phrase.
 
 ## Canonical sentences
 

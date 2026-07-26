@@ -65,7 +65,7 @@ function LinkForm({
         <Input
           id="lastfm-username"
           name="username"
-          placeholder="Enter your Last.fm username"
+          placeholder="Enter a Last.fm username"
           required
           disabled={pending}
           autoFocus={hasAccount && !hasVirtualKeyboard()}
