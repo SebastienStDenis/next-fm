@@ -275,7 +275,7 @@ export function EventsPanel({
                           </span>
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="mt-auto flex flex-wrap items-center gap-2">
+                      <CardContent className="mt-auto flex flex-wrap items-center gap-1.5">
                         {artists.map((artist) => (
                           <ArtistChip
                             key={artist.id}
