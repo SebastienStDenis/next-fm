@@ -32,8 +32,9 @@ export function Tabs({
     key: string;
     label: ReactNode;
     description?: string;
-    // Right-justified companion to the description (e.g. the freshness
-    // marker for the tab's sync step).
+    // Companion to the description (e.g. the freshness marker for the tab's
+    // sync step): opposite it while the two fit on one line, stacked under it
+    // once they don't.
     note?: ReactNode;
     content: ReactNode;
   }[];
@@ -95,14 +96,18 @@ export function Tabs({
             hidden={active !== tab.key}
           >
             <OnScreen value={active === tab.key}>
+              {/* justify-between rather than ml-auto on the note: sharing a
+                  line it sits opposite the description, and once the two no
+                  longer fit, the note alone on the wrapped line packs to the
+                  start instead of hanging off the right edge. */}
               {(tab.description || tab.note) && (
-                <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4.5 gap-y-2">
                   {tab.description && (
                     <p className="text-xs text-muted-foreground italic">
                       {tab.description}
                     </p>
                   )}
-                  {tab.note && <div className="ml-auto">{tab.note}</div>}
+                  {tab.note && <div>{tab.note}</div>}
                 </div>
               )}
               <div>{tab.content}</div>

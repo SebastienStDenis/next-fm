@@ -113,8 +113,9 @@ cleared.
 ## Freshness markers
 
 The Artists, Concerts, and Playlists tabs show the latest run's outcome for
-their step, right-aligned on the tab's description line. The text is always
-the step's action, a middle dot, then the date - "Suggest artists · {date}",
+their step, opposite the tab's description while the two fit on one line and
+stacked under it once they don't. The text is always the step's
+action, a middle dot, then the date - "Suggest artists · {date}",
 "Find concerts · {date}", "Generate playlists · {date}" - never a result
 claim like "Artists suggested", which reads oddly next to an empty list, and
 never error text. The mark alone carries the outcome: a green check when the
