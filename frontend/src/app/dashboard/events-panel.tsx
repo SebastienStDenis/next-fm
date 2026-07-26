@@ -186,7 +186,7 @@ export function EventsPanel({
 
   return (
     <div>
-      <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
+      <h3 className="flex flex-wrap items-center gap-x-1 gap-y-1 text-base font-semibold">
         <span>Upcoming concerts in</span>
         <CityTitleField
           city={city}
