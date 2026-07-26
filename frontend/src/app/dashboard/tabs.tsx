@@ -97,7 +97,7 @@ export function Tabs({
           >
             <OnScreen value={active === tab.key}>
               {(tab.description || tab.note) && (
-                <div className="mb-4 flex flex-col items-start gap-1 md:flex-row md:items-center md:gap-x-3">
+                <div className="mb-4 flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-x-3">
                   {tab.description && (
                     <p className="text-xs text-muted-foreground italic">
                       {tab.description}
