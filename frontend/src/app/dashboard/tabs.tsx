@@ -101,13 +101,13 @@ export function Tabs({
                   longer fit, the note alone on the wrapped line packs to the
                   start instead of hanging off the right edge. */}
               {(tab.description || tab.note) && (
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4.5 gap-y-2">
                   {tab.description && (
                     <p className="text-xs text-muted-foreground italic">
                       {tab.description}
                     </p>
                   )}
-                  {tab.note}
+                  {tab.note && <div>{tab.note}</div>}
                 </div>
               )}
               <div>{tab.content}</div>
