@@ -226,11 +226,11 @@ export function EventsPanel({
                 return (
                   <li key={event.id} className="flex">
                     <Card size="sm" className="flex-1">
-                      {/* gap-2 rather than the artist cards' gap-3: the date
-                          stack already extends below a one-line title, so a
-                          full gap-3 would push the venue line farther from
-                          the title than the artist cards' body sits. */}
-                      <CardHeader className="gap-2">
+                      {/* Tighter than the artist cards' gap: the date stack
+                          already extends below a one-line title, so an equal
+                          gap would push the venue line farther from the title
+                          than the artist cards' body sits. */}
+                      <CardHeader className="gap-1">
                         {/* The date always stacks day over time in a fixed
                             right-hand column (shrink-0), keeping it beside
                             the title; the title takes the remaining width
