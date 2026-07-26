@@ -162,6 +162,11 @@ daily." beside a go-to-dashboard button (see
 - Welcome flow sections: **Last.fm**, **Home City**, **Daily Sync** - the
   settings names exactly.
 
+## Form placeholders
+
+Input placeholders are instructions, not labels: "Search for a city", "Enter
+your Last.fm username". The accessible label keeps the plain noun phrase.
+
 ## Canonical sentences
 
 Keep these exactly as written:
