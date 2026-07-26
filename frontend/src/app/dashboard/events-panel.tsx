@@ -96,7 +96,7 @@ function CityTitleField({
         variant="ghost"
         onClick={onEdit}
         title="See concerts in another city"
-        className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
+        className="-mx-1 -my-0.5 h-auto min-w-0 gap-1.5 px-1 py-0.5 text-base font-semibold"
       >
         <span className="min-w-0">{shownCity.name}</span>
         <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
