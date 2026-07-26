@@ -58,7 +58,7 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         // Full-viewport scroll container around a centered panel, so a
-        // panel wider than a sub-320px viewport scrolls into view instead
+        // panel wider than a sub-360px viewport scrolls into view instead
         // of clipping (see dialog.tsx). Alert dialogs have no
         // light-dismiss, so no gutter-click handling here.
         className="fixed inset-0 z-50 flex overflow-auto p-4 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
@@ -68,7 +68,7 @@ function AlertDialogContent({
           data-slot="alert-dialog-panel"
           data-size={size}
           className={cn(
-            "group/alert-dialog-content relative m-auto grid w-full min-w-[18rem] gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
+            "group/alert-dialog-content relative m-auto grid w-full min-w-[20rem] gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
             className
           )}
         >

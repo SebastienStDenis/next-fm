@@ -11,7 +11,7 @@ import { popoverEdgeGap } from "@/components/ui/popover"
 // over, so a far-right trigger still gets a readable card. Radix reports
 // available width only after shifting, so the cap that prevents the shift
 // has to be measured from the trigger itself, against the page's right
-// edge (the page, not the window: below the 320px layout floor the page
+// edge (the page, not the window: below the 360px layout floor the page
 // scrolls horizontally).
 export function usePinnedPopoverWidth(minWidth = 208) {
   const triggerRef = React.useRef<HTMLButtonElement>(null)

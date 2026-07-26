@@ -43,7 +43,7 @@ export default function GlobalError({
         .filter(Boolean)
         .join(" ")}
     >
-      <body className="min-h-full min-w-80 flex items-center justify-center bg-background p-6 text-foreground">
+      <body className="min-h-full min-w-90 flex items-center justify-center bg-background p-6 text-foreground">
         <main className="flex flex-col items-center gap-4 text-center">
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
             Something went wrong
