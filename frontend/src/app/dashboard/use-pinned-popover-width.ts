@@ -2,6 +2,7 @@
 
 import * as React from "react"
 
+import { useOnScreen } from "@/components/on-screen"
 import { popoverEdgeGap } from "@/components/ui/popover"
 
 // Keeps an align="start" popover's left edge pinned to its trigger: the
@@ -16,6 +17,10 @@ export function usePinnedPopoverWidth(minWidth = 208) {
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const [open, setOpen] = React.useState(false)
   const [maxWidth, setMaxWidth] = React.useState<number>()
+  // The popover unmounts with its surface; forget it was open so returning to
+  // the surface doesn't bring it back.
+  const onScreen = useOnScreen()
+  if (!onScreen && open) setOpen(false)
 
   const measure = React.useCallback(() => {
     if (!triggerRef.current) return

@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Haze } from "./haze";
 import { HomeLink } from "./home-link";
 
 export function AuthCard({
@@ -28,7 +29,11 @@ export function AuthCard({
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-8">
       {before}
-      <HomeLink href="/" />
+      {/* The auth pages render the soundwave field, so the link needs a scrim
+          to keep the dots from showing through the ghost button. */}
+      <Haze className="w-fit">
+        <HomeLink href="/" />
+      </Haze>
       <Card className="mt-4">
         <CardHeader>
           <CardTitle className="text-xl">
