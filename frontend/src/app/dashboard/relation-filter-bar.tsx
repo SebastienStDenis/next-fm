@@ -26,7 +26,7 @@ export function RelationFilterBar<K extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn(className, "flex flex-wrap items-center gap-x-4 gap-y-3")}>
+    <div className={cn(className, "flex flex-wrap items-center gap-x-4 gap-y-2.5")}>
       <div className="flex flex-wrap gap-2">
         <Toggle
           variant="outline"
