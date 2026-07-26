@@ -25,7 +25,6 @@ import { QueryNotice } from "@/components/query-notice";
 import { ArtistsPanel, type CityConcerts } from "./artists-panel";
 import {
   collectPinnedCities,
-  countSuggestedEvents,
   partitionArtists,
   pendingPinIds,
   settingsSignature,
@@ -115,7 +114,6 @@ export default async function DashboardPage() {
   );
   const signature = settingsSignature(user, lastfm, city, knownArtists);
   const pendingPins = pendingPinIds(pinnedPlaylists);
-  const suggestedEventCount = countSuggestedEvents(events, artistRelations);
 
   return (
     <main className="mx-auto w-full max-w-5xl p-8">
@@ -137,7 +135,7 @@ export default async function DashboardPage() {
           tabs={[
             {
               key: "suggested",
-              label: `Artists (${suggestedArtists.length})`,
+              label: "Artists",
               description:
                 "Artists you might like based on your listening history.",
               note: (
@@ -158,7 +156,7 @@ export default async function DashboardPage() {
             },
             {
               key: "concerts",
-              label: `Concerts (${suggestedEventCount})`,
+              label: "Concerts",
               description: "Upcoming concerts near you by suggested artists.",
               note: (
                 <SyncStepNote
@@ -186,7 +184,7 @@ export default async function DashboardPage() {
                       <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
                     </span>
                   )}
-                  Playlists ({linkedPlaylists.length})
+                  Playlists
                 </>
               ),
               description:

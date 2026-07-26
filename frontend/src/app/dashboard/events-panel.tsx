@@ -198,7 +198,6 @@ export function EventsPanel({
           onCancel={() => setEditingCity(false)}
           onBack={() => setCityView(null)}
         />
-        <span>({visibleEvents.length})</span>
       </h3>
       <RelationFilterBar
         showSuggested={showSuggested}
