@@ -173,13 +173,15 @@ pattern by what the row holds, and never let a long third-party string
   marks beside wrappable text align to the first text line (the playlist
   card's pulse dot, the save-tip arrow), so they read as bullets rather than
   floating beside the block.
-- The page floor is 320px (`min-w-80` in `layout.tsx`); below that the page
-  pans horizontally rather than squeezing further. Dialogs share the floor:
-  dialog and alert-dialog panels carry `min-w-[18rem]` (a dialog's width at
-  a 320px viewport), so overlays stop shrinking where the page does. The
-  panel centers inside a full-viewport scroll layer rather than being fixed
-  itself, so below the floor the dialog pans horizontally like the page
-  instead of clipping at the viewport edge.
+- The page floor is 360px (`min-w-90` in `layout.tsx`) - the narrowest
+  viewport among phones still in use; below that the page pans horizontally
+  rather than squeezing further. Dialogs share the floor: each panel's
+  `min-w` is its own width at a 360px viewport (`20.5rem` for dialogs,
+  `20rem` for alert dialogs, which their `max-w-xs` caps first), so overlays
+  stop shrinking where the page does. The panel centers inside a
+  full-viewport scroll layer rather than being fixed itself, so below the
+  floor the dialog pans horizontally like the page instead of clipping at the
+  viewport edge.
 
 ## Interactive affordances
 

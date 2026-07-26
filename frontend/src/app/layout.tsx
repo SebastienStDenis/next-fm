@@ -26,14 +26,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        {/* min-w-80: below 320px the page scrolls horizontally instead of
+        {/* min-w-90: below 360px the page scrolls horizontally instead of
             squeezing layouts past their breaking point. The floor lives on
             this wrapper, not on body: Floating UI reads a body wider than
             the window as a scrollbar gutter (when within ~25px) and shrinks
             popover collision bounds by the difference. */}
         <div
           data-soundwave-background
-          className="flex min-h-dvh min-w-80 flex-col"
+          className="flex min-h-dvh min-w-90 flex-col"
         >
           <ThemeProvider
             attribute="class"

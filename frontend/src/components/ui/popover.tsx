@@ -18,8 +18,8 @@ function PopoverTrigger({
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
 }
 
-// How far the page extends past each side of the window: below the 320px
-// layout floor (body min-w-80) the page scrolls horizontally instead of
+// How far the page extends past each side of the window: below the 360px
+// layout floor (body min-w-90) the page scrolls horizontally instead of
 // narrowing, and popovers should keep colliding with the page's edges,
 // not the window's. The total overhang splits across the two sides by the
 // scroll position.

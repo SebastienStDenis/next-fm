@@ -66,7 +66,7 @@ function DialogContent({
         // The Radix content is a full-viewport scroll container and the
         // visible panel a centered child: a fixed panel can never be
         // scrolled into view, so when the panel's min-w floor exceeds a
-        // sub-320px viewport this layer grows a horizontal scrollbar
+        // sub-360px viewport this layer grows a horizontal scrollbar
         // instead of clipping the panel. The scroller must be the Radix
         // content, not a wrapper around it: react-remove-scroll only
         // permits wheel and touch scrolling inside the content subtree.
@@ -104,7 +104,7 @@ function DialogContent({
         <div
           data-slot="dialog-panel"
           className={cn(
-            "relative m-auto grid w-full min-w-[18rem] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 sm:max-w-sm",
+            "relative m-auto grid w-full min-w-[20.5rem] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 sm:max-w-sm",
             className
           )}
         >
