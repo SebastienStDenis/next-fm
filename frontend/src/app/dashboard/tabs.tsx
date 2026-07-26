@@ -32,8 +32,9 @@ export function Tabs({
     key: string;
     label: ReactNode;
     description?: string;
-    // Right-justified companion to the description (e.g. the freshness
-    // marker for the tab's sync step).
+    // Companion to the description (e.g. the freshness marker for the tab's
+    // sync step): opposite it on wide screens, stacked under it when the two
+    // no longer share a line.
     note?: ReactNode;
     content: ReactNode;
   }[];
@@ -96,13 +97,13 @@ export function Tabs({
           >
             <OnScreen value={active === tab.key}>
               {(tab.description || tab.note) && (
-                <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="mb-4 flex flex-col items-start gap-1 md:flex-row md:items-center md:gap-x-3">
                   {tab.description && (
                     <p className="text-xs text-muted-foreground italic">
                       {tab.description}
                     </p>
                   )}
-                  {tab.note && <div className="ml-auto">{tab.note}</div>}
+                  {tab.note && <div className="md:ml-auto">{tab.note}</div>}
                 </div>
               )}
               <div>{tab.content}</div>
