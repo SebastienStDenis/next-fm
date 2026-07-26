@@ -99,24 +99,28 @@ export function ArtistDetails({
   return (
     <>
       {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
-      {userArtist.listeners != null && (
-        <p className="text-xs text-muted-foreground italic">
-          {listenersFormat.format(userArtist.listeners)} listeners
-        </p>
-      )}
-      {tags.length > 0 && (
-        <div className={cn("flex flex-wrap gap-1.5", tagsClassName)}>
-          {tags.map((tag) => (
-            <Badge
-              key={tag}
-              variant="outline"
-              className={cn("max-w-full", CHIP_CLASS)}
-            >
-              {/* A badge never wraps internally, so a tag longer than the
-                  card ellipsizes instead of clipping mid-letter. */}
-              <span className="truncate">{tag}</span>
-            </Badge>
-          ))}
+      {(userArtist.listeners != null || tags.length > 0) && (
+        <div className={cn("flex flex-col gap-2", tagsClassName)}>
+          {userArtist.listeners != null && (
+            <p className="pl-px text-xs text-muted-foreground italic">
+              {listenersFormat.format(userArtist.listeners)} listeners
+            </p>
+          )}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className={cn("max-w-full", CHIP_CLASS)}
+                >
+                  {/* A badge never wraps internally, so a tag longer than the
+                      card ellipsizes instead of clipping mid-letter. */}
+                  <span className="truncate">{tag}</span>
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>
