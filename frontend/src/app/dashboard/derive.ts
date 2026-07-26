@@ -5,7 +5,6 @@ import type {
   Playlist,
   User,
   UserArtist,
-  UserEvent,
 } from "@/lib/api-types";
 
 import { KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND } from "./artist-kinds";
@@ -105,16 +104,4 @@ export function pendingPinIds(pinnedPlaylists: Playlist[]): string[] {
     .filter((playlist) => playlist.spotify_url === null)
     .map((playlist) => playlist.id)
     .sort();
-}
-
-// Tab counts match each panel's default view: suggested artists only.
-export function countSuggestedEvents(
-  events: UserEvent[],
-  artistRelations: Record<string, ArtistRelation>,
-): number {
-  return events.filter((userEvent) =>
-    userEvent.artists.some(
-      (artist) => artistRelations[artist.id] === "suggested",
-    ),
-  ).length;
 }

@@ -96,7 +96,7 @@ function CityTitleField({
         variant="ghost"
         onClick={onEdit}
         title="See concerts in another city"
-        className="-mx-2 -my-1 h-auto min-w-0 gap-1.5 px-2 py-1 text-base font-semibold"
+        className="-mx-1 -my-0.5 h-auto min-w-0 gap-1.5 px-1 py-0.5 text-base font-semibold"
       >
         <span className="min-w-0">{shownCity.name}</span>
         <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
@@ -186,7 +186,7 @@ export function EventsPanel({
 
   return (
     <div>
-      <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
+      <h3 className="flex flex-wrap items-center gap-x-1 gap-y-1 text-base font-semibold">
         <span>Upcoming concerts in</span>
         <CityTitleField
           city={city}
@@ -198,7 +198,6 @@ export function EventsPanel({
           onCancel={() => setEditingCity(false)}
           onBack={() => setCityView(null)}
         />
-        <span>({visibleEvents.length})</span>
       </h3>
       <RelationFilterBar
         showSuggested={showSuggested}
