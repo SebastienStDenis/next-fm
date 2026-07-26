@@ -54,15 +54,32 @@ export function SyncStepNote({
       title={failed ? "Last sync failed" : undefined}
       className={cn(
         GHOST_PILL_CLASS,
-        "animate-fade-in gap-1.5 text-xs font-normal text-muted-foreground hover:text-foreground",
+        "animate-fade-in block text-xs font-normal text-muted-foreground hover:text-foreground",
       )}
     >
-      <span className={stepMarkClasses[status]}>
-        <StepMark status={status} />
-      </span>
+      {/* The mark rides in the text flow rather than beside it, so it stays
+          against the label when the marker wraps, and each of the two phrases
+          is kept whole: a marker too narrow for one line breaks between the
+          action and the date, never inside either. */}
       <span>
-        {label}
-        {finishedAt && ` · ${finishedAt}`}
+        <span className="whitespace-nowrap">
+          <span
+            className={cn(
+              stepMarkClasses[status],
+              "mr-1.5 inline-flex align-text-bottom",
+            )}
+          >
+            <StepMark status={status} />
+          </span>
+          {label}
+          {finishedAt && " ·"}
+        </span>
+        {finishedAt && (
+          <>
+            {" "}
+            <span className="whitespace-nowrap">{finishedAt}</span>
+          </>
+        )}
       </span>
     </a>
   );
