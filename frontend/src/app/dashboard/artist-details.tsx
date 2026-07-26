@@ -102,7 +102,7 @@ export function ArtistDetails({
       {(userArtist.listeners != null || tags.length > 0) && (
         <div className={cn("flex flex-col gap-2", tagsClassName)}>
           {userArtist.listeners != null && (
-            <p className="pl-0.5 text-xs text-muted-foreground italic">
+            <p className="pl-px text-xs text-muted-foreground italic">
               {listenersFormat.format(userArtist.listeners)} listeners
             </p>
           )}
