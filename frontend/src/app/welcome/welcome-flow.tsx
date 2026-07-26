@@ -67,12 +67,14 @@ export function WelcomeFlow({
             until the sync card has finished replaying each step, so the "go
             to dashboard" prompt lands after the run reads as done. */}
         <Collapsible open={showFooter}>
-          <CollapsibleContent>
-            {/* justify-between rather than ml-auto on the button: sharing a
-                line it sits opposite the text, and once the two no longer fit
-                (below roughly 400px), the button alone on the wrapped line
-                packs to the start rather than hanging off the right edge. */}
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-6">
+          <CollapsibleContent className="@container">
+            {/* Sharing a line, justify-between sits the button opposite the
+                text. Once the two no longer fit, both hug the right edge
+                instead: flex justifies every line the same way, so the switch
+                to justify-end has to be told the width the pair stops fitting
+                at - 334px, measured on this copy, matched against the row's
+                own space rather than the viewport's. */}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-6 @max-[334px]:justify-end">
               <p className="text-sm">All set. Playlists update daily.</p>
               <Button asChild size="sm">
                 {/* Lands on the Playlists tab and drops a session cue for the
