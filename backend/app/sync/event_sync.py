@@ -78,7 +78,9 @@ async def sync_user_events(
             unknown += 1
         else:
             synced += 1
-            if events and identity.external_id is None:
+            # Re-stamp on every fetch: if Bandsintown re-points the name to a
+            # different artist, the stored identity heals within a TTL.
+            if events:
                 identity.external_id = events[0].artist_external_id
         identity.last_synced_at = now
 

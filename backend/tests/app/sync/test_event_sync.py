@@ -285,13 +285,16 @@ async def test_list_events_groups_artists_per_event() -> None:
     boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
     session = make_session()
     session.get.return_value = montreal
-    session.execute.return_value = result_with_rows(
-        [
-            (event1, autechre, "https://bandsintown.com/e/1", 2.9412),
-            (event1, boc, "https://bandsintown.com/e/1", 2.9412),
-            (event2, autechre, "https://bandsintown.com/e/2", 2.9412),
-        ]
-    )
+    session.execute.side_effect = [
+        result_with_rows(
+            [
+                (event1, autechre, "https://bandsintown.com/e/1", 2.9412),
+                (event1, boc, "https://bandsintown.com/e/1", 2.9412),
+                (event2, autechre, "https://bandsintown.com/e/2", 2.9412),
+            ]
+        ),
+        result_with_rows([]),  # act identities: no shared acts
+    ]
 
     response = await request("GET", EVENTS_URL, session, user=user(montreal.geonameid))
 
@@ -337,9 +340,10 @@ async def test_list_events_accepts_an_explicit_city() -> None:
     artist = Artist(id=uuid.uuid7(), name="Autechre")
     session = make_session()
     session.get.return_value = seattle
-    session.execute.return_value = result_with_rows(
-        [(event, artist, "https://bandsintown.com/e/1", 12.0)]
-    )
+    session.execute.side_effect = [
+        result_with_rows([(event, artist, "https://bandsintown.com/e/1", 12.0)]),
+        result_with_rows([]),  # act identities: no shared acts
+    ]
 
     response = await request(
         "GET", f"{EVENTS_URL}?geonameid={seattle.geonameid}", session, user=user(None)

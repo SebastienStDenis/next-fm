@@ -8,7 +8,12 @@ from app.core.auth import CurrentUserDep
 from app.core.deps import SessionDep
 from app.core.models import Artist, BandsintownEvent, City, Event, EventArtist
 from app.core.schemas import ArtistRead, EventRead, UserEventRead
-from app.sync.matching import EVENT_MATCH_RADIUS_KM, artist_qualifies, distance_km
+from app.sync.matching import (
+    EVENT_MATCH_RADIUS_KM,
+    act_representatives,
+    artist_qualifies,
+    distance_km,
+)
 
 router = APIRouter()
 
@@ -48,8 +53,16 @@ async def list_user_events(
         )
         .order_by(Event.starts_at, Event.id)
     )
+    rows = result.all()
+    # An act servable under several names - artists sharing a Bandsintown
+    # identity - gets one chip, its representative's.
+    representatives = await act_representatives(
+        session, user.id, {artist.id for _, artist, _, _ in rows}
+    )
     grouped: dict[uuid.UUID, UserEventRead] = {}
-    for event, artist, url, km in result.all():
+    for event, artist, url, km in rows:
+        if representatives.get(artist.id, artist.id) != artist.id:
+            continue
         entry = grouped.get(event.id)
         if entry is None:
             entry = UserEventRead(
