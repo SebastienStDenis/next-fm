@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.clients.lastfm import (
     LastfmApiError,
@@ -22,6 +23,7 @@ from app.clients.lastfm import (
 )
 from app.clients.musicbrainz import MusicBrainzApiError, MusicBrainzClient
 from app.core.models import (
+    BandsintownArtist,
     City,
     Event,
     EventArtist,
@@ -43,7 +45,7 @@ from app.sync.artist_sync import (
     sync_interests,
     upsert_lastfm_artists,
 )
-from app.sync.matching import SIMILAR_ARTIST_KIND, upcoming_event_near
+from app.sync.matching import KNOWN_ARTIST_KINDS, SIMILAR_ARTIST_KIND, upcoming_event_near
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +166,11 @@ async def sync_user_suggestions(
     known_keys = await _overall_known_artists_name_keys(lastfm, username)
     viable_keys = [c.name_key for c in candidates if c.score >= SUGGESTION_EXIT_SCORE]
     artist_ids_by_key = await _canonical_ids_by_key(session, viable_keys)
+    alias_known_ids = await _known_act_alias_ids(
+        session,
+        {i.artist_id for i in interests if i.kind in KNOWN_ARTIST_KINDS},
+        set(artist_ids_by_key.values()),
+    )
     # Incumbent artists that become known should remain suggested if they have upcoming shows (this
     # avoids suggestions disappearing once the user starts listening to them in their playlists)
     graced_ids = await _artist_ids_with_upcoming_shows(session, user, set(incumbents))
@@ -174,6 +181,7 @@ async def sync_user_suggestions(
         incumbent_ids=set(incumbents),
         known_ids=known_ids,
         known_keys=known_keys,
+        alias_known_ids=alias_known_ids,
         excluded_ids=excluded_ids,
         graced_ids=graced_ids,
     )
@@ -305,6 +313,7 @@ def select_suggestions(
     incumbent_ids: set[uuid.UUID],
     known_ids: set[uuid.UUID],
     known_keys: set[str],
+    alias_known_ids: set[uuid.UUID],
     excluded_ids: set[uuid.UUID],
     graced_ids: set[uuid.UUID],
 ) -> list[Candidate]:
@@ -322,6 +331,10 @@ def select_suggestions(
             continue
         artist_id = artist_ids_by_key.get(candidate.name_key)
         if artist_id in excluded_ids:
+            continue
+        # An alias of a known act is never suggestible, with no grace: its
+        # shows already serve through the artist the user listens to.
+        if artist_id in alias_known_ids:
             continue
         # Filter out artists the user knows, unless they're incumbent and graced
         known = artist_id in known_ids or candidate.name_key in known_keys
@@ -598,6 +611,28 @@ async def _canonical_ids_by_key(
         )
     )
     return {key: artist_id for key, artist_id in result.all()}
+
+
+async def _known_act_alias_ids(
+    session: AsyncSession, known_ids: set[uuid.UUID], candidate_ids: set[uuid.UUID]
+) -> set[uuid.UUID]:
+    """Which of the given candidates share a Bandsintown identity with a
+    known artist: the same act under another name. Identities are stamped by
+    event sync, so a fresh alias slips through its first selection and is
+    pruned on the next."""
+    if not known_ids or not candidate_ids:
+        return set()
+    known_identity = aliased(BandsintownArtist)
+    result = await session.execute(
+        select(BandsintownArtist.artist_id)
+        .join(known_identity, known_identity.external_id == BandsintownArtist.external_id)
+        .where(
+            BandsintownArtist.artist_id.in_(candidate_ids),
+            known_identity.artist_id.in_(known_ids),
+            known_identity.artist_id != BandsintownArtist.artist_id,
+        )
+    )
+    return set(result.scalars())
 
 
 async def _artist_ids_with_upcoming_shows(

@@ -168,6 +168,7 @@ def select(candidates: list[Candidate], ids: dict[str, uuid.UUID], **overrides):
         "incumbent_ids": set(),
         "known_ids": set(),
         "known_keys": set(),
+        "alias_known_ids": set(),
         "excluded_ids": set(),
         "graced_ids": set(),
     }
@@ -214,6 +215,20 @@ def test_selection_drops_known_candidates_by_name_key() -> None:
     kept = select([candidate("Known", 0.9), candidate("Fresh", 0.9)], {}, known_keys={"known"})
 
     assert keys(kept) == ["fresh"]
+
+
+def test_selection_drops_known_act_aliases_despite_grace() -> None:
+    artist_id = uuid.uuid7()
+
+    kept = select(
+        [candidate("Alias", 0.9)],
+        {"alias": artist_id},
+        incumbent_ids={artist_id},
+        alias_known_ids={artist_id},
+        graced_ids={artist_id},
+    )
+
+    assert kept == []
 
 
 def test_selection_exclusion_beats_grace() -> None:
@@ -485,6 +500,7 @@ async def test_sync_drops_suggestion_excluded_while_fetching() -> None:
         result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
         result_with_scalars([edge(seed.artist_id, "Boards of Canada", 0.9)]),  # edges
         result_with_rows([("boards of canada", boc.artist_id)]),  # canonical ids
+        result_with_scalars([]),  # known-act aliases
         result_with_scalars([boc]),  # upsert: existing lastfm row
         result_with_scalars([boc.artist_id]),  # exclusions re-read: ignored mid-sync
         result_with_scalars([]),  # reconcile: no existing suggestion interests
@@ -496,6 +512,36 @@ async def test_sync_drops_suggestion_excluded_while_fetching() -> None:
 
     result = await sync_user_suggestions(session, lastfm, musicbrainz, user(), "rj")
 
+    assert result.suggestions_created == 0
+    assert added_objects(session, UserArtistInterest) == []
+
+
+async def test_sync_drops_known_act_alias_candidates() -> None:
+    """A candidate sharing a Bandsintown identity with a known artist is the
+    same act under another name; it must not spend a suggestion slot."""
+    seed = make_seed("Jump Source", synced_at=datetime.now(UTC))
+    seed_interest = interest(TOP_ARTIST_KIND, 100.0, artist_id=seed.artist_id)
+    alias_id = uuid.uuid7()
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([seed_interest]),  # interests
+        result_with_scalars([]),  # exclusions
+        result_with_scalars([seed]),  # seed lastfm rows (fresh: no fetch)
+        result_with_scalars([edge(seed.artist_id, "Patrick Holland", 0.9)]),  # edges
+        result_with_rows([("patrick holland", alias_id)]),  # canonical ids
+        result_with_scalars([alias_id]),  # known-act aliases
+        result_with_scalars([]),  # upsert: nothing selected
+        result_with_scalars([]),  # exclusions re-read before the write
+        result_with_scalars([]),  # reconcile: no existing suggestion interests
+        result_with_scalars([]),  # enrichment: nothing stale
+    ]
+    lastfm = AsyncMock(spec=LastfmClient)
+    lastfm.get_top_artists.return_value = []
+    musicbrainz = AsyncMock(spec=MusicBrainzClient)
+
+    result = await sync_user_suggestions(session, lastfm, musicbrainz, user(), "rj")
+
+    assert result.candidates_scored == 1
     assert result.suggestions_created == 0
     assert added_objects(session, UserArtistInterest) == []
 

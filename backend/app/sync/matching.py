@@ -5,9 +5,17 @@ from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.orm import InstrumentedAttribute, aliased
 
-from app.core.models import City, Event, EventArtist, UserArtistExclusion, UserArtistInterest
+from app.core.models import (
+    Artist,
+    BandsintownArtist,
+    City,
+    Event,
+    EventArtist,
+    UserArtistExclusion,
+    UserArtistInterest,
+)
 from app.sync.artist_sync import LOVED_TRACKS_KIND, TOP_ARTIST_KIND
 
 EVENT_MATCH_RADIUS_KM = 50.0
@@ -62,7 +70,11 @@ def artist_qualifies(
 ) -> ColumnElement[bool]:
     """Whether an artist's concerts are servable to the user: has an interest of
     a qualifying kind and is not excluded. The known/suggested classification
-    is trusted from the rows themselves, never re-derived here."""
+    is trusted from the rows themselves, never re-derived here.
+
+    Without known artists, an artist whose Bandsintown identity is shared by
+    a known artist doesn't qualify either: it's the same act under another
+    name, and the user already listens to it."""
     kinds = SUGGESTED_ARTIST_KINDS
     if include_known_artists:
         kinds = kinds | KNOWN_ARTIST_KINDS
@@ -83,7 +95,84 @@ def artist_qualifies(
         )
         .exists()
     )
-    return interest & ~excluded
+    qualifies = interest & ~excluded
+    if not include_known_artists:
+        qualifies = qualifies & ~_known_act_alias(user_id, artist_id)
+    return qualifies
+
+
+def _known_act_alias(
+    user_id: uuid.UUID, artist_id: InstrumentedAttribute[uuid.UUID]
+) -> ColumnElement[bool]:
+    """A different artist sharing this artist's Bandsintown identity holds a
+    known interest for the user. The artist's own kinds deliberately don't
+    count: a suggestion that becomes known keeps its concert-tied grace."""
+    own = aliased(BandsintownArtist)
+    peer = aliased(BandsintownArtist)
+    return (
+        select(UserArtistInterest.id)
+        .join(peer, peer.artist_id == UserArtistInterest.artist_id)
+        .join(own, own.external_id == peer.external_id)
+        .where(
+            own.artist_id == artist_id,
+            peer.artist_id != own.artist_id,
+            UserArtistInterest.user_id == user_id,
+            UserArtistInterest.kind.in_(KNOWN_ARTIST_KINDS),
+        )
+        .exists()
+    )
+
+
+async def act_representatives(
+    session: AsyncSession, user_id: uuid.UUID, artist_ids: set[uuid.UUID]
+) -> dict[uuid.UUID, uuid.UUID]:
+    """Map artists sharing a Bandsintown identity - the same act under
+    different names - to one representative each: known interest first, then
+    strongest weight, then name. Artists without a stored identity, or alone
+    in theirs, are absent and represent themselves."""
+    if not artist_ids:
+        return {}
+    result = await session.execute(
+        select(
+            BandsintownArtist.external_id,
+            Artist.id,
+            Artist.name,
+            UserArtistInterest.kind,
+            UserArtistInterest.weight,
+        )
+        .join(Artist, Artist.id == BandsintownArtist.artist_id)
+        .join(UserArtistInterest, UserArtistInterest.artist_id == Artist.id)
+        .where(
+            BandsintownArtist.artist_id.in_(artist_ids),
+            BandsintownArtist.external_id.is_not(None),
+            UserArtistInterest.user_id == user_id,
+        )
+    )
+    acts: dict[str, dict[uuid.UUID, tuple[bool, float, str]]] = {}
+    for external_id, artist_id, name, kind, weight in result.all():
+        members = acts.setdefault(external_id, {})
+        known, best_weight, _ = members.get(artist_id, (False, 0.0, name))
+        members[artist_id] = (
+            known or kind in KNOWN_ARTIST_KINDS,
+            max(best_weight, weight or 0.0),
+            name,
+        )
+
+    representatives: dict[uuid.UUID, uuid.UUID] = {}
+    for members in acts.values():
+        if len(members) < 2:
+            continue
+        best = min(
+            members,
+            key=lambda member: (
+                not members[member][0],
+                -members[member][1],
+                members[member][2],
+            ),
+        )
+        for member in members:
+            representatives[member] = best
+    return representatives
 
 
 async def match_artist_concerts(
@@ -93,7 +182,8 @@ async def match_artist_concerts(
     include_known_artists: bool,
 ) -> list[ArtistMatch]:
     """The match join reduced to one soonest upcoming concert per servable
-    artist near the city, ordered soonest-first."""
+    artist near the city, ordered soonest-first. An act servable under
+    several names counts once, through its representative."""
     result = await session.execute(
         select(EventArtist.artist_id, Event.id, Event.starts_at)
         .join(Event, Event.id == EventArtist.event_id)
@@ -103,8 +193,14 @@ async def match_artist_concerts(
         )
         .order_by(Event.starts_at, Event.id)
     )
+    rows = result.all()
+    representatives = await act_representatives(
+        session, user_id, {artist_id for artist_id, _, _ in rows}
+    )
     matches: dict[uuid.UUID, ArtistMatch] = {}
-    for artist_id, event_id, starts_at in result.all():
+    for artist_id, event_id, starts_at in rows:
+        if representatives.get(artist_id, artist_id) != artist_id:
+            continue
         matches.setdefault(
             artist_id, ArtistMatch(artist_id=artist_id, event_id=event_id, starts_at=starts_at)
         )
