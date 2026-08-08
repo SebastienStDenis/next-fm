@@ -130,7 +130,7 @@ export default async function DashboardPage() {
           </a>
         </Button>
       </div>
-      <UnavailableNotice className="mt-3" />
+      <UnavailableNotice className="mt-4 w-fit" />
       <section className="mt-6">
         <Tabs
           defaultTab={lastTab ?? "playlists"}

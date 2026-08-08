@@ -34,11 +34,6 @@ export default async function Home() {
           NextFM
         </h1>
       </Haze>
-      <div className="-mt-3">
-        <Haze>
-          <UnavailableNotice className="max-w-md" />
-        </Haze>
-      </div>
       {/* Tagline and intro get their own washes so each hugs its own width.
           The tagline's bottom padding extends its wash down and the intro's
           negative margin pulls its wash up, so the two solid cores overlap and
@@ -55,6 +50,7 @@ export default async function Home() {
           </Haze>
         </div>
       </div>
+      <UnavailableNotice className="max-w-md" />
       <Haze>
         <div className="flex gap-3">
           <Button asChild size="lg">
