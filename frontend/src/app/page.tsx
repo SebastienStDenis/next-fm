@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Haze } from "@/components/haze";
 import { IntroText } from "./intro-text";
 import { QueryNotice } from "@/components/query-notice";
+import { UnavailableNotice } from "@/components/unavailable-notice";
 
 // Deleting an account signs the user out and lands them here, which is exactly
 // where signing out lands them too; the toast is what tells the two apart.
@@ -33,6 +34,11 @@ export default async function Home() {
           NextFM
         </h1>
       </Haze>
+      <div className="-mt-3">
+        <Haze>
+          <UnavailableNotice className="max-w-md" />
+        </Haze>
+      </div>
       {/* Tagline and intro get their own washes so each hugs its own width.
           The tagline's bottom padding extends its wash down and the intro's
           negative margin pulls its wash up, so the two solid cores overlap and
