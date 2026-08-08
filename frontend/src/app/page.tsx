@@ -50,7 +50,7 @@ export default async function Home() {
           </Haze>
         </div>
       </div>
-      <UnavailableNotice className="max-w-md" />
+      <UnavailableNotice className="max-w-sm" />
       <Haze>
         <div className="flex gap-3">
           <Button asChild size="lg">
