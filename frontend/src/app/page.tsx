@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Haze } from "@/components/haze";
 import { IntroText } from "./intro-text";
 import { QueryNotice } from "@/components/query-notice";
+import { UnavailableNotice } from "@/components/unavailable-notice";
 
 // Deleting an account signs the user out and lands them here, which is exactly
 // where signing out lands them too; the toast is what tells the two apart.
@@ -49,6 +50,7 @@ export default async function Home() {
           </Haze>
         </div>
       </div>
+      <UnavailableNotice className="max-w-sm" />
       <Haze>
         <div className="flex gap-3">
           <Button asChild size="lg">
