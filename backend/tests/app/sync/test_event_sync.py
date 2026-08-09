@@ -1,360 +1,335 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from app.clients.bandsintown import (
-    BandsintownApiError,
-    BandsintownArtistNotFoundError,
-    BandsintownClient,
-    BandsintownEventData,
-)
-from app.core.models import Artist, BandsintownArtist, BandsintownEvent, City, Event, User
-from app.sync.event_sync import sync_user_events
+from app.clients.ra import RaApiError, RaClient
+from app.clients.source_events import SourceEventData
+from app.clients.ticketmaster import TicketmasterApiError, TicketmasterClient
+from app.core.models import Artist, Event, RaArtist, RaEvent, TicketmasterArtist, User
+from app.sync.event_sync import _adopt, sync_user_events
 from tests.helpers import (
     added_objects,
     make_session,
-    request,
     result_returning,
     result_with_rows,
     result_with_scalars,
 )
 
 USER_ID = uuid.uuid7()
-EVENTS_URL = "/me/events"
 
 
-def user(city_id: int | None = None) -> User:
-    return User(id=USER_ID, name="Alice", city_id=city_id, include_known_artists=False)
+def user() -> User:
+    return User(id=USER_ID, name="Alice", city_id=None, include_known_artists=False)
 
 
-def event_data(external_id: str, starts_at: datetime | None = None) -> BandsintownEventData:
-    return BandsintownEventData(
+def event_data(
+    external_id: str,
+    starts_at: datetime | None = None,
+    venue_name: str = "Sphere",
+    latitude: float = 36.121217,
+    longitude: float = -115.1620404,
+    url: str = "https://tickets.example/e/",
+) -> SourceEventData:
+    return SourceEventData(
         external_id=external_id,
-        artist_external_id="128",
         title=None,
-        url=f"https://www.bandsintown.com/e/{external_id}",
+        url=url + external_id,
         starts_at=starts_at or datetime(2026, 10, 1, 20, 30, tzinfo=UTC),
         lineup=["Metallica"],
-        venue_name="Sphere",
-        venue_latitude=36.121217,
-        venue_longitude=-115.1620404,
-        street_address="255 Sands Ave",
+        venue_name=venue_name,
+        venue_latitude=latitude,
+        venue_longitude=longitude,
+        street_address=None,
         city_name="Las Vegas",
         region="NV",
         country="United States",
     )
 
 
-def make_event(external_id: str) -> tuple[BandsintownEvent, Event]:
-    event = Event(
+def stored_event(
+    starts_at: datetime | None = None,
+    venue_name: str = "Sphere",
+    latitude: float = 36.121217,
+    longitude: float = -115.1620404,
+) -> Event:
+    return Event(
         id=uuid.uuid7(),
-        title=None,
-        venue_name="Old Venue",
-        venue_latitude=0.0,
-        venue_longitude=0.0,
-        city_name="Nowhere",
-        region=None,
-        country=None,
-        starts_at=datetime(2026, 9, 1, tzinfo=UTC),
+        title="Stored title",
+        venue_name=venue_name,
+        venue_latitude=latitude,
+        venue_longitude=longitude,
+        city_name="Las Vegas",
+        region="NV",
+        country="United States",
+        starts_at=starts_at or datetime(2026, 10, 1, 20, 30, tzinfo=UTC),
     )
-    source = BandsintownEvent(id=uuid.uuid7(), event_id=event.id, external_id=external_id)
-    return source, event
+
+
+def fresh(identity: TicketmasterArtist | RaArtist) -> TicketmasterArtist | RaArtist:
+    identity.last_synced_at = datetime.now(UTC)
+    return identity
+
+
+def make_clients(
+    tm_events: list[SourceEventData] | Exception | None = None,
+    ra_events: list[SourceEventData] | Exception | None = None,
+    tm_resolved: str | None = "TM-A1",
+    ra_resolved: str | None = "966",
+) -> tuple[AsyncMock, AsyncMock]:
+    ticketmaster = AsyncMock(spec=TicketmasterClient)
+    ticketmaster.find_attraction_id.return_value = tm_resolved
+    if isinstance(tm_events, Exception):
+        ticketmaster.get_attraction_events.side_effect = tm_events
+    else:
+        ticketmaster.get_attraction_events.return_value = tm_events or []
+    ra = AsyncMock(spec=RaClient)
+    ra.find_artist_id.return_value = ra_resolved
+    if isinstance(ra_events, Exception):
+        ra.get_artist_events.side_effect = ra_events
+    else:
+        ra.get_artist_events.return_value = ra_events or []
+    return ticketmaster, ra
 
 
 async def test_sync_creates_events_for_new_artist() -> None:
     artist = Artist(id=uuid.uuid7(), name="Metallica")
-    identity = BandsintownArtist(artist_id=artist.id, name="Metallica")
+    tm_identity = TicketmasterArtist(artist_id=artist.id, name="Metallica")
+    ra_identity = RaArtist(artist_id=artist.id, name="Metallica")
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([artist]),
-        result_with_scalars([]),
-        MagicMock(),
-        result_returning(identity),
-        result_with_rows([]),
-        result_with_rows([]),
-        MagicMock(),
-        result_with_scalars([]),
-        result_returning(2),
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([]),  # tm identities
+        MagicMock(),  # tm identity insert
+        result_returning(tm_identity),  # tm identity select
+        result_with_rows([]),  # tm existing source rows
+        result_with_scalars([]),  # tm adoption candidates
+        result_with_rows([]),  # tm source-row insert returning
+        MagicMock(),  # tm event_artists insert
+        result_with_rows([]),  # tm prune
+        result_with_scalars([]),  # ra identities
+        MagicMock(),  # ra identity insert
+        result_returning(ra_identity),  # ra identity select
+        result_returning(2),  # events_total
     ]
-    bandsintown = AsyncMock(spec=BandsintownClient)
-    bandsintown.get_artist_events.return_value = [event_data("101"), event_data("102")]
+    ticketmaster, ra = make_clients(
+        tm_events=[event_data("101"), event_data("102")], ra_resolved=None
+    )
 
-    result = await sync_user_events(session, bandsintown, user())
+    result = await sync_user_events(session, ticketmaster, ra, user())
 
+    assert [event.venue_name for event in added_objects(session, Event)] == ["Sphere", "Sphere"]
     assert result.artists_total == 1
+    assert result.artists_synced == 1  # TM synced outranks RA unknown
+    assert result.artists_unknown == 0
+    assert result.events_created == 2
+    assert result.events_total == 2
+    assert tm_identity.external_id == "TM-A1"
+    assert tm_identity.last_synced_at is not None
+    assert ra_identity.external_id is None
+    assert ra_identity.last_synced_at is not None  # unknown retries only after the TTL
+    ra.get_artist_events.assert_not_awaited()
+
+
+async def test_ra_record_of_a_ticketmaster_event_merges_without_touching_fields() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Ben Klock")
+    tm_identity = fresh(TicketmasterArtist(artist_id=artist.id, name="Ben Klock", external_id="T1"))
+    ra_identity = RaArtist(artist_id=artist.id, name="Ben Klock", external_id="966")
+    tm_event = stored_event(starts_at=datetime(2026, 10, 1, 19, 0, tzinfo=UTC))
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities (fresh -> skipped)
+        result_with_scalars([ra_identity]),  # ra identities
+        result_with_rows([]),  # ra existing source rows
+        result_with_scalars([tm_event]),  # ra adoption candidates
+        result_with_scalars([]),  # candidates' existing ra rows
+        result_with_scalars([tm_event.id]),  # outranked (has a tm row)
+        result_with_rows([]),  # ra source-row insert returning
+        MagicMock(),  # ra event_artists insert
+        result_with_rows([]),  # ra prune
+        result_returning(1),  # events_total
+    ]
+    same_show = event_data(
+        "RA-9", starts_at=datetime(2026, 10, 1, 23, 0, tzinfo=UTC), venue_name="Sphere Las Vegas"
+    )
+    ticketmaster, ra = make_clients(ra_events=[same_show])
+
+    result = await sync_user_events(session, ticketmaster, ra, user())
+
+    assert added_objects(session, Event) == []  # adopted, not duplicated
+    assert tm_event.title == "Stored title"  # ticketmaster owns the display fields
+    assert result.events_created == 0
+    assert result.events_updated == 1
     assert result.artists_synced == 1
     assert result.artists_skipped == 0
-    assert result.artists_unknown == 0
-    assert result.artists_failed == 0
-    assert result.events_created == 2
-    assert result.events_updated == 0
-    assert result.events_removed == 0
-    assert result.events_total == 2
-    bandsintown.get_artist_events.assert_awaited_once_with("Metallica")
-
-    events = added_objects(session, Event)
-    assert len(events) == 2
-    assert events[0].venue_name == "Sphere"
-    assert identity.external_id == "128"
-    assert identity.last_synced_at is not None
+    ticketmaster.get_attraction_events.assert_not_awaited()
 
 
-async def test_sync_skips_recently_synced_artists() -> None:
-    artist = Artist(id=uuid.uuid7(), name="Metallica")
-    identity = BandsintownArtist(
-        artist_id=artist.id, name="Metallica", last_synced_at=datetime.now(UTC)
-    )
+async def test_ra_owns_fields_of_events_without_ticketmaster_row() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Ben Klock")
+    tm_identity = fresh(TicketmasterArtist(artist_id=artist.id, name="Ben Klock", external_id="T1"))
+    ra_identity = RaArtist(artist_id=artist.id, name="Ben Klock", external_id="966")
+    event = stored_event()
+    ra_row = RaEvent(id=uuid.uuid7(), event_id=event.id, external_id="RA-9")
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([artist]),
-        result_with_scalars([identity]),
-        result_returning(5),
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities (fresh -> skipped)
+        result_with_scalars([ra_identity]),  # ra identities
+        result_with_rows([(ra_row, event)]),  # ra existing source rows
+        result_with_scalars([]),  # outranked (no tm row)
+        MagicMock(),  # ra event_artists insert
+        result_with_rows([]),  # ra prune
+        result_returning(1),  # events_total
     ]
-    bandsintown = AsyncMock(spec=BandsintownClient)
+    update = event_data("RA-9", venue_name="Berghain", url="https://ra.co/events/")
+    ticketmaster, ra = make_clients(ra_events=[update])
 
-    result = await sync_user_events(session, bandsintown, user())
+    result = await sync_user_events(session, ticketmaster, ra, user())
 
-    assert result.artists_skipped == 1
-    assert result.artists_synced == 0
-    # The total is post-sync state, so it counts events even when every
-    # artist's feed was fresh enough to skip.
-    assert result.events_total == 5
-    bandsintown.get_artist_events.assert_not_awaited()
-
-
-async def test_sync_updates_existing_and_removes_vanished_events() -> None:
-    artist = Artist(id=uuid.uuid7(), name="Metallica")
-    identity = BandsintownArtist(
-        artist_id=artist.id,
-        name="Metallica",
-        external_id="128",
-        last_synced_at=datetime.now(UTC) - timedelta(days=2),
-    )
-    source, event = make_event("101")
-    vanished_id = uuid.uuid7()
-    session = make_session()
-    session.execute.side_effect = [
-        result_with_scalars([artist]),
-        result_with_scalars([identity]),
-        result_with_rows([(source, event)]),
-        MagicMock(),
-        result_with_scalars([vanished_id]),
-        MagicMock(),
-        result_returning(1),
-    ]
-    bandsintown = AsyncMock(spec=BandsintownClient)
-    bandsintown.get_artist_events.return_value = [event_data("101")]
-
-    result = await sync_user_events(session, bandsintown, user())
-
-    assert result.events_created == 0
+    assert event.venue_name == "Berghain"
+    assert ra_row.url == "https://ra.co/events/RA-9"
     assert result.events_updated == 1
+
+
+async def test_prune_deletes_only_events_with_no_remaining_source() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Metallica")
+    tm_identity = TicketmasterArtist(artist_id=artist.id, name="Metallica", external_id="T1")
+    ra_identity = fresh(RaArtist(artist_id=artist.id, name="Metallica", external_id="966"))
+    orphan_id, shared_id = uuid.uuid7(), uuid.uuid7()
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities
+        result_with_rows([(uuid.uuid7(), orphan_id), (uuid.uuid7(), shared_id)]),  # tm prune
+        MagicMock(),  # delete tm source rows
+        result_with_scalars([]),  # still sourced by ticketmaster
+        result_with_scalars([shared_id]),  # still sourced by ra
+        MagicMock(),  # delete orphaned events
+        result_with_scalars([ra_identity]),  # ra identities (fresh -> skipped)
+        result_returning(0),  # events_total
+    ]
+    ticketmaster, ra = make_clients(tm_events=[])
+
+    result = await sync_user_events(session, ticketmaster, ra, user())
+
     assert result.events_removed == 1
-    assert result.events_total == 1
-    assert event.venue_name == "Sphere"
-    assert event.starts_at == datetime(2026, 10, 1, 20, 30, tzinfo=UTC)
-    assert source.url == "https://www.bandsintown.com/e/101"
-    session.add.assert_not_called()
+    assert result.artists_synced == 1
 
 
-async def test_sync_dedupes_repeated_external_ids_in_one_feed() -> None:
-    artist = Artist(id=uuid.uuid7(), name="Metallica")
-    identity = BandsintownArtist(artist_id=artist.id, name="Metallica")
+async def test_failed_source_leaves_last_synced_for_retry() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Ben Klock")
+    tm_identity = TicketmasterArtist(artist_id=artist.id, name="Ben Klock", external_id="T1")
+    ra_identity = RaArtist(artist_id=artist.id, name="Ben Klock", external_id="966")
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([artist]),
-        result_with_scalars([]),
-        MagicMock(),
-        result_returning(identity),
-        result_with_rows([]),
-        result_with_rows([]),
-        MagicMock(),
-        result_with_scalars([]),
-        result_returning(1),
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities
+        result_with_scalars([ra_identity]),  # ra identities
+        result_with_rows([]),  # ra existing source rows
+        result_with_scalars([]),  # ra adoption candidates
+        result_with_rows([]),  # ra source-row insert returning
+        MagicMock(),  # ra event_artists insert
+        result_with_rows([]),  # ra prune
+        result_returning(1),  # events_total
     ]
-    bandsintown = AsyncMock(spec=BandsintownClient)
-    bandsintown.get_artist_events.return_value = [event_data("101"), event_data("101")]
+    ticketmaster, ra = make_clients(
+        tm_events=TicketmasterApiError(429, "rate limited"), ra_events=[event_data("RA-9")]
+    )
 
-    result = await sync_user_events(session, bandsintown, user())
+    result = await sync_user_events(session, ticketmaster, ra, user())
 
+    assert tm_identity.last_synced_at is None  # retried next sync
+    assert ra_identity.last_synced_at is not None
+    assert result.artists_synced == 1  # RA synced outranks TM failed
+    assert result.artists_failed == 0
     assert result.events_created == 1
-    assert len(added_objects(session, Event)) == 1
 
 
-async def test_sync_adopts_event_created_by_concurrent_sync() -> None:
-    artist = Artist(id=uuid.uuid7(), name="Metallica")
-    identity = BandsintownArtist(artist_id=artist.id, name="Metallica")
-    adopted_event_id = uuid.uuid7()
+async def test_both_sources_failing_reports_failure() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Ben Klock")
+    tm_identity = TicketmasterArtist(artist_id=artist.id, name="Ben Klock", external_id="T1")
+    ra_identity = RaArtist(artist_id=artist.id, name="Ben Klock", external_id="966")
     session = make_session()
     session.execute.side_effect = [
-        result_with_scalars([artist]),
-        result_with_scalars([]),
-        MagicMock(),
-        result_returning(identity),
-        result_with_rows([]),
-        result_with_rows([("101", adopted_event_id)]),
-        MagicMock(),
-        result_with_scalars([]),
-        result_returning(1),
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities
+        result_with_scalars([ra_identity]),  # ra identities
+        result_returning(0),  # events_total
     ]
-    bandsintown = AsyncMock(spec=BandsintownClient)
-    bandsintown.get_artist_events.return_value = [event_data("101")]
+    ticketmaster, ra = make_clients(
+        tm_events=TicketmasterApiError(500, "boom"), ra_events=RaApiError(403, "blocked")
+    )
 
-    result = await sync_user_events(session, bandsintown, user())
-
-    assert result.events_created == 0
-    assert result.events_updated == 1
-    duplicate = added_objects(session, Event)[0]
-    session.delete.assert_awaited_once_with(duplicate)
-
-
-async def test_sync_treats_unknown_artist_as_no_events() -> None:
-    artist = Artist(id=uuid.uuid7(), name="Obscure Basement Band")
-    identity = BandsintownArtist(artist_id=artist.id, name="Obscure Basement Band")
-    session = make_session()
-    session.execute.side_effect = [
-        result_with_scalars([artist]),
-        result_with_scalars([]),
-        MagicMock(),
-        result_returning(identity),
-        result_returning(0),
-    ]
-    bandsintown = AsyncMock(spec=BandsintownClient)
-    bandsintown.get_artist_events.side_effect = BandsintownArtistNotFoundError("nope")
-
-    result = await sync_user_events(session, bandsintown, user())
-
-    assert result.artists_unknown == 1
-    assert result.artists_synced == 0
-    assert result.events_removed == 0
-    assert identity.last_synced_at is not None
-    # Not-found never triggers vanish-deletion; only the final total count
-    # follows the identity upsert.
-    assert session.execute.await_count == 5
-
-
-async def test_sync_counts_api_errors_and_leaves_artist_retryable() -> None:
-    artist = Artist(id=uuid.uuid7(), name="Metallica")
-    session = make_session()
-    session.execute.side_effect = [
-        result_with_scalars([artist]),
-        result_with_scalars([]),
-        result_returning(0),
-    ]
-    bandsintown = AsyncMock(spec=BandsintownClient)
-    bandsintown.get_artist_events.side_effect = BandsintownApiError(200, "{warn=Not found}")
-
-    result = await sync_user_events(session, bandsintown, user())
+    result = await sync_user_events(session, ticketmaster, ra, user())
 
     assert result.artists_failed == 1
     assert result.artists_synced == 0
-    assert result.events_removed == 0
-    # No identity row is written, so the artist is retried on the next sync;
-    # only the final total count runs after the two lookups.
-    assert session.execute.await_count == 3
 
 
-def make_matched_event(starts_at: datetime) -> Event:
-    return Event(
-        id=uuid.uuid7(),
-        title=None,
-        venue_name="MTELUS",
-        venue_latitude=45.51,
-        venue_longitude=-73.56,
-        city_name="Montreal",
-        region="QC",
-        country="Canada",
-        starts_at=starts_at,
-    )
-
-
-async def test_list_events_groups_artists_per_event() -> None:
-    montreal = City(
-        geonameid=6077243,
-        name="Montréal",
-        ascii_name="Montreal",
-        admin1="Quebec",
-        country_code="CA",
-        latitude=45.50884,
-        longitude=-73.58781,
-        population=1600000,
-    )
-    event1 = make_matched_event(datetime(2026, 8, 1, 20, 0, tzinfo=UTC))
-    event2 = make_matched_event(datetime(2026, 8, 5, 20, 0, tzinfo=UTC))
-    autechre = Artist(id=uuid.uuid7(), name="Autechre")
-    boc = Artist(id=uuid.uuid7(), name="Boards of Canada")
+async def test_fresh_identities_skip_both_sources() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Metallica")
+    tm_identity = fresh(TicketmasterArtist(artist_id=artist.id, name="Metallica", external_id="T1"))
+    ra_identity = fresh(RaArtist(artist_id=artist.id, name="Metallica", external_id="966"))
     session = make_session()
-    session.get.return_value = montreal
-    session.execute.return_value = result_with_rows(
-        [
-            (event1, autechre, "https://bandsintown.com/e/1", 2.9412),
-            (event1, boc, "https://bandsintown.com/e/1", 2.9412),
-            (event2, autechre, "https://bandsintown.com/e/2", 2.9412),
-        ]
-    )
+    session.execute.side_effect = [
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities
+        result_with_scalars([ra_identity]),  # ra identities
+        result_returning(5),  # events_total
+    ]
+    ticketmaster, ra = make_clients()
 
-    response = await request("GET", EVENTS_URL, session, user=user(montreal.geonameid))
+    result = await sync_user_events(session, ticketmaster, ra, user())
 
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body) == 2
-    assert body[0]["event"]["venue_name"] == "MTELUS"
-    assert body[0]["url"] == "https://bandsintown.com/e/1"
-    assert body[0]["distance_km"] == 2.9
-    assert [artist["name"] for artist in body[0]["artists"]] == ["Autechre", "Boards of Canada"]
-    assert [artist["name"] for artist in body[1]["artists"]] == ["Autechre"]
+    assert result.artists_skipped == 1
+    assert result.artists_synced == 0
+    assert result.events_total == 5
+    ticketmaster.get_attraction_events.assert_not_awaited()
+    ra.get_artist_events.assert_not_awaited()
 
 
-async def test_list_events_requires_a_city() -> None:
+async def test_no_interest_artists() -> None:
     session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([]),  # interest artists
+        result_with_scalars([]),  # tm identities
+        result_with_scalars([]),  # ra identities
+        result_returning(0),  # events_total
+    ]
+    ticketmaster, ra = make_clients()
 
-    response = await request("GET", EVENTS_URL, session, user=user(None))
+    result = await sync_user_events(session, ticketmaster, ra, user())
 
-    assert response.status_code == 409
-    assert response.json()["detail"] == "Set a city to match events"
-
-
-async def test_list_events_requires_authentication() -> None:
-    session = make_session()
-
-    response = await request("GET", EVENTS_URL, session)
-
-    assert response.status_code == 401
-
-
-async def test_list_events_accepts_an_explicit_city() -> None:
-    seattle = City(
-        geonameid=5809844,
-        name="Seattle",
-        ascii_name="Seattle",
-        admin1="Washington",
-        country_code="US",
-        latitude=47.60621,
-        longitude=-122.33207,
-        population=737015,
-    )
-    event = make_matched_event(datetime(2026, 8, 1, 20, 0, tzinfo=UTC))
-    artist = Artist(id=uuid.uuid7(), name="Autechre")
-    session = make_session()
-    session.get.return_value = seattle
-    session.execute.return_value = result_with_rows(
-        [(event, artist, "https://bandsintown.com/e/1", 12.0)]
-    )
-
-    response = await request(
-        "GET", f"{EVENTS_URL}?geonameid={seattle.geonameid}", session, user=user(None)
-    )
-
-    assert response.status_code == 200
-    assert len(response.json()) == 1
-    session.get.assert_any_await(City, seattle.geonameid)
+    assert result.artists_total == 0
+    assert result.events_created == 0
 
 
-async def test_list_events_unknown_explicit_city() -> None:
-    session = make_session()
-    session.get.return_value = None
+def test_adopt_matches_by_venue_name_when_coordinates_differ() -> None:
+    stored = stored_event(latitude=0.0, longitude=0.0, venue_name=" SPHERE ")
+    data = event_data("X1")
+    assert _adopt(data, {stored.starts_at.date(): [stored]}, set()) is stored
 
-    response = await request("GET", f"{EVENTS_URL}?geonameid=999", session, user=user(None))
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "City not found"
+def test_adopt_never_merges_two_records_of_the_same_source() -> None:
+    stored = stored_event()
+    data = event_data("X1")
+    assert _adopt(data, {stored.starts_at.date(): [stored]}, {stored.id}) is None
+
+
+def test_adopt_prefers_nearest_start_time_for_double_shows() -> None:
+    early = stored_event(starts_at=datetime(2026, 10, 1, 19, 0, tzinfo=UTC))
+    late = stored_event(starts_at=datetime(2026, 10, 1, 23, 0, tzinfo=UTC))
+    data = event_data("X1", starts_at=datetime(2026, 10, 1, 22, 30, tzinfo=UTC))
+    assert _adopt(data, {early.starts_at.date(): [early, late]}, set()) is late
+
+
+def test_adopt_ignores_other_dates_and_places() -> None:
+    other_day = stored_event(starts_at=datetime(2026, 10, 2, 20, 30, tzinfo=UTC))
+    other_place = stored_event(venue_name="Elsewhere", latitude=40.7, longitude=-73.9)
+    data = event_data("X1")
+    candidates = {
+        other_day.starts_at.date(): [other_day],
+        data.starts_at.date(): [other_place],
+    }
+    assert _adopt(data, candidates, set()) is None

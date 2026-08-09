@@ -13,7 +13,7 @@ and freshness markers revised by
 
 The product is written **NextFM** everywhere: UI, documentation, emails,
 API titles. Never "Next.fm". Third-party brands keep their own styling
-(Last.fm, Spotify, Bandsintown).
+(Last.fm, Spotify, Ticketmaster, Resident Advisor).
 
 Copy refers to the product in the third person ("NextFM finds...",
 "NextFM will add..."), never in the first person ("we", "we'll").

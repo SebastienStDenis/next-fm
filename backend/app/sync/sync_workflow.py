@@ -147,7 +147,9 @@ STEP_SPECS = (
         label="Find concerts",
         activity="sync_events",
         result_type=EventSyncResult,
-        attempt_timeout=timedelta(minutes=15),
+        # A cold sync resolves and fetches every interest artist against two
+        # sources, the RA one politely rate-limited to 1 request/second.
+        attempt_timeout=timedelta(minutes=30),
         summarize=_summarize_events,
     ),
     _StepSpec(

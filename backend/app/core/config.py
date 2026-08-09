@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres"
     database_disable_prepared_statements: bool = False
     lastfm_api_key: str = ""
-    bandsintown_api_key: str = ""
+    ticketmaster_api_key: str = ""
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
     spotify_refresh_token: str = ""

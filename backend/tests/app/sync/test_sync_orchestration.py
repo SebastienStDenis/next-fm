@@ -314,7 +314,7 @@ def patch_session_factory(monkeypatch: pytest.MonkeyPatch, session: AsyncMock) -
 
 
 def make_activities() -> SyncActivities:
-    return SyncActivities(MagicMock(), MagicMock(), MagicMock(), MagicMock())
+    return SyncActivities(MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock())
 
 
 async def test_sync_artists_activity_commits_and_wraps_results(

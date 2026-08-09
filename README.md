@@ -5,7 +5,7 @@ A website for live-music discovery that works through listening instead of listi
 ## V1 connections
 
 - **Last.fm** for listening history and suggestions. Users enter their username, and it provides their top artists plus similar-artist suggestions for discovery.
-- **Bandsintown** for concerts. Used to check which of the user's matched artists have upcoming concerts near them.
+- **Ticketmaster and Resident Advisor** for concerts. Used to check which of the user's matched artists have upcoming concerts near them: Ticketmaster covers the mainstream circuit, RA the club and electronic scene.
 - **Spotify** to generate playlists. A dedicated account owned by NextFM creates and maintains one playlist per user in each city they follow; the user just taps "Add to library" in Spotify. No Spotify sign-in required from the user, and because NextFM owns the playlist, it can refresh it automatically every day as the user's listening history changes and new concerts are announced.
 
 ## Stack
