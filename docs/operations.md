@@ -1,6 +1,6 @@
 # Operations
 
-*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-08-09.*
+*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-08-16.*
 
 The one-shot infrastructure setup lives in
 `docs/design/2026-07-08-phase-1-deploy-runbook.md` (written against the older
@@ -168,13 +168,16 @@ Concert data comes from two sources with different failure profiles
 (`docs/design/2026-08-09-multi-source-event-ingestion.md`):
 
 - **Ticketmaster** (official, keyed): the free Discovery API tier allows
-  5000 requests/day and 5 req/s. The client throttles below the rate limit;
-  quota exhaustion surfaces as `TicketmasterApiError` 429s, the affected
-  artists are counted `failed` in the step summary and retried on the next
-  sync, so a brief overrun heals itself. A *persistent* 429 stream means the
-  daily artist volume outgrew the tier: request a rate increase from the
-  Ticketmaster developer portal, or batch attraction ids per call
-  (`backend/app/clients/ticketmaster.py`).
+  5000 requests/day and 5 req/s. The client throttles below the rate limit
+  and retries the occasional burst 429 after a short backoff; quota
+  exhaustion surfaces as `TicketmasterApiError` 429s that survive the
+  retries, the affected artists are counted `failed` in the step summary
+  and retried on the next sync, so a brief overrun heals itself. Budget:
+  roughly one request per resolved artist per user per day (a 900-artist
+  profile costs ~700/day at steady state, ~1,500 on its first sync), so a
+  *persistent* 429 stream means the nightly volume outgrew the tier: request
+  a rate increase from the Ticketmaster developer portal, or batch
+  attraction ids per call (`backend/app/clients/ticketmaster.py`).
 - **RA** (unofficial, keyless): the client speaks the GraphQL endpoint behind
   ra.co, which can change shape or start blocking without notice. Occasional
   `RaApiError`s are expected weather; only a sustained failure rate is worth

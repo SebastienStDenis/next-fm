@@ -130,7 +130,7 @@ def _parse_event(event: dict) -> SourceEventData | None:
             )
             if not present
         ]
-        logger.warning("Dropped RA event %r (missing %s)", external_id, ", ".join(missing))
+        logger.info("Dropped RA event %r (missing %s)", external_id, ", ".join(missing))
         return None
     area = venue.get("area") or {}
     content_url = event.get("contentUrl")

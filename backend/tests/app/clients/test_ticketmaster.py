@@ -144,10 +144,41 @@ async def test_get_attraction_events_walks_pages() -> None:
     assert [event.external_id for event in events] == ["vvG1zZ9pqcAKdN", "second"]
 
 
-async def test_api_error_raises() -> None:
+async def test_rate_limit_is_retried_after_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    statuses = iter([429, 429, 200])
+    slept: list[float] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
+        status = next(statuses)
+        if status == 429:
+            return httpx.Response(429, headers={"Retry-After": "2"}, text="Rate limit exceeded")
+        return httpx.Response(200, json={"_embedded": {"events": []}, "page": {"totalPages": 1}})
+
+    async def sleep(seconds: float) -> None:
+        slept.append(seconds)
+
+    monkeypatch.setattr("app.clients.ticketmaster.asyncio.sleep", sleep)
+    client = TicketmasterClient("key")
+    client._http = httpx.AsyncClient(
+        base_url="https://app.ticketmaster.com/discovery/v2",
+        transport=httpx.MockTransport(handler),
+    )
+    assert await client.get_attraction_events("K2") == []
+    assert slept == [2.0, 2.0]
+
+
+async def test_persistent_rate_limit_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
         return httpx.Response(429, text="Rate limit exceeded")
 
+    async def sleep(seconds: float) -> None:
+        pass
+
+    monkeypatch.setattr("app.clients.ticketmaster.asyncio.sleep", sleep)
     client = TicketmasterClient("key")
     client._http = httpx.AsyncClient(
         base_url="https://app.ticketmaster.com/discovery/v2",
@@ -156,3 +187,18 @@ async def test_api_error_raises() -> None:
     with pytest.raises(TicketmasterApiError) as exc_info:
         await client.get_attraction_events("K2")
     assert exc_info.value.status_code == 429
+    assert calls == 3
+
+
+async def test_api_error_raises() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text="Internal error")
+
+    client = TicketmasterClient("key")
+    client._http = httpx.AsyncClient(
+        base_url="https://app.ticketmaster.com/discovery/v2",
+        transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(TicketmasterApiError) as exc_info:
+        await client.get_attraction_events("K2")
+    assert exc_info.value.status_code == 500

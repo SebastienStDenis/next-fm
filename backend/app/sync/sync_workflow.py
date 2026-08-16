@@ -148,8 +148,10 @@ STEP_SPECS = (
         activity="sync_events",
         result_type=EventSyncResult,
         # A cold sync resolves and fetches every interest artist against two
-        # sources, the RA one politely rate-limited to 1 request/second.
-        attempt_timeout=timedelta(minutes=30),
+        # sources, the RA one politely rate-limited to 1 request/second:
+        # ~25 minutes for a 900-artist profile, and nothing is committed
+        # until the step ends, so a timeout would restart it from scratch.
+        attempt_timeout=timedelta(minutes=60),
         summarize=_summarize_events,
     ),
     _StepSpec(

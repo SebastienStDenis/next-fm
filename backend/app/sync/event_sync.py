@@ -27,6 +27,10 @@ from app.core.schemas import EventSyncResult
 from app.sync.matching import artist_qualifies
 
 EVENT_SYNC_TTL = timedelta(hours=24)
+# An artist neither source knows is re-searched far less often than a
+# resolved one is re-fetched: most of a taste profile never resolves, and
+# probing every unknown daily would dominate the sync's runtime and quota.
+UNRESOLVED_RETRY = timedelta(days=7)
 FETCH_CONCURRENCY = 4
 # Two source records are the same physical show when they share a linked
 # artist and calendar date and their venues coincide by proximity or name.
@@ -140,7 +144,8 @@ async def _sync_source(
     to_fetch: list[Artist] = []
     for artist in artists:
         identity = identities.get(artist.id)
-        if identity and identity.last_synced_at and now - identity.last_synced_at < EVENT_SYNC_TTL:
+        ttl = EVENT_SYNC_TTL if identity and identity.external_id else UNRESOLVED_RETRY
+        if identity and identity.last_synced_at and now - identity.last_synced_at < ttl:
             statuses[artist.id] = "skipped"
         else:
             to_fetch.append(artist)

@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 from app.clients.ra import RaApiError, RaClient
@@ -296,6 +296,34 @@ async def test_fresh_identities_skip_both_sources() -> None:
     assert result.events_total == 5
     ticketmaster.get_attraction_events.assert_not_awaited()
     ra.get_artist_events.assert_not_awaited()
+
+
+async def test_unresolved_artists_are_reprobed_weekly_not_daily() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Obscure Act")
+    two_days_ago = datetime.now(UTC) - timedelta(days=2)
+    tm_identity = TicketmasterArtist(artist_id=artist.id, name="Obscure Act", external_id=None)
+    tm_identity.last_synced_at = two_days_ago
+    ra_identity = RaArtist(artist_id=artist.id, name="Obscure Act", external_id="966")
+    ra_identity.last_synced_at = two_days_ago
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities (unresolved, 2 days -> skipped)
+        result_with_scalars([ra_identity]),  # ra identities (resolved, 2 days -> stale)
+        result_with_rows([]),  # ra existing source rows
+        result_with_scalars([]),  # ra adoption candidates
+        result_with_rows([]),  # ra source-row insert returning
+        MagicMock(),  # ra event_artists insert
+        result_with_rows([]),  # ra prune
+        result_returning(1),  # events_total
+    ]
+    ticketmaster, ra = make_clients(ra_events=[event_data("RA-9")])
+
+    result = await sync_user_events(session, ticketmaster, ra, user())
+
+    ticketmaster.find_attraction_id.assert_not_awaited()
+    ra.get_artist_events.assert_awaited_once_with("966")
+    assert result.artists_synced == 1
 
 
 async def test_no_interest_artists() -> None:

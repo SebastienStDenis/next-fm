@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import UTC, datetime
 
@@ -11,6 +12,11 @@ PAGE_SIZE = 200
 # Discovery paging is capped at size * page <= 1000 results.
 MAX_PAGES = 5
 REQUEST_INTERVAL = 0.25  # Ticketmaster allows 5 requests/second
+# The throttle sits under the documented rate, yet a small share of requests
+# still get 429s from Ticketmaster's own burst accounting; a short backoff
+# clears them without failing the artist.
+RATE_LIMIT_ATTEMPTS = 3
+RATE_LIMIT_BACKOFF_SECONDS = 1.0
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +72,12 @@ class TicketmasterClient:
                 return events
 
     async def _get(self, path: str, params: dict) -> dict:
-        async with self._limiter:
-            response = await self._http.get(path, params={**params, "apikey": self._api_key})
+        for attempt in range(1, RATE_LIMIT_ATTEMPTS + 1):
+            async with self._limiter:
+                response = await self._http.get(path, params={**params, "apikey": self._api_key})
+            if response.status_code != 429 or attempt == RATE_LIMIT_ATTEMPTS:
+                break
+            await asyncio.sleep(_retry_after(response) or RATE_LIMIT_BACKOFF_SECONDS * attempt)
         if response.status_code >= 400:
             raise TicketmasterApiError(response.status_code, response.text.strip() or None)
         return response.json()
@@ -103,9 +113,7 @@ def _parse_event(event: dict) -> SourceEventData | None:
             )
             if not present
         ]
-        logger.warning(
-            "Dropped Ticketmaster event %r (missing %s)", external_id, ", ".join(missing)
-        )
+        logger.info("Dropped Ticketmaster event %r (missing %s)", external_id, ", ".join(missing))
         return None
     lineup = [
         attraction["name"]
@@ -140,6 +148,13 @@ def _parse_event(event: dict) -> SourceEventData | None:
         region=_text_or_none((venue.get("state") or {}).get("stateCode")),
         country=_text_or_none((venue.get("country") or {}).get("name")),
     )
+
+
+def _retry_after(response: httpx.Response) -> float | None:
+    try:
+        return float(response.headers["Retry-After"])
+    except KeyError, ValueError:
+        return None
 
 
 def _parse_start(start: dict) -> datetime | None:

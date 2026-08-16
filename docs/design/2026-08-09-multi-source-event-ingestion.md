@@ -134,15 +134,26 @@ with the "vanish = cancellation" semantics the Bandsintown plan set.
 
 `sync_user_events` runs the two source passes sequentially (Ticketmaster
 first, so its fields win on first contact), each pass being the familiar
-freshness-gated per-artist flow with the same 24 h TTL. Client-side
-throttles: Ticketmaster 5 req/s (under the documented limit), RA 1 req/s -
-unofficial endpoint, keep traffic unmistakably polite. A cold user (every
-artist unresolved) costs up to two RA requests per artist at 1 req/s, which
-is why the events activity timeout was raised to 30 minutes in
-`backend/app/sync/sync_workflow.py`; steady-state syncs touch only stale
-artists and stay fast. The step summary aggregates per-artist outcomes across
-sources: synced anywhere counts synced, failed anywhere (and nowhere synced)
-counts failed, unknown means unknown on every source that was asked.
+freshness-gated per-artist flow. Two TTLs: a resolved artist's events are
+re-fetched every 24 h as before, but an artist a source does not know is
+re-searched only weekly (`UNRESOLVED_RETRY`) - most of a taste profile never
+resolves (in the reference sync below, 28% on Ticketmaster and 90% on RA),
+so probing every unknown daily would dominate both runtime and quota for
+nothing; a newly listed artist is picked up within a week. Client-side
+throttles: Ticketmaster 4 req/s (under the documented 5), with a short
+backoff retry on the occasional 429 its burst accounting still returns; RA
+1 req/s - unofficial endpoint, keep traffic unmistakably polite.
+
+Reference cold sync (2026-08-16, dev, an 882-artist profile): Ticketmaster
+resolved 637 artists in 1,523 requests over 7 minutes; RA resolved 90 in 972
+requests over 16 minutes; 2,434 Ticketmaster + 34 RA records became 2,256
+canonical events; the whole events step took 23 minutes. Nothing is
+committed until the step ends, so a timeout restarts it from scratch - the
+activity timeout in `backend/app/sync/sync_workflow.py` is 60 minutes for
+headroom. Chunked per-batch commits are the follow-up if profiles outgrow
+that. The step summary aggregates per-artist outcomes across sources:
+synced anywhere counts synced, failed anywhere (and nowhere synced) counts
+failed, unknown means unknown on every source that was asked.
 
 ## Cutover
 
@@ -166,6 +177,14 @@ in `docs/operations.md`. The standing risks, accepted knowingly:
   Bandsintown `V3.1/` path). It can break or block at any time; the RA pass
   failing leaves Ticketmaster coverage intact and keeps serving previously
   synced RA events until they age out.
-- **Ticketmaster's free quota** bounds daily artist volume at roughly
-  5000 fetches; the identity cache and TTL keep steady state well under it,
-  and batching attraction ids per call is the documented escape hatch.
+- **Ticketmaster's free quota** (5,000 requests/day) is the binding
+  production limit. Steady state costs about one request per resolved
+  artist per day plus a trickle of weekly re-probes - roughly 700/day for
+  the reference profile above - so the free tier serves a handful of active
+  users nightly. Requesting a rate increase from the developer portal is
+  the intended path before that; batching attraction ids per call is the
+  code-side escape hatch.
+- **Records without a start time** (multi-day festival passes, TBA times:
+  16 of 2,256 in the reference sync) are stored at midnight and currently
+  render as "12:00 AM". Bandsintown always sent a time, so this is a new
+  display case; surfacing `time_known` to the UI is an open follow-up.
