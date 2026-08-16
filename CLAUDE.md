@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Live-music discovery delivered as Spotify playlists: match a user's taste (Last.fm) against upcoming concerts near them (Bandsintown), and maintain one playlist per user via an app-owned Spotify bot account. See README.md for the full product description.
+Live-music discovery delivered as Spotify playlists: match a user's taste (Last.fm) against upcoming concerts near them (Ticketmaster and Resident Advisor), and maintain one playlist per user via an app-owned Spotify bot account. See README.md for the full product description.
 
 Monorepo: `backend/` (FastAPI, Python 3.14, managed with uv), `frontend/` (Next.js App Router, TypeScript, Tailwind v4). App data and auth run on the Supabase CLI stack (`supabase start`); Docker Compose runs the app services and Temporal.
 
@@ -87,7 +87,9 @@ Entrypoints (top of `app/`):
 `clients/` - external API clients:
 
 - `lastfm.py` - async Last.fm API client (`LastfmClient.get_user_info`, `get_top_artists`, `get_loved_tracks`, `get_artist_top_tracks`), injected via the `get_lastfm_client` dependency in `core/deps.py`.
-- `bandsintown.py` - async Bandsintown API client for artists' upcoming events; calls the undocumented `V3.1/` path, the one variant that returns real venue names on event-page listings (see `docs/design/2026-07-18-concert-venues.md`).
+- `ticketmaster.py` - async Ticketmaster Discovery API client (attraction resolution, per-attraction upcoming events), rate-limited to 5 req/s.
+- `ra.py` - async Resident Advisor client speaking the unofficial GraphQL endpoint behind ra.co (artist search, per-artist upcoming events), politely throttled to 1 req/s; expect breakage (see `docs/design/2026-08-09-multi-source-event-ingestion.md`).
+- `source_events.py` - the source-neutral event payload (`SourceEventData`) both concert clients emit, plus the shared name-matching key.
 - `spotify.py` - async Spotify Web API client acting as the app's bot account (token refresh, search, playlist writes); see `docs/design/2026-07-06-playlist-plan.md`.
 - `musicbrainz.py` - async MusicBrainz client (MBID -> Spotify artist link), throttled to 1 req/s.
 - `supabase_admin.py` - minimal async GoTrue admin client (auth-user deletion), authorized by the Supabase secret key.
@@ -96,7 +98,7 @@ Entrypoints (top of `app/`):
 
 - `artist_sync.py` - ingests Last.fm taste signals into the canonical artist registry and per-user interests (see `docs/design/2026-07-05-artist-ingestion-plan.md`).
 - `suggestion_sync.py` - recomputes each user's suggested artists from Last.fm similar-artist edges: seed affinity, scoring, selection with hysteresis, known-artist floors, show-tied grace (see `docs/design/2026-07-06-artist-suggestions-plan.md`).
-- `event_sync.py` - refreshes upcoming events per interest artist from Bandsintown (see `docs/design/2026-07-06-event-ingestion-plan.md`).
+- `event_sync.py` - refreshes upcoming events per interest artist from Ticketmaster and RA, merging cross-source duplicates onto one canonical event (see `docs/design/2026-08-09-multi-source-event-ingestion.md`, which supersedes the Bandsintown-era `docs/design/2026-07-06-event-ingestion-plan.md`).
 - `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist whose tracklist changed (see `docs/design/2026-07-06-playlist-plan.md`); also the deletion side - unfollow tombstones, their drainer, and the bot-account orphan audit (see `docs/design/2026-07-10-playlist-deletion-plan.md`).
 - `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the match join, haversine distance.
 - `sync_workflow.py` - `SyncUserWorkflow`, the durable Temporal workflow chaining the four sync steps per user with queryable per-step progress (see `docs/design/2026-07-07-sync-orchestration-plan.md`), and `DispatchSyncsWorkflow`, the nightly re-sync running each due user as a sequential child sync (see `docs/design/2026-07-09-background-sync-plan.md`).
@@ -120,4 +122,4 @@ Important: `frontend/AGENTS.md` warns that this Next.js version has breaking cha
 
 ### Configuration
 
-All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (`LASTFM_API_KEY`, `BANDSINTOWN_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup. The `TEMPORAL_*` settings default to the compose-provided Temporal server; pointing them at a Temporal Cloud namespace is the entire production switch.
+All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (`LASTFM_API_KEY`, `TICKETMASTER_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup. The `TEMPORAL_*` settings default to the compose-provided Temporal server; pointing them at a Temporal Cloud namespace is the entire production switch.

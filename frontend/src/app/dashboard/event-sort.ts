@@ -3,10 +3,10 @@ import type { ArtistRelation, UserArtist, UserEvent } from "@/lib/api-types";
 import { type SortOption } from "./sort-select";
 import { playsOf, rankOf, scoreOf } from "./user-artist";
 
-// A title that only repeats the venue name is not a title - Bandsintown
+// A title that only repeats the venue name is not a title - source
 // listings are often named after their venue ("Public Records") - so the
 // heading falls back to the artists and the venue keeps its slot.
-// Compared trimmed: Bandsintown strings carry stray whitespace
+// Compared trimmed: source strings carry stray whitespace
 // ("Moda Center "). Shared with the artist cards' concerts popover so
 // both surfaces agree on which titles are real.
 export function eventTitle(event: UserEvent["event"]): string | null {

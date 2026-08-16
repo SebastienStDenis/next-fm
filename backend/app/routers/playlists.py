@@ -11,7 +11,6 @@ from app.core.deps import OptionalSpotifyClientDep, SessionDep
 from app.core.models import (
     Artist,
     ArtistTopTrack,
-    BandsintownEvent,
     City,
     Event,
     Playlist,
@@ -25,6 +24,7 @@ from app.core.schemas import (
     PlaylistRead,
     PlaylistTrackRead,
 )
+from app.sync.matching import ticket_url
 from app.sync.playlist_sync import (
     CITY_CONCERTS_KIND,
     PINNED_PLAYLIST_CAP,
@@ -71,7 +71,13 @@ async def list_user_playlists(user: CurrentUserDep, session: SessionDep) -> list
     }
     if playlists:
         result = await session.execute(
-            select(PlaylistTrack, Artist, Event, ArtistTopTrack.title, BandsintownEvent.url)
+            select(
+                PlaylistTrack,
+                Artist,
+                Event,
+                ArtistTopTrack.title,
+                ticket_url(PlaylistTrack.event_id),
+            )
             .outerjoin(Artist, Artist.id == PlaylistTrack.artist_id)
             .outerjoin(Event, Event.id == PlaylistTrack.event_id)
             .outerjoin(
@@ -79,7 +85,6 @@ async def list_user_playlists(user: CurrentUserDep, session: SessionDep) -> list
                 (ArtistTopTrack.artist_id == PlaylistTrack.artist_id)
                 & (ArtistTopTrack.spotify_track_id == PlaylistTrack.spotify_track_id),
             )
-            .outerjoin(BandsintownEvent, BandsintownEvent.event_id == PlaylistTrack.event_id)
             .where(PlaylistTrack.playlist_id.in_(playlists.keys()))
             .order_by(PlaylistTrack.playlist_id, PlaylistTrack.position)
         )

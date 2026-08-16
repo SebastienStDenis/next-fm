@@ -1,6 +1,6 @@
 # Operations
 
-*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-07-16.*
+*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-08-16.*
 
 The one-shot infrastructure setup lives in
 `docs/design/2026-07-08-phase-1-deploy-runbook.md` (written against the older
@@ -14,7 +14,7 @@ usually a different place where you debug it.
 | Failure | Alerts via | Investigate in |
 | --- | --- | --- |
 | Any exception (api, worker, frontend) | Sentry → Slack | Sentry |
-| Upstream API error (Last.fm, Spotify, Bandsintown, MusicBrainz) | Sentry → Slack | Sentry |
+| Upstream API error (Last.fm, Spotify, Ticketmaster, RA, MusicBrainz) | Sentry → Slack | Sentry |
 | Postgres / pooler failure | Sentry → Slack | Supabase dashboard |
 | Sync step failure | Sentry → Slack | Temporal Cloud (which step, how many retries) |
 | Worker crash / restart loop | Sentry → Slack | Render logs |
@@ -161,6 +161,31 @@ unlisted), `playlist-modify-public` (write access to any playlist still flagged
 public on the bot account), and `playlist-read-private` (list the bot's own
 playlists for the orphan audit) scopes. Scopes are baked into the refresh
 token, so widening them means re-running this flow, not just editing the code.
+
+### Event sources: Ticketmaster quota, RA breakage
+
+Concert data comes from two sources with different failure profiles
+(`docs/design/2026-08-09-multi-source-event-ingestion.md`):
+
+- **Ticketmaster** (official, keyed): the free Discovery API tier allows
+  5000 requests/day and 5 req/s. The client throttles below the rate limit
+  and retries the occasional burst 429 after a short backoff; quota
+  exhaustion surfaces as `TicketmasterApiError` 429s that survive the
+  retries, the affected artists are counted `failed` in the step summary
+  and retried on the next sync, so a brief overrun heals itself. Budget:
+  roughly one request per resolved artist per user per day (a 900-artist
+  profile costs ~700/day at steady state, ~1,500 on its first sync), so a
+  *persistent* 429 stream means the nightly volume outgrew the tier: request
+  a rate increase from the Ticketmaster developer portal, or batch
+  attraction ids per call (`backend/app/clients/ticketmaster.py`).
+- **RA** (unofficial, keyless): the client speaks the GraphQL endpoint behind
+  ra.co, which can change shape or start blocking without notice. Occasional
+  `RaApiError`s are expected weather; only a sustained failure rate is worth
+  investigating. Confirm with a manual query (the exact requests live as
+  constants in `backend/app/clients/ra.py`); if the schema moved, update the
+  queries; if Cloudflare is blocking, revisit the User-Agent and request
+  interval. Events keep serving from the last successful sync while the RA
+  pass fails - Ticketmaster coverage is unaffected.
 
 ### A sync is failing for one user
 

@@ -19,10 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
-from app.clients.bandsintown import BandsintownClient
 from app.clients.lastfm import LastfmClient, LastfmPrivateDataError
 from app.clients.musicbrainz import MusicBrainzClient
+from app.clients.ra import RaClient
 from app.clients.spotify import SpotifyAuthError, SpotifyClient
+from app.clients.ticketmaster import TicketmasterClient
 from app.core.accounts import linked_lastfm_account
 from app.core.db import session_factory
 from app.core.models import LastfmAccount, LastfmConnection, User
@@ -102,12 +103,14 @@ class SyncActivities:
     def __init__(
         self,
         lastfm: LastfmClient,
-        bandsintown: BandsintownClient,
+        ticketmaster: TicketmasterClient,
+        ra: RaClient,
         spotify: SpotifyClient,
         musicbrainz: MusicBrainzClient,
     ) -> None:
         self._lastfm = lastfm
-        self._bandsintown = bandsintown
+        self._ticketmaster = ticketmaster
+        self._ra = ra
         self._spotify = spotify
         self._musicbrainz = musicbrainz
 
@@ -138,7 +141,7 @@ class SyncActivities:
     async def sync_events(self, user_id: str) -> EventSyncResult:
         async with _user_facing_errors(STEP_FAILED_EVENTS), session_factory() as session:
             user = await _require_user(session, user_id)
-            result = await sync_user_events(session, self._bandsintown, user)
+            result = await sync_user_events(session, self._ticketmaster, self._ra, user)
             await session.commit()
             return result
 

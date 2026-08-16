@@ -24,10 +24,11 @@ from temporalio.client import (
 from temporalio.service import RPCError, RPCStatusCode
 from temporalio.worker import Worker
 
-from app.clients.bandsintown import BandsintownClient
 from app.clients.lastfm import LastfmClient
 from app.clients.musicbrainz import MusicBrainzClient
+from app.clients.ra import RaClient
 from app.clients.spotify import SpotifyClient
+from app.clients.ticketmaster import TicketmasterClient
 from app.core.config import Settings, get_settings
 from app.core.observability import configure_observability
 from app.core.temporal import connect_temporal
@@ -42,7 +43,7 @@ CRASH_RETRY_SECONDS = 5.0
 
 REQUIRED_SETTINGS = (
     "lastfm_api_key",
-    "bandsintown_api_key",
+    "ticketmaster_api_key",
     "spotify_client_id",
     "spotify_client_secret",
     "spotify_refresh_token",
@@ -141,7 +142,8 @@ async def main() -> None:
         raise SystemExit(f"{', '.join(missing)} is not configured")
 
     lastfm = LastfmClient(settings.lastfm_api_key)
-    bandsintown = BandsintownClient(settings.bandsintown_api_key)
+    ticketmaster = TicketmasterClient(settings.ticketmaster_api_key)
+    ra = RaClient()
     spotify = SpotifyClient(
         settings.spotify_client_id,
         settings.spotify_client_secret,
@@ -149,7 +151,7 @@ async def main() -> None:
     )
     musicbrainz = MusicBrainzClient()
     try:
-        activities = SyncActivities(lastfm, bandsintown, spotify, musicbrainz)
+        activities = SyncActivities(lastfm, ticketmaster, ra, spotify, musicbrainz)
         # Nothing external supervises this process, so a crashed poller must reconnect
         # and resume on its own instead of leaving an "Up" container doing nothing.
         while True:
@@ -159,7 +161,7 @@ async def main() -> None:
                 logger.exception("Worker crashed; restarting in %ss", CRASH_RETRY_SECONDS)
                 await asyncio.sleep(CRASH_RETRY_SECONDS)
     finally:
-        for api_client in (lastfm, bandsintown, spotify, musicbrainz):
+        for api_client in (lastfm, ticketmaster, ra, spotify, musicbrainz):
             await api_client.aclose()
 
 

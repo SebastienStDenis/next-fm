@@ -22,7 +22,6 @@ import {
 } from "@/lib/user-api";
 
 import { QueryNotice } from "@/components/query-notice";
-import { UnavailableNotice } from "@/components/unavailable-notice";
 import { ArtistsPanel, type CityConcerts } from "./artists-panel";
 import {
   collectPinnedCities,
@@ -130,7 +129,6 @@ export default async function DashboardPage() {
           </a>
         </Button>
       </div>
-      <UnavailableNotice className="mt-4 w-fit" />
       <section className="mt-6">
         <Tabs
           defaultTab={lastTab ?? "playlists"}

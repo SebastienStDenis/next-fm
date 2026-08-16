@@ -229,8 +229,8 @@ class EventArtist(Base):
     )
 
 
-class BandsintownEvent(Base):
-    __tablename__ = "bandsintown_events"
+class TicketmasterEvent(Base):
+    __tablename__ = "ticketmaster_events"
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
@@ -247,8 +247,44 @@ class BandsintownEvent(Base):
     )
 
 
-class BandsintownArtist(Base):
-    __tablename__ = "bandsintown_artists"
+class TicketmasterArtist(Base):
+    __tablename__ = "ticketmaster_artists"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), unique=True
+    )
+    name: Mapped[str]
+    external_id: Mapped[str | None]
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RaEvent(Base):
+    __tablename__ = "ra_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True
+    )
+    external_id: Mapped[str] = mapped_column(unique=True)
+    url: Mapped[str | None]
+    lineup: Mapped[list | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RaArtist(Base):
+    __tablename__ = "ra_artists"
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
