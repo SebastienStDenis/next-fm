@@ -75,15 +75,33 @@ existing row (`_adopt` in `backend/app/sync/event_sync.py`):
 > whose venue coincides - within 1 km, or by venue-name equality under
 > `lookup_key` - picking the nearest start time when several match.
 
-Guards, both load-bearing:
+Guards, all load-bearing:
 
-- **Never merge two records of the same source.** One source listing two
-  same-night records means two shows (early/late sets, common for club
-  artists); the source itself is the authority. Nearest-start-time picking
-  then pairs each RA record with the right Ticketmaster sibling.
+- **Same-source records merge only when the start times agree** (or the
+  incoming record has no time). Two same-night records of one source at
+  different times are two shows - early/late sets, common for club artists
+  on RA - and the source is the authority. Same-time records *are* one
+  show: Ticketmaster lists a show once per ticket product (live-verified
+  2026-08-09: Metallica at Sphere is "Life Burns Faster" + "Suite
+  Reservation" + a timeless "2-Day Ticket"; Creamfields Saturday is four
+  tier/payment-plan records; Charli xcx's arena dates pair with "ANGEL
+  TICKETS" packages), so 63 Metallica records are 26 shows.
+- **Cross-source, the nearest start time wins**, unconstrained: RA and
+  Ticketmaster rarely agree to the minute on a club night.
 - **Wall-clock convention makes dates comparable.** Both clients label
   venue-local time as UTC (the repo-wide convention), so "same calendar date"
-  never trips over timezones.
+  never trips over timezones. A record without a time is dated at midnight
+  with `time_known` false.
+
+Which record of a merged show owns its fields is decided by processing a
+source's records in display-preference order and letting the first one
+write: timed before timeless, then the **richest** record, then id. Richness
+is a structural score Ticketmaster records carry (`SourceEventData.richness`:
+presale window + seat map + add-on products present, 0-3) - the primary
+listing is the fully configured one, ticket-product variants are thin
+records. Verified across the probes above: the main listing outranks its
+suite/package/gallery siblings every time, and tied festival tiers read
+identically anyway. No record name is ever parsed.
 
 A merged event carries one source row per source (`ticketmaster_events`,
 `ra_events` - same shape as the old `bandsintown_events`), each keeping its

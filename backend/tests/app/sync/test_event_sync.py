@@ -29,12 +29,17 @@ def event_data(
     latitude: float = 36.121217,
     longitude: float = -115.1620404,
     url: str = "https://tickets.example/e/",
+    title: str | None = None,
+    time_known: bool = True,
+    richness: int = 0,
 ) -> SourceEventData:
     return SourceEventData(
         external_id=external_id,
-        title=None,
+        title=title,
         url=url + external_id,
         starts_at=starts_at or datetime(2026, 10, 1, 20, 30, tzinfo=UTC),
+        time_known=time_known,
+        richness=richness,
         lineup=["Metallica"],
         venue_name=venue_name,
         venue_latitude=latitude,
@@ -112,7 +117,11 @@ async def test_sync_creates_events_for_new_artist() -> None:
         result_returning(2),  # events_total
     ]
     ticketmaster, ra = make_clients(
-        tm_events=[event_data("101"), event_data("102")], ra_resolved=None
+        tm_events=[
+            event_data("101"),
+            event_data("102", starts_at=datetime(2026, 10, 3, 20, 30, tzinfo=UTC)),
+        ],
+        ra_resolved=None,
     )
 
     result = await sync_user_events(session, ticketmaster, ra, user())
@@ -311,10 +320,17 @@ def test_adopt_matches_by_venue_name_when_coordinates_differ() -> None:
     assert _adopt(data, {stored.starts_at.date(): [stored]}, set()) is stored
 
 
-def test_adopt_never_merges_two_records_of_the_same_source() -> None:
-    stored = stored_event()
-    data = event_data("X1")
-    assert _adopt(data, {stored.starts_at.date(): [stored]}, {stored.id}) is None
+def test_adopt_merges_same_source_records_only_at_the_same_time() -> None:
+    stored = stored_event(starts_at=datetime(2026, 10, 1, 20, 30, tzinfo=UTC))
+    candidates = {stored.starts_at.date(): [stored]}
+    same_time = event_data("X1", starts_at=datetime(2026, 10, 1, 20, 30, tzinfo=UTC))
+    late_show = event_data("X2", starts_at=datetime(2026, 10, 1, 23, 0, tzinfo=UTC))
+    timeless = event_data("X3", starts_at=datetime(2026, 10, 1, tzinfo=UTC), time_known=False)
+    assert _adopt(same_time, candidates, {stored.id}) is stored
+    assert _adopt(late_show, candidates, {stored.id}) is None
+    assert _adopt(timeless, candidates, {stored.id}) is stored
+    # Across sources the time is free to differ.
+    assert _adopt(late_show, candidates, set()) is stored
 
 
 def test_adopt_prefers_nearest_start_time_for_double_shows() -> None:
@@ -333,3 +349,48 @@ def test_adopt_ignores_other_dates_and_places() -> None:
         data.starts_at.date(): [other_place],
     }
     assert _adopt(data, candidates, set()) is None
+
+
+async def test_ticketmaster_ticket_products_collapse_onto_one_show() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Metallica")
+    tm_identity = TicketmasterArtist(artist_id=artist.id, name="Metallica", external_id="T1")
+    ra_identity = fresh(RaArtist(artist_id=artist.id, name="Metallica", external_id="966"))
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities
+        result_with_rows([]),  # tm existing source rows
+        result_with_scalars([]),  # tm adoption candidates
+        result_with_rows([]),  # tm source-row insert returning
+        MagicMock(),  # tm event_artists insert
+        result_with_rows([]),  # tm prune
+        result_with_scalars([ra_identity]),  # ra identities (fresh -> skipped)
+        result_returning(2),  # events_total
+    ]
+    show = datetime(2026, 10, 1, 20, 30, tzinfo=UTC)
+    ticketmaster, ra = make_clients(
+        tm_events=[
+            # Feed order is adversarial: the primary listing comes last and
+            # sorts last by id, so only preference ordering makes it win.
+            event_data(
+                "A-pass",
+                starts_at=show.replace(hour=0, minute=0),
+                time_known=False,
+                richness=3,
+                title="2-Day Ticket",
+            ),
+            event_data("B-suite", starts_at=show, title="Metallica - Suite Reservation"),
+            event_data("C-late", starts_at=show.replace(hour=23), title="Late show"),
+            event_data("D-main", starts_at=show, richness=3, title="Metallica: Life Burns Faster"),
+        ]
+    )
+
+    result = await sync_user_events(session, ticketmaster, ra, user())
+
+    events = added_objects(session, Event)
+    assert [(event.title, event.starts_at.hour) for event in events] == [
+        ("Metallica: Life Burns Faster", 20),
+        ("Late show", 23),
+    ]
+    assert result.events_created == 2
+    assert result.events_updated == 2  # suite + pass attached to the main show

@@ -79,7 +79,8 @@ def _parse_event(event: dict) -> SourceEventData | None:
     if ((dates.get("status") or {}).get("code") or "").casefold() == "cancelled":
         return None
     external_id = event.get("id")
-    starts_at = _parse_start(dates.get("start") or {})
+    start = dates.get("start") or {}
+    starts_at = _parse_start(start)
     venue = (embedded.get("venues") or [{}])[0]
     venue_name = _text_or_none(venue.get("name"))
     location = venue.get("location") or {}
@@ -111,11 +112,25 @@ def _parse_event(event: dict) -> SourceEventData | None:
         for attraction in embedded.get("attractions") or []
         if attraction.get("name")
     ]
+    # The primary listing of a show is the fully configured record: it had a
+    # presale window, has a seat map, and add-on products (parking, packages)
+    # hang off it. Ticket-product variants of the same show - suites, passes,
+    # tiers - are thin records at the same venue and time.
+    richness = sum(
+        bool(value)
+        for value in (
+            (event.get("sales") or {}).get("presales"),
+            event.get("seatmap"),
+            event.get("products"),
+        )
+    )
     return SourceEventData(
         external_id=str(external_id),
         title=_text_or_none(event.get("name")),
         url=_text_or_none(event.get("url")),
         starts_at=starts_at,
+        time_known=bool(start.get("localTime")) and not start.get("noSpecificTime"),
+        richness=richness,
         lineup=lineup,
         venue_name=venue_name,
         venue_latitude=latitude,

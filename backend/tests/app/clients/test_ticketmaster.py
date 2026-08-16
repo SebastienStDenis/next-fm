@@ -46,6 +46,8 @@ def test_parse_event_maps_fields() -> None:
     assert data.title == "Metallica: M72 World Tour"
     assert data.url == "https://www.ticketmaster.com/event/vvG1zZ9pqcAKdN"
     assert data.starts_at == datetime(2026, 10, 1, 20, 30, tzinfo=UTC)
+    assert data.time_known is True
+    assert data.richness == 0
     assert data.lineup == ["Metallica", "Pantera"]
     assert data.venue_name == "Sphere"
     assert data.venue_latitude == 36.121217
@@ -78,6 +80,27 @@ def test_parse_event_drops_missing_date() -> None:
 
 def test_parse_start_without_time_is_midnight() -> None:
     assert _parse_start({"localDate": "2026-10-01"}) == datetime(2026, 10, 1, tzinfo=UTC)
+
+
+def test_parse_event_scores_richness_of_the_primary_listing() -> None:
+    payload = event_payload(
+        sales={"public": {}, "presales": [{"name": "Fan presale"}]},
+        seatmap={"staticUrl": "https://maps.example/sphere.png"},
+        products=[{"name": "Sphere Parking (Metallica)"}],
+    )
+    data = _parse_event(payload)
+    assert data is not None
+    assert data.richness == 3
+
+
+def test_parse_event_without_specific_time_is_not_time_known() -> None:
+    payload = event_payload(
+        dates={"start": {"localDate": "2026-10-01", "noSpecificTime": True}, "status": {}}
+    )
+    data = _parse_event(payload)
+    assert data is not None
+    assert data.starts_at == datetime(2026, 10, 1, tzinfo=UTC)
+    assert data.time_known is False
 
 
 async def test_find_attraction_id_requires_exact_name_match() -> None:

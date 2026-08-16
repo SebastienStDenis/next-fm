@@ -227,7 +227,14 @@ def _apply_event_data(event: Event, data: SourceEventData) -> None:
 async def _upsert_artist_events(
     session: AsyncSession, source: _Source, artist_id: uuid.UUID, events: list[SourceEventData]
 ) -> tuple[int, int]:
-    events = list({data.external_id: data for data in events}.values())
+    # Display-preference order: among several records of one show, the first
+    # processed owns the event's fields - a timed record beats a timeless one
+    # (a "2-day pass" dated at midnight), the primary listing beats its
+    # ticket-product variants, and ties break by id.
+    events = sorted(
+        {data.external_id: data for data in events}.values(),
+        key=lambda data: (not data.time_known, -data.richness, data.external_id),
+    )
     if not events:
         return 0, 0
     model = source.event_model
@@ -240,7 +247,7 @@ async def _upsert_artist_events(
     existing = {row.external_id: (row, event) for row, event in result.all()}
 
     new_events = [data for data in events if data.external_id not in existing]
-    candidates, already_sourced = await _adoption_candidates(session, source, artist_id, new_events)
+    candidates, sourced_here = await _adoption_candidates(session, source, artist_id, new_events)
     outranked = await _outranked_event_ids(
         session,
         source,
@@ -250,33 +257,31 @@ async def _upsert_artist_events(
 
     created = updated = 0
     event_ids: list[uuid.UUID] = []
+    owned: set[uuid.UUID] = set()
     new_rows: list[tuple[Event, SourceEventData, bool]] = []
     for data in events:
         pair = existing.get(data.external_id)
         if pair is not None:
             row, event = pair
-            if event.id not in outranked:
-                _apply_event_data(event, data)
             row.url = data.url
             row.lineup = data.lineup
             updated += 1
-            event_ids.append(event.id)
-            continue
-        adopted = _adopt(data, candidates, already_sourced)
-        if adopted is not None:
-            already_sourced.add(adopted.id)
-            if adopted.id not in outranked:
-                _apply_event_data(adopted, data)
-            new_rows.append((adopted, data, False))
-            updated += 1
-            event_ids.append(adopted.id)
         else:
-            event = Event(id=uuid.uuid7())
+            adopted = _adopt(data, candidates, sourced_here)
+            if adopted is not None:
+                event = adopted
+                updated += 1
+            else:
+                event = Event(id=uuid.uuid7())
+                session.add(event)
+                candidates.setdefault(data.starts_at.date(), []).append(event)
+                created += 1
+            new_rows.append((event, data, adopted is None))
+        sourced_here.add(event.id)
+        if event.id not in outranked and event.id not in owned:
             _apply_event_data(event, data)
-            session.add(event)
-            new_rows.append((event, data, True))
-            created += 1
-            event_ids.append(event.id)
+            owned.add(event.id)
+        event_ids.append(event.id)
 
     # Flush new events before inserting source rows (dependency order)
     await session.flush()
@@ -330,9 +335,7 @@ async def _adoption_candidates(
     new_events: list[SourceEventData],
 ) -> tuple[dict[date, list[Event]], set[uuid.UUID]]:
     """The artist's stored events around the incoming dates, grouped by
-    calendar date, plus which of them already carry a row from this source -
-    those never merge: when one source lists two same-night records they are
-    two shows (early/late sets), and the source itself is the authority."""
+    calendar date, plus which of them already carry a row from this source."""
     if not new_events:
         return {}, set()
     earliest = min(data.starts_at for data in new_events) - timedelta(days=1)
@@ -356,16 +359,20 @@ async def _adoption_candidates(
 
 
 def _adopt(
-    data: SourceEventData, candidates: dict[date, list[Event]], already_sourced: set[uuid.UUID]
+    data: SourceEventData, candidates: dict[date, list[Event]], sourced_here: set[uuid.UUID]
 ) -> Event | None:
     """The stored event this source record is another view of: same calendar
     date (candidates are already scoped to the artist) and venues coinciding
-    by SAME_VENUE_KM proximity or by name. Nearest start time wins so
-    double-show nights pair up correctly."""
+    by SAME_VENUE_KM proximity or by name. Across sources the nearest start
+    time wins so double-show nights pair up correctly. An event this source
+    already describes is only the same show when the start times agree (or
+    the record has none): Ticketmaster lists one show once per ticket product
+    - suites, passes, tiers - at the same time, whereas two same-night records
+    at different times are two shows (early/late sets, common on RA)."""
     best: Event | None = None
     best_delta: timedelta | None = None
     for event in candidates.get(data.starts_at.date(), ()):
-        if event.id in already_sourced:
+        if event.id in sourced_here and data.time_known and event.starts_at != data.starts_at:
             continue
         same_place = _haversine_km(
             event.venue_latitude,

@@ -140,6 +140,8 @@ def _parse_event(event: dict) -> SourceEventData | None:
         url=SITE_URL + content_url if content_url else None,
         lineup=[artist["name"] for artist in event.get("artists") or [] if artist.get("name")],
         starts_at=starts_at,
+        time_known=True,
+        richness=0,
         venue_name=venue_name,
         venue_latitude=float(latitude),
         venue_longitude=float(longitude),

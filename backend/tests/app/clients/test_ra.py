@@ -32,6 +32,8 @@ def test_parse_event_maps_fields() -> None:
     assert data.title == "Klubnacht"
     assert data.url == "https://ra.co/events/2329592"
     assert data.starts_at == datetime(2026, 9, 19, 23, 59, tzinfo=UTC)
+    assert data.time_known is True
+    assert data.richness == 0
     assert data.lineup == ["Ben Klock", "Marcel Dettmann"]
     assert data.venue_name == "Berghain"
     assert data.venue_latitude == 52.511118
