@@ -155,13 +155,13 @@ Playlists update daily." beside a go-to-dashboard button (see
 `docs/design/2026-07-12-welcome-flow-plan.md`).
 
 Once the user reaches Daily Sync and until the first successful run lands, the
-card shows the standard long-run notice above its status row: "Taking longer
-than usual. Feel free to close the page, the sync will continue." The notice is
-a muted italic aside and appears immediately during onboarding. Completing a
-sync does not bypass the welcome handoff: returning users stay on the completed
-welcome page until they choose "Go to dashboard." That acknowledgement is
-durable across browsers and devices; the button then opens the Playlists tab
-with its one-shot save-to-library tip.
+card shows a notice above its status row: "The first sync may take a few minutes.
+Feel free to close the page, the sync will continue." The notice is a muted
+italic aside and appears immediately during onboarding. Completing a sync does
+not bypass the welcome handoff: returning users stay on the completed welcome
+page until they choose "Go to dashboard." That acknowledgement is durable
+across browsers and devices; the button then opens the Playlists tab with its
+one-shot save-to-library tip.
 
 ## Section and tab names
 

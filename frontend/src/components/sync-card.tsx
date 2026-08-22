@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils";
 const LONG_RUN_NOTICE_MS = 90_000;
 const LONG_RUN_NOTICE =
   "Taking longer than usual. Feel free to close the page, the sync will continue.";
+const FIRST_SYNC_NOTICE =
+  "The first sync may take a few minutes. Feel free to close the page, the sync will continue.";
 // Consecutive failed status polls before the card admits progress is
 // unreachable instead of claiming the sync is still running.
 const DEGRADED_POLL_FAILURES = 10;
@@ -277,7 +279,7 @@ export function SyncCard({
     <Collapsible open={expanded && !showSteps} onOpenChange={setExpanded}>
       {firstSync && (
         <p className="pb-3 text-xs text-muted-foreground italic">
-          {LONG_RUN_NOTICE}
+          {FIRST_SYNC_NOTICE}
         </p>
       )}
       {/* The status column reserves the two-line height of a step display
