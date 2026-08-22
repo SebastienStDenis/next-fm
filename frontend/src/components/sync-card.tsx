@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { ChevronDown, RefreshCw, Triangle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Collapse } from "./collapse";
@@ -361,16 +361,27 @@ export function SyncCard({
                 </CollapsibleTrigger>
               )}
               {finalOutcome === "none" && !statusLoading && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onSync}
-                  disabled={starting || !canSync}
-                  className="animate-fade-in"
-                >
-                  Run a manual sync
-                </Button>
+                // The note sits beside the button while it fits on one line
+                // and drops to its own full-width line below once it doesn't.
+                <div className="flex animate-fade-in flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onSync}
+                    disabled={starting || !canSync}
+                    className="shrink-0"
+                  >
+                    Run a manual sync
+                  </Button>
+                  <p className="flex min-w-0 flex-1 basis-60 items-start gap-1.5 text-xs text-muted-foreground">
+                    <Triangle
+                      aria-hidden
+                      className="mt-px size-3.5 shrink-0 text-warning"
+                    />
+                    <span>The first run can take a few minutes.</span>
+                  </p>
+                </div>
               )}
             </div>
           )}
