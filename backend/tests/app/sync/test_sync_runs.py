@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.dialects import postgresql
 
 from app.core.models import SyncRun
-from app.sync.sync_runs import SyncRunLost, requeue_sync_run
+from app.sync.sync_runs import SyncRunLost, finish_sync_run, requeue_sync_run
 
 
 def make_run() -> SyncRun:
@@ -48,3 +48,21 @@ async def test_requeue_loses_its_claim_after_run_finishes() -> None:
 
     with pytest.raises(SyncRunLost):
         await requeue_sync_run(session, run)
+
+
+async def test_first_completed_run_requires_onboarding_acknowledgement() -> None:
+    session = AsyncMock()
+    session.execute.return_value = MagicMock(rowcount=1)
+    run = make_run()
+
+    await finish_sync_run(session, run, [], "completed")
+
+    statement = session.execute.await_args_list[1].args[0]
+    sql = str(
+        statement.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+    assert "users.last_synced_at IS NOT NULL" in sql
+    assert "users.onboarding_completed" in sql

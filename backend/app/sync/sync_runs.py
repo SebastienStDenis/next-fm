@@ -187,7 +187,17 @@ async def finish_sync_run(
         session, run, status=status, steps=_steps_json(steps), error=error, finished_at=now
     )
     if status == "completed":
-        await session.execute(update(User).where(User.id == run.user_id).values(last_synced_at=now))
+        await session.execute(
+            update(User)
+            .where(User.id == run.user_id)
+            .values(
+                last_synced_at=now,
+                onboarding_completed=and_(
+                    User.onboarding_completed,
+                    User.last_synced_at.is_not(None),
+                ),
+            )
+        )
 
 
 async def requeue_sync_run(session: AsyncSession, run: SyncRun) -> None:
