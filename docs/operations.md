@@ -1,6 +1,6 @@
 # Operations
 
-*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-07-16.*
+*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-08-22.*
 
 The one-shot infrastructure setup lives in
 `docs/design/2026-07-08-phase-1-deploy-runbook.md` (written against the older
@@ -14,9 +14,9 @@ usually a different place where you debug it.
 | Failure | Alerts via | Investigate in |
 | --- | --- | --- |
 | Any exception (api, worker, frontend) | Sentry → Slack | Sentry |
-| Upstream API error (Last.fm, Spotify, Bandsintown, MusicBrainz) | Sentry → Slack | Sentry |
+| Upstream API error (Last.fm, Spotify, Ticketmaster, RA, MusicBrainz) | Sentry → Slack | Sentry |
 | Postgres / pooler failure | Sentry → Slack | Supabase dashboard |
-| Sync step failure | Sentry → Slack | Temporal Cloud (which step, how many retries) |
+| Sync step failure | Sentry → Slack | the `sync_runs` row (which step, the failure detail) |
 | Worker crash / restart loop | Sentry → Slack | Render logs |
 | Worker OOM | Render → Slack | Render |
 | Deploy failure | Render → Slack | Render |
@@ -24,8 +24,8 @@ usually a different place where you debug it.
 | Nightly schedule stops firing | **nothing** - see [Known gaps](#known-gaps) | - |
 
 Sentry tells you something broke; it rarely tells you why. For a failed sync
-the story is in Temporal Cloud's workflow history - every activity attempt, its
-input, and its retry count.
+the row in `sync_runs` has the rest - which step failed, the internal error
+detail, and the run's timeline - and the worker log has every attempt.
 
 ## Where the logs are
 
@@ -41,6 +41,12 @@ input, and its retry count.
 This is deliberate duplication, not a migration: Render captures stdout whether
 Sentry exists or not.
 
+Application records remain enabled at INFO, but the `httpx` logger starts at
+WARNING. Its INFO request records include complete upstream URLs, and some
+upstreams put credentials in query parameters, so those records must not reach
+either Render or Sentry. Upstream failures remain visible through the explicit
+warnings and exceptions logged by the clients and sync pipeline.
+
 Frontend logs are wired (`consoleLoggingIntegration` in
 `frontend/src/sentry.shared.ts` and the three runtime configs) but near-silent,
 because nothing in `frontend/src` calls `console.*`. The first one added starts
@@ -53,18 +59,17 @@ and 1 day on Pro, which is why Sentry is the better place to look.
   this codebase logs real failures at - a broken upstream, a failed sync step, a
   missing API key. At the default, almost nothing would be reported.
 - **Sync steps report the original exception, not the wrapper.** The
-  `_user_facing_errors` funnel (`backend/app/sync/sync_activities.py`) logs with
-  `exc_info` *before* re-raising as `ApplicationError`, so Sentry receives the
+  `_user_facing_errors` funnel (`backend/app/sync/sync_steps.py`) logs with
+  `exc_info` *before* re-raising as `SyncStepError`, so Sentry receives the
   real cause and its stack. Distinct causes stay distinct issues instead of
-  collapsing into one issue per step. This is also why there is deliberately no
-  Temporal interceptor: it would double-report every sync failure, once as the
-  real exception and once as the user-facing message.
-- **Step timeouts are reported by the workflow, not the activity.** A timed-out
-  attempt never reaches `_user_facing_errors` (the worker is simply cut off), so
-  `SyncUserWorkflow` logs a warning naming the step and timeout type
-  (`START_TO_CLOSE` vs `SCHEDULE_TO_CLOSE`) when a step fails by timeout. That
-  warning is the only Sentry-visible record of the failure; the attempt-by-attempt
-  story stays in Temporal Cloud.
+  collapsing into one issue per step. The pipeline deliberately does not log
+  the `SyncStepError` again: that would double-report every sync failure, once
+  as the real exception and once as the user-facing message.
+- **Step timeouts are reported by the pipeline, not the step.** A timed-out
+  attempt never reaches `_user_facing_errors` (the step is simply cancelled),
+  so `run_sync` (`backend/app/sync/sync_pipeline.py`) logs a warning naming
+  the step when it fails by timeout. That warning is the only Sentry-visible
+  record of the failure.
 - **The api and worker share one DSN**, told apart by the `component` tag
   (`api` / `worker`). One project, two processes.
 - **Tracing is off** (`traces_sample_rate=0`) on both sides. It bills per span
@@ -162,13 +167,62 @@ public on the bot account), and `playlist-read-private` (list the bot's own
 playlists for the orphan audit) scopes. Scopes are baked into the refresh
 token, so widening them means re-running this flow, not just editing the code.
 
+### Event sources: Ticketmaster quota, RA breakage
+
+Concert data comes from two sources with different failure profiles
+(`docs/design/2026-08-09-multi-source-event-ingestion.md`):
+
+- **Ticketmaster** (official, keyed): the free Discovery API tier allows
+  5000 requests/day and 5 req/s. The client throttles below the rate limit
+  and retries the occasional burst 429 after a short backoff; quota
+  exhaustion surfaces as `TicketmasterApiError` 429s that survive the
+  retries, the affected artists are counted `failed` in the step summary
+  and retried on the next sync, so a brief overrun heals itself. Budget:
+  roughly one request per resolved artist per user per day (a 900-artist
+  profile costs ~700/day at steady state, ~1,500 on its first sync), so a
+  *persistent* 429 stream means the nightly volume outgrew the tier: request
+  a rate increase from the Ticketmaster developer portal, or batch
+  attraction ids per call (`backend/app/clients/ticketmaster.py`).
+- **RA** (unofficial, keyless): the client speaks the GraphQL endpoint behind
+  ra.co, which can change shape or start blocking without notice. Occasional
+  `RaApiError`s are expected weather; only a sustained failure rate is worth
+  investigating. Confirm with a manual query (the exact requests live as
+  constants in `backend/app/clients/ra.py`); if the schema moved, update the
+  queries; if Cloudflare is blocking, revisit the User-Agent and request
+  interval. Events keep serving from the last successful sync while the RA
+  pass fails - Ticketmaster coverage is unaffected.
+
 ### A sync is failing for one user
 
-Sentry names the exception; Temporal Cloud has the history. Find the workflow by
-its id (`user_sync_workflow_id`, in `backend/app/sync/sync_workflow.py`) and read the
-failed activity's attempts. Retries are capped at 3, with `SpotifyAuthError` and
-`LastfmPrivateDataError` marked non-retryable, so a permanent failure means the
-cause is real and not transient.
+Sentry names the exception; the `sync_runs` table has the run. From the Supabase
+SQL editor (or `psql`):
+
+```sql
+select trigger, status, created_at, finished_at, error, steps
+from sync_runs
+where user_id = '<user id>'
+order by created_at desc
+limit 5;
+```
+
+`steps` is the per-step progress the user saw, `error` the internal detail of
+the failing step's last attempt. Retries are capped at 3 per step (the worker
+log has each attempt), with `SpotifyAuthError` and `LastfmPrivateDataError`
+marked non-retryable, so a permanent failure means the cause is real and not
+transient. A run stuck at `running` with a `heartbeat_at` older than five
+minutes belongs to a worker that died; the next worker reclaims it on its own.
+Finished runs are pruned after 30 days (each user's latest is kept).
+
+### Syncs are not starting
+
+`POST /me/sync` only queues a row (`status = 'queued'`); the worker picks it
+up within a second. If the card sits on the first step with nothing happening,
+the worker isn't running or can't reach the database - check the
+`next-fm-worker` logs on Render for "Claimed sync run" lines and for "Sync lane
+failed" errors. The worker's SQLAlchemy pool counts against the Supabase pooler
+budget alongside the api's: at most about six connections in use at peak (two
+manual lanes plus the nightly loop, each with a step session and a short
+heartbeat/progress session).
 
 ### Seeding cities in a new environment
 
@@ -194,9 +248,11 @@ uv run python -m cli.seed
 ## Known gaps
 
 - **A nightly schedule that stops firing alerts nobody.** Nothing throws, so
-  nothing reports. Sentry's Cron Monitors would close this natively:
-  `DispatchSyncsWorkflow` checks in each night, and Sentry opens an issue when a
-  check-in fails to arrive. Deliberately not wired yet.
+  nothing reports. The worker logs "Nightly dispatch scheduled for ..." at
+  startup and a "Nightly dispatch: N synced, ..." summary after each run, so the
+  check is a log search. Sentry's Cron Monitors would close this natively:
+  `dispatch_nightly_syncs` checks in each night, and Sentry opens an issue when
+  a check-in fails to arrive. Deliberately not wired yet.
 - **Supabase's own health** has no alert path. Its failures surface only as
   exceptions in the backend, which is enough in practice - the July 2026 pooler
   outage would have hit Slack as `EMAXCONNSESSION` errors.
@@ -207,7 +263,7 @@ Not in the repo; recorded here so it can be rebuilt.
 
 **Sentry** (org `next-fm`, free Developer plan - 5k errors/month, 5GB logs,
 30-day retention). Two projects, because a project maps to a deployed codebase
-and not to a service you depend on. Temporal Cloud and Supabase get none.
+and not to a service you depend on. Supabase gets none.
 
 | Project | Platform | Covers |
 | --- | --- | --- |

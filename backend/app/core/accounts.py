@@ -1,4 +1,4 @@
-"""Shared account lookups used by both the API and the Temporal activities."""
+"""Shared account lookups used by both the API and the sync worker."""
 
 import uuid
 

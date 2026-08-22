@@ -1,136 +1,90 @@
-"""Temporal worker entrypoint (`python -m app.worker`).
+"""Sync worker entrypoint (`python -m app.worker`).
 
-Runs the sync pipeline's workflows and activities, and reconciles the
-`nightly-sync` temporal schedule on startup - created when `NIGHTLY_SYNC_ENABLED`
-is true, deleted otherwise.
+Serves the `sync_runs` queue: a few lanes poll for queued (or abandoned) runs
+and execute them, and, when `NIGHTLY_SYNC_ENABLED` is true, a scheduler runs
+the nightly dispatch at 06:00 UTC. The API clients are created once and
+shared for the process lifetime. SIGTERM cancels everything cleanly, handing
+in-flight runs back to the queue.
 """
 
 import asyncio
 import logging
-from datetime import timedelta
+import signal
+from datetime import UTC, datetime, timedelta
 
-from temporalio.api.workflowservice.v1 import DescribeNamespaceRequest
-from temporalio.client import (
-    Client,
-    Schedule,
-    ScheduleActionStartWorkflow,
-    ScheduleAlreadyRunningError,
-    ScheduleCalendarSpec,
-    ScheduleOverlapPolicy,
-    SchedulePolicy,
-    ScheduleRange,
-    ScheduleSpec,
-)
-from temporalio.service import RPCError, RPCStatusCode
-from temporalio.worker import Worker
-
-from app.clients.bandsintown import BandsintownClient
 from app.clients.lastfm import LastfmClient
 from app.clients.musicbrainz import MusicBrainzClient
+from app.clients.ra import RaClient
 from app.clients.spotify import SpotifyClient
-from app.core.config import Settings, get_settings
+from app.clients.ticketmaster import TicketmasterClient
+from app.core.config import get_settings
+from app.core.db import session_factory
 from app.core.observability import configure_observability
-from app.core.temporal import connect_temporal
-from app.sync.sync_activities import SyncActivities
-from app.sync.sync_workflow import DispatchSyncsWorkflow, SyncUserWorkflow
+from app.sync.sync_pipeline import dispatch_nightly_syncs, run_sync
+from app.sync.sync_runs import claim_sync_run
+from app.sync.sync_steps import SyncSteps
 
 logger = logging.getLogger(__name__)
 
-CONNECT_ATTEMPTS = 90
-CONNECT_RETRY_SECONDS = 2.0
+# Manual runs get their own lanes so two users clicking Sync at once both start
+# right away; two bounds how many syncs share the process's throttled clients.
+MANUAL_LANES = 2
+CLAIM_POLL_SECONDS = 1.0
 CRASH_RETRY_SECONDS = 5.0
 
 REQUIRED_SETTINGS = (
     "lastfm_api_key",
-    "bandsintown_api_key",
+    "ticketmaster_api_key",
     "spotify_client_id",
     "spotify_client_secret",
     "spotify_refresh_token",
 )
 
-SCHEDULE_ID = "nightly-sync"
 SCHEDULE_HOUR_UTC = 6
+# A worker starting this long after the firing time still dispatches, so a
+# restart around 06:00 doesn't cost a night.
 SCHEDULE_CATCHUP_WINDOW = timedelta(hours=1)
 
 
-async def _reconcile_nightly_schedule(client: Client, settings: Settings) -> None:
-    if not settings.nightly_sync_enabled:
-        # Delete the schedule from temporal, don't just skip creation.
+def next_dispatch_at(now: datetime) -> datetime:
+    """The next scheduled firing strictly after `now`."""
+    today = now.replace(hour=SCHEDULE_HOUR_UTC, minute=0, second=0, microsecond=0)
+    return today if today > now else today + timedelta(days=1)
+
+
+def startup_dispatch_at(now: datetime) -> datetime:
+    """When a freshly started worker should first dispatch: right away when
+    inside the catch-up window after today's firing, else the next firing."""
+    last = next_dispatch_at(now) - timedelta(days=1)
+    return now if now - last < SCHEDULE_CATCHUP_WINDOW else next_dispatch_at(now)
+
+
+async def _serve_runs(steps: SyncSteps) -> None:
+    while True:
         try:
-            await client.get_schedule_handle(SCHEDULE_ID).delete()
-            logger.warning("Deleted schedule %r (nightly sync disabled)", SCHEDULE_ID)
-        except RPCError as exc:
-            if exc.status != RPCStatusCode.NOT_FOUND:
-                # Log and try again next time
-                logger.exception("Failed to delete schedule %r", SCHEDULE_ID)
-        return
-    # Create-if-missing: editing the spec below does not update an existing
-    # schedule; delete it manually (or `temporal schedule update`) and let
-    # the worker recreate it.
-    schedule = Schedule(
-        action=ScheduleActionStartWorkflow(
-            DispatchSyncsWorkflow.run,
-            id="dispatch-syncs",
-            task_queue=settings.temporal_task_queue,
-        ),
-        spec=ScheduleSpec(
-            calendars=[ScheduleCalendarSpec(hour=(ScheduleRange(SCHEDULE_HOUR_UTC),))]
-        ),
-        policy=SchedulePolicy(
-            overlap=ScheduleOverlapPolicy.SKIP,
-            catchup_window=SCHEDULE_CATCHUP_WINDOW,
-        ),
-    )
-    try:
-        await client.create_schedule(SCHEDULE_ID, schedule)
-        logger.info("Created schedule %r", SCHEDULE_ID)
-    except ScheduleAlreadyRunningError:
-        logger.info("Schedule %r already exists", SCHEDULE_ID)
+            async with session_factory() as session:
+                run = await claim_sync_run(session)
+                await session.commit()
+            if run is None:
+                await asyncio.sleep(CLAIM_POLL_SECONDS)
+                continue
+            logger.info("Claimed sync run %s for user %s", run.id, run.user_id)
+            await run_sync(run, steps)
+        except Exception:
+            logger.exception("Sync lane failed; retrying in %ss", CRASH_RETRY_SECONDS)
+            await asyncio.sleep(CRASH_RETRY_SECONDS)
 
 
-async def _connect_with_retry(settings: Settings) -> Client:
-    for attempt in range(1, CONNECT_ATTEMPTS + 1):
+async def _run_nightly_schedule(steps: SyncSteps) -> None:
+    fire_at = startup_dispatch_at(datetime.now(UTC))
+    while True:
+        logger.info("Nightly dispatch scheduled for %s", fire_at.isoformat())
+        await asyncio.sleep(max(0.0, (fire_at - datetime.now(UTC)).total_seconds()))
         try:
-            client = await connect_temporal(settings)
-            # No-op call to our namespace - fails if temporal is up but our namespace is not ready
-            await client.workflow_service.describe_namespace(
-                DescribeNamespaceRequest(namespace=settings.temporal_namespace)
-            )
-            return client
-        except (RPCError, OSError, RuntimeError) as exc:
-            if attempt == CONNECT_ATTEMPTS:
-                raise
-            logger.info(
-                "Temporal not reachable at %s (attempt %d/%d): %s",
-                settings.temporal_address,
-                attempt,
-                CONNECT_ATTEMPTS,
-                exc,
-            )
-            await asyncio.sleep(CONNECT_RETRY_SECONDS)
-    raise AssertionError("unreachable")
-
-
-async def _run_worker(settings: Settings, activities: SyncActivities) -> None:
-    client = await _connect_with_retry(settings)
-    await _reconcile_nightly_schedule(client, settings)
-    worker = Worker(
-        client,
-        task_queue=settings.temporal_task_queue,
-        workflows=[SyncUserWorkflow, DispatchSyncsWorkflow],
-        activities=[
-            activities.sync_artists,
-            activities.sync_suggestions,
-            activities.sync_events,
-            activities.sync_playlists,
-            activities.record_sync_completed,
-            activities.list_users_due_for_sync,
-            activities.audit_bot_playlists,
-            activities.drain_playlist_tombstones,
-        ],
-    )
-    logger.info("Worker polling task queue %r", settings.temporal_task_queue)
-    await worker.run()
+            await dispatch_nightly_syncs(steps)
+        except Exception:
+            logger.exception("Nightly dispatch failed; retrying next dispatch")
+        fire_at = next_dispatch_at(datetime.now(UTC))
 
 
 async def main() -> None:
@@ -141,25 +95,37 @@ async def main() -> None:
         raise SystemExit(f"{', '.join(missing)} is not configured")
 
     lastfm = LastfmClient(settings.lastfm_api_key)
-    bandsintown = BandsintownClient(settings.bandsintown_api_key)
+    ticketmaster = TicketmasterClient(settings.ticketmaster_api_key)
+    ra = RaClient()
     spotify = SpotifyClient(
         settings.spotify_client_id,
         settings.spotify_client_secret,
         settings.spotify_refresh_token,
     )
     musicbrainz = MusicBrainzClient()
+    steps = SyncSteps(lastfm, ticketmaster, ra, spotify, musicbrainz)
+
+    # asyncio.run only translates SIGINT; without this a SIGTERM (Render stop,
+    # `docker compose stop`, the dev hot-reload) kills the process mid-step
+    # instead of handing the run back to the queue.
+    main_task = asyncio.current_task()
+    assert main_task is not None
+    asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, main_task.cancel)
     try:
-        activities = SyncActivities(lastfm, bandsintown, spotify, musicbrainz)
-        # Nothing external supervises this process, so a crashed poller must reconnect
-        # and resume on its own instead of leaving an "Up" container doing nothing.
-        while True:
-            try:
-                await _run_worker(settings, activities)
-            except Exception:
-                logger.exception("Worker crashed; restarting in %ss", CRASH_RETRY_SECONDS)
-                await asyncio.sleep(CRASH_RETRY_SECONDS)
+        async with asyncio.TaskGroup() as group:
+            for _ in range(MANUAL_LANES):
+                group.create_task(_serve_runs(steps))
+            if settings.nightly_sync_enabled:
+                group.create_task(_run_nightly_schedule(steps))
+            logger.info(
+                "Worker serving sync runs (%d lanes, nightly sync %s)",
+                MANUAL_LANES,
+                "on" if settings.nightly_sync_enabled else "off",
+            )
+    except asyncio.CancelledError:
+        pass
     finally:
-        for api_client in (lastfm, bandsintown, spotify, musicbrainz):
+        for api_client in (lastfm, ticketmaster, ra, spotify, musicbrainz):
             await api_client.aclose()
 
 

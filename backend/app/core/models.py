@@ -2,7 +2,16 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, UniqueConstraint, false, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    Index,
+    UniqueConstraint,
+    false,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -229,8 +238,8 @@ class EventArtist(Base):
     )
 
 
-class BandsintownEvent(Base):
-    __tablename__ = "bandsintown_events"
+class TicketmasterEvent(Base):
+    __tablename__ = "ticketmaster_events"
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
@@ -247,8 +256,44 @@ class BandsintownEvent(Base):
     )
 
 
-class BandsintownArtist(Base):
-    __tablename__ = "bandsintown_artists"
+class TicketmasterArtist(Base):
+    __tablename__ = "ticketmaster_artists"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    artist_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("artists.id", ondelete="CASCADE"), unique=True
+    )
+    name: Mapped[str]
+    external_id: Mapped[str | None]
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RaEvent(Base):
+    __tablename__ = "ra_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"), index=True
+    )
+    external_id: Mapped[str] = mapped_column(unique=True)
+    url: Mapped[str | None]
+    lineup: Mapped[list | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RaArtist(Base):
+    __tablename__ = "ra_artists"
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
@@ -366,6 +411,48 @@ class Playlist(Base):
     spotify_url: Mapped[str | None]
     snapshot_id: Mapped[str | None]
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class SyncRun(Base):
+    """One execution of the sync pipeline for a user, queued by the API or the
+    nightly dispatch and executed by the worker; the per-step progress is
+    kept in the shape the status endpoint serves. At most one run per user
+    is active (queued or running) at a time; a worker owns a run through
+    `claim_id` and keeps `heartbeat_at` fresh while it executes.
+    See docs/design/2026-08-16-postgres-sync-queue-plan.md."""
+
+    __tablename__ = "sync_runs"
+    __table_args__ = (
+        Index(
+            "ix_sync_runs_active_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+        Index(
+            "ix_sync_runs_active_created_at",
+            "created_at",
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+        Index("ix_sync_runs_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, default=uuid.uuid7, server_default=func.uuidv7()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    trigger: Mapped[str]
+    status: Mapped[str]
+    steps: Mapped[list] = mapped_column(JSONB)
+    error: Mapped[str | None]
+    claim_id: Mapped[uuid.UUID | None]
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

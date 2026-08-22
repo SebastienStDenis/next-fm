@@ -14,6 +14,12 @@ pipeline.
 > sketch below: events store the source's full `country` name rather than a
 > `country_code`, and Bandsintown's venue-local datetimes (no offset) are stored as
 > UTC, which is close enough for date-granular matching. Phases 3-4 remain.
+>
+> **2026-08-09: Bandsintown replaced.** Concert data now comes from Ticketmaster
+> and Resident Advisor; the source-specific parts of this doc are historical.
+> The structural decisions (artist-first flow, schema shape, matching as a
+> query, freshness semantics) carry over - see
+> `docs/design/2026-08-09-multi-source-event-ingestion.md`.
 
 ## Decision: artist-first ingestion, not city-first
 

@@ -14,7 +14,6 @@ dependencies = [
     "pyjwt[crypto]>=2.13.0",
     "sentry-sdk[fastapi]>=2.42.1",
     "sqlalchemy[asyncio]>=2.0.51",
-    "temporalio>=1.30.0",
     "uvicorn[standard]>=0.50.0",
 ]
 

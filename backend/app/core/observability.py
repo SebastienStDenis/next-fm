@@ -24,6 +24,7 @@ def configure_observability(settings: Settings, component: str) -> None:
         format=LOG_FORMAT,
         force=True,
     )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     if not settings.sentry_dsn:
         return
     sentry_sdk.init(

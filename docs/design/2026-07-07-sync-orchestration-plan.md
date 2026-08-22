@@ -12,9 +12,11 @@ and the design constraint throughout is dev/prod parity: the workflow, activitie
 worker, and API code are identical in both environments; only connection env vars
 change.
 
-> **Status: implemented as designed.** Scheduled background re-sync and on-demand
-> rate limiting remain out of scope; the last section sketches how this design
-> accommodates them later. Scheduled re-sync is now designed in
+> **Status: superseded.** Implemented as designed in July 2026, then replaced by
+> a Postgres-backed `sync_runs` queue in
+> `docs/design/2026-08-16-postgres-sync-queue-plan.md` (August 2026): Temporal
+> is gone, the pipeline semantics and the UI contract described here survive.
+> Scheduled re-sync was designed in
 > `docs/design/2026-07-09-background-sync-plan.md`.
 
 ## Why Temporal (and what the alternative was)

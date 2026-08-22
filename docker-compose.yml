@@ -6,12 +6,8 @@ services:
              uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@host.docker.internal:54322/postgres
-      TEMPORAL_ADDRESS: temporal:7233
-      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
-      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-user-sync}
-      TEMPORAL_API_KEY: ${TEMPORAL_API_KEY:-}
       LASTFM_API_KEY: ${LASTFM_API_KEY:?set in .env}
-      BANDSINTOWN_API_KEY: ${BANDSINTOWN_API_KEY:?set in .env}
+      TICKETMASTER_API_KEY: ${TICKETMASTER_API_KEY:?set in .env}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set in .env}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set in .env}
       SPOTIFY_REFRESH_TOKEN: ${SPOTIFY_REFRESH_TOKEN:?set in .env}
@@ -41,36 +37,16 @@ services:
     depends_on:
       - api
 
-  temporal:
-    image: temporalio/temporal:1.7.2
-    # Run as root so the dev server can create its SQLite file on the
-    # root-owned named volume.
-    user: root
-    command: server start-dev --ip 0.0.0.0 --db-filename /data/temporal.db
-    ports:
-      - "${TEMPORAL_PORT:-7233}:7233"
-      - "${TEMPORAL_UI_PORT:-8080}:8233"
-    volumes:
-      - temporal-data:/data
-    healthcheck:
-      test: ["CMD", "temporal", "operator", "cluster", "health"]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-
   worker:
     build: ./backend
-    command: >
-      sh -c "uv run watchfiles --filter python 'python -m app.worker' app"
+    # Exec form (no `sh -c`), so a stop's SIGTERM reaches the worker and it
+    # hands its in-flight run back to the queue instead of being killed.
+    command: ["uv", "run", "watchfiles", "--filter", "python", "python -m app.worker", "app"]
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@host.docker.internal:54322/postgres
-      TEMPORAL_ADDRESS: temporal:7233
-      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
-      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-user-sync}
-      TEMPORAL_API_KEY: ${TEMPORAL_API_KEY:-}
       NIGHTLY_SYNC_ENABLED: ${NIGHTLY_SYNC_ENABLED:-false}
       LASTFM_API_KEY: ${LASTFM_API_KEY:?set in .env}
-      BANDSINTOWN_API_KEY: ${BANDSINTOWN_API_KEY:?set in .env}
+      TICKETMASTER_API_KEY: ${TICKETMASTER_API_KEY:?set in .env}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:?set in .env}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:?set in .env}
       SPOTIFY_REFRESH_TOKEN: ${SPOTIFY_REFRESH_TOKEN:?set in .env}
@@ -78,9 +54,7 @@ services:
       - ./backend/app:/app/app
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # The api applies migrations on startup; starting after it keeps a fresh
+    # stack's worker from polling a table that doesn't exist yet.
     depends_on:
-      temporal:
-        condition: service_healthy
-
-volumes:
-  temporal-data:
+      - api

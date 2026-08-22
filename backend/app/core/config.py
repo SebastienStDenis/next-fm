@@ -12,14 +12,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@127.0.0.1:54322/postgres"
     database_disable_prepared_statements: bool = False
     lastfm_api_key: str = ""
-    bandsintown_api_key: str = ""
+    ticketmaster_api_key: str = ""
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
     spotify_refresh_token: str = ""
-    temporal_address: str = "localhost:7233"
-    temporal_namespace: str = "default"
-    temporal_task_queue: str = "user-sync"
-    temporal_api_key: str = ""
     nightly_sync_enabled: bool = False
     cors_origins: str = "http://localhost:3000"
     supabase_url: str = "http://127.0.0.1:54321"

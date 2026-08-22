@@ -7,7 +7,15 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
-from app.core.models import City, Event, EventArtist, UserArtistExclusion, UserArtistInterest
+from app.core.models import (
+    City,
+    Event,
+    EventArtist,
+    RaEvent,
+    TicketmasterEvent,
+    UserArtistExclusion,
+    UserArtistInterest,
+)
 from app.sync.artist_sync import LOVED_TRACKS_KIND, TOP_ARTIST_KIND
 
 EVENT_MATCH_RADIUS_KM = 50.0
@@ -30,6 +38,22 @@ class ArtistMatch(BaseModel):
     artist_id: uuid.UUID
     event_id: uuid.UUID
     starts_at: datetime
+
+
+def ticket_url(event_id: ColumnElement | InstrumentedAttribute) -> ColumnElement[str | None]:
+    """The event's ticket-page URL from its highest-precedence source row
+    (Ticketmaster over RA), correlated against the given event-id column."""
+
+    def source_url(model: type[TicketmasterEvent | RaEvent]) -> ColumnElement[str | None]:
+        return (
+            select(model.url)
+            .where(model.event_id == event_id)
+            .order_by(model.id)
+            .limit(1)
+            .scalar_subquery()
+        )
+
+    return func.coalesce(source_url(TicketmasterEvent), source_url(RaEvent))
 
 
 def distance_km(latitude: float, longitude: float) -> ColumnElement[float]:

@@ -6,9 +6,9 @@ from sqlalchemy import func, select
 
 from app.core.auth import CurrentUserDep
 from app.core.deps import SessionDep
-from app.core.models import Artist, BandsintownEvent, City, Event, EventArtist
+from app.core.models import Artist, City, Event, EventArtist
 from app.core.schemas import ArtistRead, EventRead, UserEventRead
-from app.sync.matching import EVENT_MATCH_RADIUS_KM, artist_qualifies, distance_km
+from app.sync.matching import EVENT_MATCH_RADIUS_KM, artist_qualifies, distance_km, ticket_url
 
 router = APIRouter()
 
@@ -37,10 +37,9 @@ async def list_user_events(
         include_known_artists = user.include_known_artists
     distance = distance_km(city.latitude, city.longitude).label("distance_km")
     result = await session.execute(
-        select(Event, Artist, BandsintownEvent.url, distance)
+        select(Event, Artist, ticket_url(Event.id), distance)
         .join(EventArtist, EventArtist.event_id == Event.id)
         .join(Artist, Artist.id == EventArtist.artist_id)
-        .outerjoin(BandsintownEvent, BandsintownEvent.event_id == Event.id)
         .where(
             artist_qualifies(user.id, EventArtist.artist_id, include_known_artists),
             Event.starts_at > func.now(),

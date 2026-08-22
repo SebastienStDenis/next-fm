@@ -1,12 +1,12 @@
-import logging
-from unittest.mock import AsyncMock, MagicMock
+import asyncio
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
-from temporalio.client import ScheduleAlreadyRunningError
-from temporalio.service import RPCError, RPCStatusCode
 
+from app import worker
 from app.core.config import Settings
-from app.worker import SCHEDULE_ID, _reconcile_nightly_schedule
+from app.worker import next_dispatch_at, startup_dispatch_at
 
 
 def make_settings(**overrides: object) -> Settings:
@@ -16,63 +16,85 @@ def make_settings(**overrides: object) -> Settings:
     return Settings(**values)
 
 
-def make_client() -> MagicMock:
-    client = MagicMock()
-    client.create_schedule = AsyncMock()
-    client.get_schedule_handle.return_value.delete = AsyncMock()
-    return client
+def at(hour: int, minute: int = 0, day: int = 10) -> datetime:
+    return datetime(2026, 8, day, hour, minute, tzinfo=UTC)
 
 
-def test_nightly_sync_defaults_off(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_nightly_sync_defaults_off(monkeypatch) -> None:
     monkeypatch.delenv("NIGHTLY_SYNC_ENABLED", raising=False)
     assert make_settings().nightly_sync_enabled is False
 
 
-async def test_enabled_creates_schedule() -> None:
-    client = make_client()
-
-    await _reconcile_nightly_schedule(client, make_settings(nightly_sync_enabled=True))
-
-    client.create_schedule.assert_awaited_once()
-    assert client.create_schedule.await_args.args[0] == SCHEDULE_ID
-    client.get_schedule_handle.assert_not_called()
+def test_next_dispatch_is_today_before_the_firing_hour() -> None:
+    assert next_dispatch_at(at(5, 59)) == at(6)
 
 
-async def test_enabled_tolerates_existing_schedule() -> None:
-    client = make_client()
-    client.create_schedule.side_effect = ScheduleAlreadyRunningError()
-
-    await _reconcile_nightly_schedule(client, make_settings(nightly_sync_enabled=True))
+def test_next_dispatch_is_tomorrow_from_the_firing_hour_on() -> None:
+    assert next_dispatch_at(at(6)) == at(6, day=11)
+    assert next_dispatch_at(at(23, 30)) == at(6, day=11)
 
 
-async def test_disabled_deletes_schedule() -> None:
-    client = make_client()
-
-    await _reconcile_nightly_schedule(client, make_settings(nightly_sync_enabled=False))
-
-    client.create_schedule.assert_not_called()
-    client.get_schedule_handle.assert_called_once_with(SCHEDULE_ID)
-    client.get_schedule_handle.return_value.delete.assert_awaited_once()
+def test_startup_dispatches_now_inside_the_catchup_window() -> None:
+    assert startup_dispatch_at(at(6)) == at(6)
+    assert startup_dispatch_at(at(6, 45)) == at(6, 45)
 
 
-async def test_disabled_tolerates_missing_schedule() -> None:
-    client = make_client()
-    client.get_schedule_handle.return_value.delete.side_effect = RPCError(
-        "schedule not found", RPCStatusCode.NOT_FOUND, b""
-    )
-
-    await _reconcile_nightly_schedule(client, make_settings(nightly_sync_enabled=False))
+def test_startup_waits_for_the_next_firing_outside_the_window() -> None:
+    assert startup_dispatch_at(at(7)) == at(6, day=11)
+    assert startup_dispatch_at(at(5, 30)) == at(6)
 
 
-async def test_disabled_survives_unexpected_delete_error(
-    caplog: pytest.LogCaptureFixture,
+def test_sigterm_shutdown_cancels_lanes_and_closes_clients(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    client = make_client()
-    client.get_schedule_handle.return_value.delete.side_effect = RPCError(
-        "unavailable", RPCStatusCode.UNAVAILABLE, b""
+    settings = make_settings(
+        lastfm_api_key="lastfm",
+        ticketmaster_api_key="ticketmaster",
+        spotify_client_id="spotify-id",
+        spotify_client_secret="spotify-secret",
+        spotify_refresh_token="spotify-token",
     )
+    clients = [AsyncMock() for _ in range(5)]
+    constructors = (
+        "LastfmClient",
+        "TicketmasterClient",
+        "RaClient",
+        "SpotifyClient",
+        "MusicBrainzClient",
+    )
+    for constructor, client in zip(constructors, clients, strict=True):
+        monkeypatch.setattr(worker, constructor, lambda *args, client=client: client)
+    monkeypatch.setattr(worker, "get_settings", lambda: settings)
+    monkeypatch.setattr(worker, "configure_observability", lambda *args: None)
 
-    with caplog.at_level(logging.ERROR):
-        await _reconcile_nightly_schedule(client, make_settings(nightly_sync_enabled=False))
+    signal_handler = None
+    real_get_running_loop = asyncio.get_running_loop
 
-    assert "Failed to delete schedule" in caplog.text
+    class LoopProxy:
+        def add_signal_handler(self, _signal: int, callback) -> None:
+            nonlocal signal_handler
+            signal_handler = callback
+
+    monkeypatch.setattr(worker.asyncio, "get_running_loop", lambda: LoopProxy())
+    lanes_started = 0
+    lanes_cancelled = 0
+
+    async def serve_runs(_steps) -> None:
+        nonlocal lanes_started, lanes_cancelled
+        lanes_started += 1
+        if lanes_started == worker.MANUAL_LANES:
+            assert signal_handler is not None
+            signal_handler()
+        try:
+            await real_get_running_loop().create_future()
+        except asyncio.CancelledError:
+            lanes_cancelled += 1
+            raise
+
+    monkeypatch.setattr(worker, "_serve_runs", serve_runs)
+
+    asyncio.run(worker.main())
+
+    assert lanes_cancelled == worker.MANUAL_LANES
+    for client in clients:
+        client.aclose.assert_awaited_once()

@@ -7,12 +7,7 @@ from app.clients.lastfm import LastfmClient
 from app.clients.spotify import SpotifyClient
 from app.core.auth import Claims, get_claims, get_current_user
 from app.core.db import get_session
-from app.core.deps import (
-    get_lastfm_client,
-    get_optional_spotify_client,
-    get_supabase_admin,
-    get_temporal_client,
-)
+from app.core.deps import get_lastfm_client, get_optional_spotify_client, get_supabase_admin
 from app.core.models import User
 from app.main import app
 
@@ -60,7 +55,6 @@ async def request(
     session: AsyncMock,
     lastfm: LastfmClient | None = None,
     spotify: SpotifyClient | None = None,
-    temporal: object | None = None,
     user: User | None = None,
     claims: Claims | None = None,
     supabase_admin: object | None = None,
@@ -78,8 +72,6 @@ async def request(
         app.dependency_overrides[get_supabase_admin] = lambda: supabase_admin
     if lastfm is not None:
         app.dependency_overrides[get_lastfm_client] = lambda: lastfm
-    if temporal is not None:
-        app.dependency_overrides[get_temporal_client] = lambda: temporal
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             return await client.request(method, url, json=json)
