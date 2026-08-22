@@ -57,12 +57,19 @@ class _Source:
     outranked_by: tuple[type[TicketmasterEvent | RaEvent], ...]
 
 
+@dataclass(frozen=True)
+class _SourcePlan:
+    statuses: dict[uuid.UUID, str]
+    to_fetch: list[Artist]
+    identities: dict[uuid.UUID, TicketmasterArtist | RaArtist]
+
+
 async def sync_user_events(
     session: AsyncSession, ticketmaster: TicketmasterClient, ra: RaClient, user: User
 ) -> EventSyncResult:
     """Refresh upcoming events for every artist the user has an interest in,
-    from every source. Ticketmaster is fetched first and outranks RA wherever
-    both list the same show."""
+    from every source. Sources are fetched concurrently and written in order,
+    so Ticketmaster outranks RA wherever both list the same show."""
     sources = (
         _Source(
             TicketmasterArtist,
@@ -93,10 +100,21 @@ async def sync_user_events(
     artists = list(result.scalars())
 
     now = datetime.now(UTC)
+    plans = [await _plan_source(session, source, artists, now) for source in sources]
+    # The sources have independent hosts and rate limiters, and fetching
+    # touches no session state, so both go out at once. Writing stays ordered:
+    # adoption and the outranked-by precedence read what earlier sources wrote.
+    fetched = await asyncio.gather(
+        *(
+            _fetch_artist_events(source, plan.to_fetch, plan.identities)
+            for source, plan in zip(sources, plans, strict=True)
+        )
+    )
+
     statuses: dict[uuid.UUID, set[str]] = {artist.id: set() for artist in artists}
     created = updated = removed = 0
-    for source in sources:
-        source_statuses, pass_counts = await _sync_source(session, source, artists, now)
+    for source, plan, outcomes in zip(sources, plans, fetched, strict=True):
+        source_statuses, pass_counts = await _apply_source(session, source, plan, outcomes, now)
         for artist_id, status in source_statuses.items():
             statuses[artist_id].add(status)
         created += pass_counts[0]
@@ -135,9 +153,11 @@ async def sync_user_events(
     )
 
 
-async def _sync_source(
+async def _plan_source(
     session: AsyncSession, source: _Source, artists: Sequence[Artist], now: datetime
-) -> tuple[dict[uuid.UUID, str], tuple[int, int, int]]:
+) -> _SourcePlan:
+    """Which of the artists are stale enough to fetch from this source, and
+    the identity rows the fetch and the write both need."""
     result = await session.execute(
         select(source.identity_model).where(
             source.identity_model.artist_id.in_([artist.id for artist in artists])
@@ -154,16 +174,24 @@ async def _sync_source(
             statuses[artist.id] = "skipped"
         else:
             to_fetch.append(artist)
+    return _SourcePlan(statuses=statuses, to_fetch=to_fetch, identities=identities)
 
-    outcomes = await _fetch_artist_events(source, to_fetch, identities)
 
+async def _apply_source(
+    session: AsyncSession,
+    source: _Source,
+    plan: _SourcePlan,
+    outcomes: Sequence[tuple[str, str | None, list[SourceEventData]]],
+    now: datetime,
+) -> tuple[dict[uuid.UUID, str], tuple[int, int, int]]:
+    statuses = plan.statuses
     created = updated = removed = 0
-    for artist, (status, external_id, events) in zip(to_fetch, outcomes, strict=True):
+    for artist, (status, external_id, events) in zip(plan.to_fetch, outcomes, strict=True):
         statuses[artist.id] = status
         if status == "failed":
             # Leave last_synced_at untouched so the next sync retries.
             continue
-        identity = identities.get(artist.id) or await _get_or_create_identity(
+        identity = plan.identities.get(artist.id) or await _get_or_create_identity(
             session, source, artist
         )
         if identity.external_id is None:

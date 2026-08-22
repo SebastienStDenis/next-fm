@@ -12,7 +12,7 @@ API_URL = "https://app.ticketmaster.com/discovery/v2"
 PAGE_SIZE = 200
 # Discovery paging is capped at size * page <= 1000 results.
 MAX_PAGES = 5
-BATCH_SIZE = 10
+BATCH_SIZE = 40
 REQUEST_INTERVAL = 0.25  # Ticketmaster allows 5 requests/second
 # The throttle sits under the documented rate, yet a small share of requests
 # still get 429s from Ticketmaster's own burst accounting; a short backoff

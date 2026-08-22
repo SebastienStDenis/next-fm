@@ -1,4 +1,6 @@
+import asyncio
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
@@ -166,6 +168,7 @@ async def test_sync_creates_events_for_new_artist() -> None:
     session.execute.side_effect = [
         result_with_scalars([artist]),  # interest artists
         result_with_scalars([]),  # tm identities
+        result_with_scalars([]),  # ra identities
         MagicMock(),  # tm identity insert
         result_returning(tm_identity),  # tm identity select
         result_with_rows([]),  # tm existing source rows
@@ -173,7 +176,6 @@ async def test_sync_creates_events_for_new_artist() -> None:
         result_with_rows([]),  # tm source-row insert returning
         MagicMock(),  # tm event_artists insert
         result_with_rows([]),  # tm prune
-        result_with_scalars([]),  # ra identities
         MagicMock(),  # ra identity insert
         result_returning(ra_identity),  # ra identity select
         result_returning(2),  # events_total
@@ -199,6 +201,37 @@ async def test_sync_creates_events_for_new_artist() -> None:
     assert ra_identity.external_id is None
     assert ra_identity.last_synced_at is not None  # unknown retries only after the TTL
     ra.get_artists_events.assert_not_awaited()
+
+
+async def test_sources_are_fetched_concurrently() -> None:
+    artist = Artist(id=uuid.uuid7(), name="Ben Klock")
+    tm_identity = TicketmasterArtist(artist_id=artist.id, name="Ben Klock", external_id="T1")
+    ra_identity = RaArtist(artist_id=artist.id, name="Ben Klock", external_id="966")
+    session = make_session()
+    session.execute.side_effect = [
+        result_with_scalars([artist]),  # interest artists
+        result_with_scalars([tm_identity]),  # tm identities
+        result_with_scalars([ra_identity]),  # ra identities
+        result_with_rows([]),  # tm prune
+        result_with_rows([]),  # ra prune
+        result_returning(0),  # events_total
+    ]
+    ticketmaster, ra = make_clients()
+    # Each source's fetch blocks until the other one has started, so the sync
+    # can only finish while both are in flight.
+    barrier = asyncio.Barrier(2)
+
+    async def rendezvous(external_ids: Sequence[str]) -> list[list[SourceEventData]]:
+        await barrier.wait()
+        return [[] for _ in external_ids]
+
+    ticketmaster.get_attractions_events.side_effect = rendezvous
+    ra.get_artists_events.side_effect = rendezvous
+
+    async with asyncio.timeout(5):
+        result = await sync_user_events(session, ticketmaster, ra, user())
+
+    assert result.artists_synced == 1
 
 
 async def test_ra_record_of_a_ticketmaster_event_merges_without_touching_fields() -> None:
@@ -272,12 +305,12 @@ async def test_prune_deletes_only_events_with_no_remaining_source() -> None:
     session.execute.side_effect = [
         result_with_scalars([artist]),  # interest artists
         result_with_scalars([tm_identity]),  # tm identities
+        result_with_scalars([ra_identity]),  # ra identities (fresh -> skipped)
         result_with_rows([(uuid.uuid7(), orphan_id), (uuid.uuid7(), shared_id)]),  # tm prune
         MagicMock(),  # delete tm source rows
         result_with_scalars([]),  # still sourced by ticketmaster
         result_with_scalars([shared_id]),  # still sourced by ra
         MagicMock(),  # delete orphaned events
-        result_with_scalars([ra_identity]),  # ra identities (fresh -> skipped)
         result_returning(0),  # events_total
     ]
     ticketmaster, ra = make_clients(tm_events=[])
@@ -449,12 +482,12 @@ async def test_ticketmaster_ticket_products_collapse_onto_one_show() -> None:
     session.execute.side_effect = [
         result_with_scalars([artist]),  # interest artists
         result_with_scalars([tm_identity]),  # tm identities
+        result_with_scalars([ra_identity]),  # ra identities (fresh -> skipped)
         result_with_rows([]),  # tm existing source rows
         result_with_scalars([]),  # tm adoption candidates
         result_with_rows([]),  # tm source-row insert returning
         MagicMock(),  # tm event_artists insert
         result_with_rows([]),  # tm prune
-        result_with_scalars([ra_identity]),  # ra identities (fresh -> skipped)
         result_returning(2),  # events_total
     ]
     show = datetime(2026, 10, 1, 20, 30, tzinfo=UTC)

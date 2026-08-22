@@ -19,7 +19,7 @@ USER_AGENT = (
     " (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 )
 EVENTS_LIMIT = 100
-BATCH_SIZE = 10
+BATCH_SIZE = 40
 
 logger = logging.getLogger(__name__)
 
