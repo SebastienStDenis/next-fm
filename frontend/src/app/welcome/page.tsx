@@ -1,7 +1,6 @@
 import { Brand } from "@/components/brand";
 import { CityPanel } from "@/components/city-panel";
 import { LastfmPanel } from "@/components/lastfm-panel";
-import { redirect } from "next/navigation";
 import { Section } from "@/components/section";
 import { SyncCard } from "@/components/sync-card";
 import { IntroText } from "../intro-text";
@@ -47,9 +46,6 @@ export default async function WelcomePage() {
   // further, until the sync card finishes replaying each step. This `ready`
   // is the exact inverse of the dashboard's redirect gate.
   const ready = activeStep === null && synced;
-  if (ready && user.onboarding_completed !== false) {
-    redirect("/dashboard");
-  }
 
   // The settings cards, unchanged, in setup order; the state marks walk the
   // user through the steps, and the sync card runs and replays the first
@@ -80,11 +76,7 @@ export default async function WelcomePage() {
             synced={synced}
             reached={synced || activeStep === "sync"}
           >
-            <SyncCard
-              lastfmLinked={lastfm !== null}
-              citySet={city !== null}
-              firstSync={activeStep === "sync"}
-            />
+            <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
           </DailySyncSection>
         </div>
       </WelcomeFlow>

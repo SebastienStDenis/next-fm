@@ -59,11 +59,9 @@ async function fetchRawStatus(): Promise<{
 export function SyncCard({
   lastfmLinked,
   citySet,
-  firstSync = false,
 }: {
   lastfmLinked: boolean;
   citySet: boolean;
-  firstSync?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<SyncStatus | null>(null);
@@ -378,19 +376,8 @@ export function SyncCard({
           )}
         </div>
       </div>
-      {firstSync && (
-        <p className="pt-1 text-xs text-muted-foreground">
-          The first sync may take a few minutes. Once started, feel free to close
-          the page and return later; it will continue.
-        </p>
-      )}
       {showSteps && (
-        <Collapse
-          show={
-            notice.active === "degraded" ||
-            (notice.active === "long-run" && !firstSync)
-          }
-        >
+        <Collapse show={notice.active !== null}>
           <p
             className={cn(
               "pt-1 text-xs text-muted-foreground transition-opacity duration-250 motion-reduce:transition-none",
@@ -448,4 +435,5 @@ function SyncProgressRing({ fraction }: { fraction: number }) {
     </svg>
   );
 }
+
 
