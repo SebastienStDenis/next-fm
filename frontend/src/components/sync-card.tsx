@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { ChevronDown, RefreshCw, Triangle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Collapse } from "./collapse";
@@ -206,6 +206,10 @@ export function SyncCard({
   // A live run (or its settle animation) always wins the status area, even if a
   // requirement looks unmet - never replace an active run with the setup hint.
   const showSteps = (running || settling) && status !== null;
+  // With no run on record the card offers its own labelled button, so the icon
+  // would be a second control for the same action; it steps aside and the note
+  // takes the width.
+  const showKickoff = finalOutcome === "none" && !statusLoading;
 
   // Tell a surrounding welcome flow (if any) while the step display is up, so
   // it can defer revealing its completion footer until playback settles.
@@ -279,7 +283,7 @@ export function SyncCard({
           the button. */}
       <div className="flex items-center gap-3">
         <span
-          className="order-last shrink-0"
+          className={cn("order-last shrink-0", showKickoff && "hidden")}
           title={missingNote ?? undefined}
         >
           <Button
@@ -360,17 +364,30 @@ export function SyncCard({
                   />
                 </CollapsibleTrigger>
               )}
-              {finalOutcome === "none" && !statusLoading && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onSync}
-                  disabled={starting || !canSync}
-                  className="animate-fade-in"
-                >
-                  Run a manual sync
-                </Button>
+              {showKickoff && (
+                // The note sits beside the button while it fits on one line,
+                // then drops whole onto its own full-width line below rather
+                // than breaking mid-sentence in a narrow column.
+                <div className="flex animate-fade-in flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <span className="shrink-0" title={missingNote ?? undefined}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onSync}
+                      disabled={starting || !canSync}
+                    >
+                      Run a manual sync
+                    </Button>
+                  </span>
+                  <p className="flex min-w-0 flex-1 basis-60 items-start gap-1 text-xs text-muted-foreground">
+                    <Triangle
+                      aria-hidden
+                      className="mt-px size-3.5 shrink-0 text-warning"
+                    />
+                    <span>The first run can take a few minutes.</span>
+                  </p>
+                </div>
               )}
             </div>
           )}

@@ -131,6 +131,11 @@ Listening History relies on the Daily Sync card above it.
 
 ## Daily Sync card notices
 
+Before any run is on record, the card shows the "Run a manual sync" button
+with one muted note beside it: "The first run can take a few minutes." It
+sets the expectation that the first run is the slow one, and it moves onto
+its own line once the two no longer fit side by side.
+
 While a run is in flight, the Daily Sync card can add one muted line under
 the status row:
 
