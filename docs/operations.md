@@ -1,6 +1,6 @@
 # Operations
 
-*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-08-16.*
+*Written 2026-07-15 by Claude (Opus 4.8), updated 2026-08-22.*
 
 The one-shot infrastructure setup lives in
 `docs/design/2026-07-08-phase-1-deploy-runbook.md` (written against the older
@@ -40,6 +40,12 @@ detail, and the run's timeline - and the worker log has every attempt.
 
 This is deliberate duplication, not a migration: Render captures stdout whether
 Sentry exists or not.
+
+Application records remain enabled at INFO, but the `httpx` logger starts at
+WARNING. Its INFO request records include complete upstream URLs, and some
+upstreams put credentials in query parameters, so those records must not reach
+either Render or Sentry. Upstream failures remain visible through the explicit
+warnings and exceptions logged by the clients and sync pipeline.
 
 Frontend logs are wired (`consoleLoggingIntegration` in
 `frontend/src/sentry.shared.ts` and the three runtime configs) but near-silent,
