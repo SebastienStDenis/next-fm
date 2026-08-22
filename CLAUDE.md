@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Live-music discovery delivered as Spotify playlists: match a user's taste (Last.fm) against upcoming concerts near them (Ticketmaster and Resident Advisor), and maintain one playlist per user via an app-owned Spotify bot account. See README.md for the full product description.
 
-Monorepo: `backend/` (FastAPI, Python 3.14, managed with uv), `frontend/` (Next.js App Router, TypeScript, Tailwind v4). App data and auth run on the Supabase CLI stack (`supabase start`); Docker Compose runs the app services and Temporal.
+Monorepo: `backend/` (FastAPI, Python 3.14, managed with uv), `frontend/` (Next.js App Router, TypeScript, Tailwind v4). App data and auth run on the Supabase CLI stack (`supabase start`); Docker Compose runs the app services (api, web, sync worker).
 
 When working on user-facing copy, consult `docs/wording.md`; when working on styling or visual design, consult `docs/theme.md`; when working on alerting, logging, or anything about running this in production, consult `docs/operations.md`. All three are living reference docs - follow them and update them in the same change when the product, theme, or alerting evolves.
 
@@ -16,14 +16,14 @@ When working on user-facing copy, consult `docs/wording.md`; when working on sty
 
 ```sh
 supabase start                  # app Postgres :54322, Auth/API :54321, Studio :54323
-docker compose up --build       # API :8000, web :3000, Temporal :7233 (UI :8080), worker
+docker compose up --build       # API :8000, web :3000, sync worker
 psql postgresql://postgres:postgres@127.0.0.1:54322/postgres
 ```
 
 `supabase start` must be running before `docker compose up` (the app data and
 auth engine live in it). Tear down with `docker compose down` and, when done,
-`supabase stop`. Running the apps outside Docker needs `supabase start` plus the
-`temporal` compose service.
+`supabase stop`. Running the apps outside Docker needs only `supabase start`
+(`uv run python -m app.worker` from `backend/` runs the sync worker).
 
 Source directories are bind-mounted, so code edits hot-reload. Dependency and config-file changes (lockfiles, `pyproject.toml`, `next.config.ts`, ...) are baked into the images: rebuild with `docker compose up -d --build`. The api container applies migrations on startup; cities seeding is a one-time manual step per environment (`docker compose run --rm api uv run python -m cli.seed`, or `uv run python -m cli.seed` from `backend/`).
 
@@ -39,7 +39,7 @@ uv run pytest tests/app/test_health.py::test_health   # single test
 uv run uvicorn app.main:app --reload              # dev server (needs Postgres + backend/.env)
 ```
 
-Tests are unit tests: the database dependency is overridden (`app.dependency_overrides[get_session]`), so nothing needs to be running. pytest-asyncio is in auto mode - async test functions need no decorator. Exception: the workflow tests in `tests/app/sync/test_sync_orchestration.py` run against Temporal's time-skipping test server, which the SDK downloads on first use (a one-time network fetch).
+Tests are unit tests: the database dependency is overridden (`app.dependency_overrides[get_session]`), so nothing needs to be running. pytest-asyncio is in auto mode - async test functions need no decorator.
 
 ### Migrations (run from `backend/`)
 
@@ -68,9 +68,9 @@ Small layered FastAPI app grouped into scoped packages; keep the separation when
 Entrypoints (top of `app/`):
 
 - `main.py` - FastAPI app assembly: CORS, the per-upstream exception handlers, `/health`, and the `include_router` calls; endpoints live in `routers/`.
-- `worker.py` - Temporal worker entrypoint (`python -m app.worker`), run by the `worker` compose service; reconciles the `nightly-sync` schedule at startup (created when `NIGHTLY_SYNC_ENABLED` is true, deleted otherwise).
+- `worker.py` - sync worker entrypoint (`python -m app.worker`), run by the `worker` compose service: a couple of lanes poll the `sync_runs` queue and execute runs, and, when `NIGHTLY_SYNC_ENABLED` is true, a scheduler runs the nightly dispatch at 06:00 UTC.
 
-`routers/` - the API endpoints, one `APIRouter` per domain: `account.py` (user profile/deletion, city search and home city), `lastfm.py` (account link/refresh/unlink), `artists.py` (interests, exclusions), `events.py`, `playlists.py`, `sync.py` (the Temporal-backed full-sync start/status; syncing happens only through the workflow, never inline in a request). Inject sessions with `SessionDep` and external clients with the `*ClientDep` aliases, all from `core/deps.py`.
+`routers/` - the API endpoints, one `APIRouter` per domain: `account.py` (user profile/deletion, city search and home city), `lastfm.py` (account link/refresh/unlink), `artists.py` (interests, exclusions), `events.py`, `playlists.py`, `sync.py` (full-sync start/status on the `sync_runs` queue; syncing happens only in the worker, never inline in a request). Inject sessions with `SessionDep` and external clients with the `*ClientDep` aliases, all from `core/deps.py`.
 
 `core/` - foundation shared by everything:
 
@@ -79,9 +79,8 @@ Entrypoints (top of `app/`):
 - `models.py` - SQLAlchemy 2.0 ORM models (`DeclarativeBase`, typed `Mapped`/`mapped_column`). Alembic autogenerate diffs against `Base.metadata`.
 - `schemas.py` - Pydantic v2 API schemas. ORM models and Pydantic schemas are deliberately separate (no SQLModel); response models use `ConfigDict(from_attributes=True)`.
 - `auth.py` - Supabase JWT verification and the `get_current_user` dependency: resolves tokens to `User` rows (JIT provisioning) and stamps `users.last_seen_at`, the activity signal for the nightly sync.
-- `deps.py` - the FastAPI dependency providers: `SessionDep` plus the external-client and Temporal-client deps (`LastfmClientDep`, `SpotifyClientDep`, ...), each yielding a client per request and 503ing when its settings are missing.
-- `accounts.py` - shared linked-Last.fm-account lookup used by both the API and the sync activities.
-- `temporal.py` - Temporal client connection helper shared by API and worker; local server by default, Temporal Cloud when `TEMPORAL_API_KEY` is set.
+- `deps.py` - the FastAPI dependency providers: `SessionDep` plus the external-client deps (`LastfmClientDep`, `SpotifyClientDep`, ...), each yielding a client per request and 503ing when its settings are missing.
+- `accounts.py` - shared linked-Last.fm-account lookup used by both the API and the sync steps.
 - `observability.py` - `configure_observability()`, called once by both the API and the worker: installs the root log handler (uvicorn configures only its own loggers) and starts Sentry when `SENTRY_DSN` is set. Reporting is wired at WARNING, not Sentry's ERROR default, because that is the level this codebase logs real failures at; log records also forward to Sentry Logs alongside Render's own capture. Where each failure surfaces, and what to do about it, is `docs/operations.md`.
 
 `clients/` - external API clients:
@@ -101,8 +100,9 @@ Entrypoints (top of `app/`):
 - `event_sync.py` - refreshes upcoming events per interest artist from Ticketmaster and RA, merging cross-source duplicates onto one canonical event (see `docs/design/2026-08-09-multi-source-event-ingestion.md`, which supersedes the Bandsintown-era `docs/design/2026-07-06-event-ingestion-plan.md`).
 - `playlist_sync.py` - reconciles per-user Spotify playlists against matched shows: artist resolution, top-track cache, desired-state computation, one full-replace write per playlist whose tracklist changed (see `docs/design/2026-07-06-playlist-plan.md`); also the deletion side - unfollow tombstones, their drainer, and the bot-account orphan audit (see `docs/design/2026-07-10-playlist-deletion-plan.md`).
 - `matching.py` - the shared artist/event match pieces: known/suggested kind sets, the servable-artist filter (setting + exclusions), the match join, haversine distance.
-- `sync_workflow.py` - `SyncUserWorkflow`, the durable Temporal workflow chaining the four sync steps per user with queryable per-step progress (see `docs/design/2026-07-07-sync-orchestration-plan.md`), and `DispatchSyncsWorkflow`, the nightly re-sync running each due user as a sequential child sync (see `docs/design/2026-07-09-background-sync-plan.md`).
-- `sync_activities.py` - Temporal activities wrapping the four sync entrypoints plus the nightly dispatch bookkeeping (eligibility listing, last-synced stamp) and playlist cleanup (orphan audit, tombstone drain); each attempt opens its own session and commits.
+- `sync_runs.py` - the `sync_runs` queue: enqueue (at most one active run per user, enforced by a partial unique index), claim with `FOR UPDATE SKIP LOCKED`, the claim-fenced progress/heartbeat/finish writes, and the latest-run lookup the status endpoint serves (see `docs/design/2026-08-16-postgres-sync-queue-plan.md`).
+- `sync_pipeline.py` - the step specs and summaries, `run_sync` (executes one claimed run: the four steps in order with retries, timeouts, and live per-step progress written to the run row), and `dispatch_nightly_syncs` (the nightly re-sync: each due user one at a time, then the playlist cleanup and run pruning).
+- `sync_steps.py` - `SyncSteps`, the units of work the worker executes: the four sync entrypoints plus the playlist cleanup (orphan audit, tombstone drain) and the nightly eligibility query; each step opens its own session and commits, and fails with a `SyncStepError` carrying the only message the user sees.
 
 Everything is async end to end: endpoints, sessions, migrations (`migrations/env.py` uses the async engine and pulls the URL from `app.core.config`).
 
@@ -122,4 +122,4 @@ Important: `frontend/AGENTS.md` warns that this Next.js version has breaking cha
 
 ### Configuration
 
-All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (`LASTFM_API_KEY`, `TICKETMASTER_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup. The `TEMPORAL_*` settings default to the compose-provided Temporal server; pointing them at a Temporal Cloud namespace is the entire production switch.
+All configuration lives in a single root `.env` (see `.env.example`): Compose reads it to configure the containers, and the backend reads the same file when run outside Docker (real env vars take precedence, so compose-injected values win inside containers). Defaults cover everything except secrets (`LASTFM_API_KEY`, `TICKETMASTER_API_KEY`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`). Secrets belong in `docker-compose.yml` as `${KEY:?set in .env}` (no default) so missing values fail at startup.

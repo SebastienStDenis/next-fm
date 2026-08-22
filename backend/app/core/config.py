@@ -16,10 +16,6 @@ class Settings(BaseSettings):
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
     spotify_refresh_token: str = ""
-    temporal_address: str = "localhost:7233"
-    temporal_namespace: str = "default"
-    temporal_task_queue: str = "user-sync"
-    temporal_api_key: str = ""
     nightly_sync_enabled: bool = False
     cors_origins: str = "http://localhost:3000"
     supabase_url: str = "http://127.0.0.1:54321"

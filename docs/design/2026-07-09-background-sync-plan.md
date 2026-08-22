@@ -2,6 +2,12 @@
 
 *Written 2026-07-09 by Claude (Fable 5).*
 
+> **Status: superseded.** Implemented as designed, then moved off Temporal in
+> `docs/design/2026-08-16-postgres-sync-queue-plan.md` (August 2026). The
+> eligibility rule, ordering, cadence, one-at-a-time dispatch, and cleanup
+> described here survive; the schedule is now a loop in the worker and each
+> user's run is a `sync_runs` row.
+
 Today a user's data refreshes only when they press the Sync button. This doc
 designs the automatic background re-sync: which users get synced, in what
 order, how often, what stops syncing for users who stop showing up, and how the

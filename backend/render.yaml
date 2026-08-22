@@ -1,4 +1,4 @@
-# Render Blueprint for the FastAPI api and the Temporal worker
+# Render Blueprint for the FastAPI api and the sync worker
 services:
   - type: web
     name: next-fm-api
