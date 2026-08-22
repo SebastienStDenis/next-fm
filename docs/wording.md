@@ -150,8 +150,8 @@ non-skippable page that reuses the settings cards unchanged - **Last.fm**,
 run (the manual run just starts what then repeats). A pulsing attention dot
 on the section heading marks the next step and completed steps carry a
 green check, the sync card runs and plays back the first sync, and a
-successful run reveals the completion footer - its own centered card, "All
-set. Playlists update daily." above a go-to-dashboard button (see
+successful run reveals the completion footer - "All set. Playlists update
+daily." beside a go-to-dashboard button (see
 `docs/design/2026-07-12-welcome-flow-plan.md`).
 
 ## Section and tab names
