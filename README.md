@@ -10,7 +10,7 @@ A website for live-music discovery that works through listening instead of listi
 
 ## Stack
 
-Full-stack monorepo: FastAPI backend, Next.js frontend, Supabase for Postgres and auth, Docker Compose for the app services and Temporal.
+Full-stack monorepo: FastAPI backend, Next.js frontend, Supabase for Postgres and auth, Docker Compose for the app services.
 
 ### Backend (`backend/`)
 - Python 3.14, dependencies and environments managed with [uv](https://docs.astral.sh/uv/)
@@ -31,7 +31,7 @@ Full-stack monorepo: FastAPI backend, Next.js frontend, Supabase for Postgres an
 
 ```sh
 supabase start                                          # database, auth, Studio, Mailpit
-docker compose up --build                               # API, web, Temporal, worker
+docker compose up --build                               # API, web, sync worker
 docker compose run --rm api uv run python -m cli.seed   # first run only: seed the cities table
 ```
 
@@ -44,7 +44,7 @@ docker compose run --rm api uv run python -m cli.seed   # first run only: seed t
 `docker compose up` runs the app services:
 - API on <http://localhost:8000> (applies migrations on startup, hot reload)
 - Web on <http://localhost:3000> (hot reload)
-- Temporal on `localhost:7233` (UI on <http://localhost:8080>) and the sync worker
+- The sync worker (serves the `sync_runs` queue; `docker compose logs -f worker`)
 
 Tear down with `docker compose down` and, when done, `supabase stop`.
 
@@ -59,7 +59,7 @@ Re-run the same command any time to refresh the city data.
 Host ports are configurable, so a second app stack (e.g. from a git worktree) can run alongside the main one under its own project name; both share the single Supabase stack:
 
 ```sh
-API_PORT=8001 WEB_PORT=3001 TEMPORAL_PORT=7234 TEMPORAL_UI_PORT=8081 docker compose -p my-branch up -d --build
+API_PORT=8001 WEB_PORT=3001 docker compose -p my-branch up -d --build
 docker compose -p my-branch down -v           # tear it down
 ```
 

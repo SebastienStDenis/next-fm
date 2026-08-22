@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Run the app stack (api, web, temporal, worker) for the current worktree.
+# Run the app stack (api, web, worker) for the current worktree.
 #
 # - Picks its own free host ports so it can run alongside the main stack and
 #   other worktrees.
@@ -62,13 +62,11 @@ compose_port() { docker compose -p "$PROJECT" port "$1" "$2" 2>/dev/null | awk -
 API_PORT="$(compose_port api 8000)"
 if [ -n "$API_PORT" ]; then
   WEB_PORT="$(compose_port web 3000)"
-  TEMPORAL_PORT="$(compose_port temporal 7233)"
-  TEMPORAL_UI_PORT="$(compose_port temporal 8233)"
   log "Reusing running stack's ports"
 else
-  read -r API_PORT WEB_PORT TEMPORAL_PORT TEMPORAL_UI_PORT < <(python3 - <<'PY'
+  read -r API_PORT WEB_PORT < <(python3 - <<'PY'
 import socket
-socks = [socket.socket() for _ in range(4)]
+socks = [socket.socket() for _ in range(2)]
 for s in socks:
     s.bind(("127.0.0.1", 0))
 print(*[s.getsockname()[1] for s in socks])
@@ -83,9 +81,8 @@ WEB_URL="http://localhost:$WEB_PORT"
 API_URL="http://localhost:$API_PORT"
 MAILPIT_URL="http://localhost:$MAILPIT_PORT"
 
-log "Bringing up '$PROJECT' (api:$API_PORT web:$WEB_PORT temporal:$TEMPORAL_PORT ui:$TEMPORAL_UI_PORT)"
+log "Bringing up '$PROJECT' (api:$API_PORT web:$WEB_PORT)"
 API_PORT="$API_PORT" WEB_PORT="$WEB_PORT" \
-TEMPORAL_PORT="$TEMPORAL_PORT" TEMPORAL_UI_PORT="$TEMPORAL_UI_PORT" \
   docker compose -p "$PROJECT" up -d --build
 
 # --- Wait for the web server, then open the browser -----------------------
@@ -110,7 +107,6 @@ cat <<SUMMARY
   Stack '$PROJECT' is up:
     web       $WEB_URL
     api       $API_URL  ($API_URL/docs)
-    temporal  ui http://localhost:$TEMPORAL_UI_PORT
     mailpit   $MAILPIT_URL   (shared)
 
   Logs: docker compose -p $PROJECT logs -f

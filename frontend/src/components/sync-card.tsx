@@ -84,7 +84,7 @@ export function SyncCard({
   const [expanded, setExpanded] = useState(false);
   const [starting, startTransition] = useTransition();
 
-  // Loaded client-side so the page never waits on Temporal to render.
+  // Loaded client-side so the page never waits on the status call to render.
   useEffect(() => {
     let cancelled = false;
     fetchStatus().then((next) => {

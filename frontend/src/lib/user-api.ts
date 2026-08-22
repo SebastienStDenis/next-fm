@@ -32,7 +32,7 @@ export async function fetchJson<T>(path: string, what: string): Promise<T> {
   return res.json();
 }
 
-// The latest sync run, if any. Best-effort: any transport or Temporal error
+// The latest sync run, if any. Best-effort: any transport or API error
 // resolves to null so the page never breaks over status hints.
 export async function loadSyncStatus(): Promise<SyncStatus | null> {
   try {

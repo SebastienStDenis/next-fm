@@ -1,11 +1,12 @@
-"""Temporal activities wrapping the four per-user sync entrypoints, plus the
-bookkeeping the nightly dispatch needs (eligibility check and the last-synced
-stamp) and the playlist cleanup tasks (orphan audit and tombstone drain).
+"""The units of work the sync worker executes: the four per-user sync steps,
+the playlist cleanup tasks (orphan audit and tombstone drain), and the
+nightly dispatch's eligibility query.
 
-Each activity is its own transaction: it opens a fresh session, re-fetches the
-user, runs the existing sync module unchanged, and commits. The API clients are
-owned by the parent worker process for its whole lifetime for centralized
-throughput management.
+Each step is its own transaction: it opens a fresh session, re-fetches the
+user, runs the existing sync module unchanged, and commits. The API clients
+are owned by the worker process for its whole lifetime for centralized
+throughput management. Failures surface as `SyncStepError`, which carries the
+only message the user will see and whether a retry could help.
 """
 
 import contextlib
@@ -16,8 +17,6 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from temporalio import activity
-from temporalio.exceptions import ApplicationError
 
 from app.clients.lastfm import LastfmClient, LastfmPrivateDataError
 from app.clients.musicbrainz import MusicBrainzClient
@@ -49,11 +48,21 @@ logger = logging.getLogger(__name__)
 # would skip users whose previous run finished minutes after the firing time.
 SYNC_FRESHNESS_WINDOW = timedelta(hours=20)
 
-# Simple user-facing error messages. The real failure stays in the logs and in Temporal history.
+# Simple user-facing error messages. The real failure stays in the logs and in the run row.
 STEP_FAILED_ARTISTS = "We couldn't import your Last.fm listening history. Please try again."
 STEP_FAILED_SUGGESTIONS = "We couldn't refresh your artist suggestions. Please try again."
 STEP_FAILED_EVENTS = "We couldn't check for upcoming concerts. Please try again."
 STEP_FAILED_PLAYLISTS = "We couldn't update your Spotify playlists. Please try again."
+
+
+class SyncStepError(Exception):
+    """A sync step failed with a message safe to show the user; `retryable`
+    says whether another attempt could succeed."""
+
+    def __init__(self, message: str, *, retryable: bool = True) -> None:
+        super().__init__(message)
+        self.message = message
+        self.retryable = retryable
 
 
 @contextlib.asynccontextmanager
@@ -61,34 +70,34 @@ async def _user_facing_errors(fallback: str) -> AsyncIterator[None]:
     """Ensure a failing sync step surfaces only a message safe for the user."""
     try:
         yield
-    except ApplicationError:
+    except SyncStepError:
         raise
     except LastfmPrivateDataError as exc:
         # Phrased for the user and fixable only by them - never worth a retry.
-        raise ApplicationError(str(exc), non_retryable=True) from exc
+        raise SyncStepError(str(exc), retryable=False) from exc
     except SpotifyAuthError as exc:
         # The detail names an operator-only CLI step; the user can only wait.
         logger.warning("Spotify authorization failed during sync", exc_info=exc)
-        raise ApplicationError(
+        raise SyncStepError(
             "Spotify is temporarily unavailable. Please try again later.",
-            non_retryable=True,
+            retryable=False,
         ) from exc
     except Exception as exc:
         logger.warning("Sync step failed: %s", fallback, exc_info=exc)
-        raise ApplicationError(fallback) from exc
+        raise SyncStepError(fallback) from exc
 
 
-async def _require_user(session: AsyncSession, user_id: str) -> User:
-    user = await session.get(User, uuid.UUID(user_id))
+async def _require_user(session: AsyncSession, user_id: uuid.UUID) -> User:
+    user = await session.get(User, user_id)
     if user is None:
-        raise ApplicationError("User not found", non_retryable=True)
+        raise SyncStepError("User not found", retryable=False)
     return user
 
 
 async def _require_lastfm_account(session: AsyncSession, user_id: uuid.UUID) -> LastfmAccount:
     account = await linked_lastfm_account(session, user_id)
     if account is None:
-        raise ApplicationError("No Last.fm account linked", non_retryable=True)
+        raise SyncStepError("No Last.fm account linked", retryable=False)
     return account
 
 
@@ -96,10 +105,10 @@ def _require_home_city(user: User) -> None:
     # The pipeline is all-or-nothing: without a city there is no playlist to
     # build, so fail on step 1 instead of running a partial sync.
     if user.city_id is None:
-        raise ApplicationError("No home city set", non_retryable=True)
+        raise SyncStepError("No home city set", retryable=False)
 
 
-class SyncActivities:
+class SyncSteps:
     def __init__(
         self,
         lastfm: LastfmClient,
@@ -114,8 +123,7 @@ class SyncActivities:
         self._spotify = spotify
         self._musicbrainz = musicbrainz
 
-    @activity.defn
-    async def sync_artists(self, user_id: str) -> ArtistSyncResult:
+    async def sync_artists(self, user_id: uuid.UUID) -> ArtistSyncResult:
         async with _user_facing_errors(STEP_FAILED_ARTISTS), session_factory() as session:
             user = await _require_user(session, user_id)
             _require_home_city(user)
@@ -126,8 +134,7 @@ class SyncActivities:
             await session.commit()
             return ArtistSyncResult(synced_at=datetime.now(UTC), results=results)
 
-    @activity.defn
-    async def sync_suggestions(self, user_id: str) -> SuggestionSyncResult:
+    async def sync_suggestions(self, user_id: uuid.UUID) -> SuggestionSyncResult:
         async with _user_facing_errors(STEP_FAILED_SUGGESTIONS), session_factory() as session:
             user = await _require_user(session, user_id)
             account = await _require_lastfm_account(session, user.id)
@@ -137,16 +144,14 @@ class SyncActivities:
             await session.commit()
             return result
 
-    @activity.defn
-    async def sync_events(self, user_id: str) -> EventSyncResult:
+    async def sync_events(self, user_id: uuid.UUID) -> EventSyncResult:
         async with _user_facing_errors(STEP_FAILED_EVENTS), session_factory() as session:
             user = await _require_user(session, user_id)
             result = await sync_user_events(session, self._ticketmaster, self._ra, user)
             await session.commit()
             return result
 
-    @activity.defn
-    async def sync_playlists(self, user_id: str) -> PlaylistSyncResult:
+    async def sync_playlists(self, user_id: uuid.UUID) -> PlaylistSyncResult:
         async with _user_facing_errors(STEP_FAILED_PLAYLISTS), session_factory() as session:
             user = await _require_user(session, user_id)
             result = await sync_user_playlists(
@@ -155,29 +160,19 @@ class SyncActivities:
             await session.commit()
             return result
 
-    @activity.defn
-    async def record_sync_completed(self, user_id: str) -> None:
-        async with session_factory() as session:
-            user = await _require_user(session, user_id)
-            user.last_synced_at = datetime.now(UTC)
-            await session.commit()
-
-    @activity.defn
     async def audit_bot_playlists(self) -> int:
         async with session_factory() as session:
             found = await audit_bot_playlists(session, self._spotify)
             await session.commit()
             return found
 
-    @activity.defn
     async def drain_playlist_tombstones(self) -> TombstoneDrainResult:
         async with session_factory() as session:
             result = await drain_playlist_tombstones(session, self._spotify)
             await session.commit()
             return result
 
-    @activity.defn
-    async def list_users_due_for_sync(self) -> list[str]:
+    async def list_users_due_for_sync(self) -> list[uuid.UUID]:
         now = datetime.now(UTC)
         async with session_factory() as session:
             result = await session.execute(
@@ -192,4 +187,4 @@ class SyncActivities:
                 )
                 .order_by(User.last_synced_at.asc().nulls_first())
             )
-            return [str(user_id) for user_id in result.scalars()]
+            return list(result.scalars())

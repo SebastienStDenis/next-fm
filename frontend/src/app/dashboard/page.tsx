@@ -67,8 +67,8 @@ export default async function DashboardPage() {
   const [lastfm, city, userArtists, playlists, sync, email] =
     await dataPromise;
   // The dashboard requires a linked Last.fm account, a home city and a
-  // successful sync (`last_synced_at`, a durable DB stamp independent of
-  // Temporal retention); anyone short of that goes through the welcome flow
+  // successful sync (`last_synced_at`, a durable stamp independent of how
+  // long run rows are kept); anyone short of that goes through the welcome flow
   // instead. This is the exact inverse of the welcome footer's reveal gate,
   // so the two never disagree on whether a user is onboarded. A failed-only
   // run doesn't admit them: the dashboard is empty without a successful sync,

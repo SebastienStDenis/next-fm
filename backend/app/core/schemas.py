@@ -121,8 +121,7 @@ class EventSyncResult(BaseModel):
     events_updated: int
     events_removed: int
     # The user's full upcoming-concert count after the run, not a delta.
-    # Defaulted so Temporal can replay histories recorded before this field.
-    events_total: int = 0
+    events_total: int
 
 
 class ArtistSyncKindResult(BaseModel):
@@ -148,9 +147,8 @@ class SuggestionSyncResult(BaseModel):
     suggestions_created: int
     suggestions_kept: int
     suggestions_removed: int
-    # Defaulted so Temporal can replay histories recorded before these fields.
-    artists_enriched: int = 0
-    artists_enrich_failed: int = 0
+    artists_enriched: int
+    artists_enrich_failed: int
 
 
 class PlaylistTrackRead(BaseModel):
@@ -212,12 +210,8 @@ class SyncStepProgress(BaseModel):
     finished_at: datetime | None = None
 
 
-class SyncRunResult(BaseModel):
-    steps: list[SyncStepProgress]
-
-
 class SyncStartResult(BaseModel):
-    workflow_id: str
+    run_id: uuid.UUID
     status: Literal["running"] = "running"
 
 
@@ -231,13 +225,3 @@ class SyncStatusResult(BaseModel):
 class TombstoneDrainResult(BaseModel):
     drained: int
     pending: int
-
-
-class DispatchSyncsResult(BaseModel):
-    dispatched: int
-    succeeded: int
-    failed: int
-    skipped: int
-    orphans_found: int = 0
-    tombstones_drained: int = 0
-    tombstones_pending: int = 0
