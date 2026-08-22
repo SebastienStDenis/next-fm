@@ -39,6 +39,14 @@ def event_payload(**overrides: object) -> dict:
     return payload
 
 
+def attraction_event(external_id: str, *attraction_ids: str) -> dict:
+    payload = event_payload(id=external_id)
+    payload["_embedded"]["attractions"] = [
+        {"id": attraction_id, "name": attraction_id} for attraction_id in attraction_ids
+    ]
+    return payload
+
+
 def test_parse_event_maps_fields() -> None:
     data = _parse_event(event_payload())
     assert data is not None
@@ -126,6 +134,19 @@ async def test_find_attraction_id_without_match_is_none() -> None:
     assert await client.find_attraction_id("Metallica") is None
 
 
+async def test_find_attraction_ids_isolates_per_artist_errors() -> None:
+    client = TicketmasterClient("key")
+    client.find_attraction_id = AsyncMock(
+        side_effect=["K1", TicketmasterApiError(500, "boom"), None]
+    )
+
+    results = await client.find_attraction_ids(["One", "Two", "Three"])
+
+    assert results[0] == "K1"
+    assert isinstance(results[1], TicketmasterApiError)
+    assert results[2] is None
+
+
 async def test_get_attraction_events_walks_pages() -> None:
     client = TicketmasterClient("key")
     client._get = AsyncMock(
@@ -142,6 +163,127 @@ async def test_get_attraction_events_walks_pages() -> None:
     )
     events = await client.get_attraction_events("K2")
     assert [event.external_id for event in events] == ["vvG1zZ9pqcAKdN", "second"]
+
+
+async def test_get_attractions_events_maps_shared_events_and_walks_pages() -> None:
+    client = TicketmasterClient("key")
+    client._get = AsyncMock(
+        side_effect=[
+            {
+                "_embedded": {
+                    "events": [
+                        attraction_event("one", "K1"),
+                        attraction_event("shared", "K1", "K2"),
+                    ]
+                },
+                "page": {"totalElements": 3, "totalPages": 2},
+            },
+            {
+                "_embedded": {"events": [attraction_event("two", "K2")]},
+                "page": {"totalElements": 3, "totalPages": 2},
+            },
+        ]
+    )
+
+    results = await client.get_attractions_events(["K1", "K2"])
+
+    assert [
+        [event.external_id for event in events] for events in results if isinstance(events, list)
+    ] == [
+        ["one", "shared"],
+        ["shared", "two"],
+    ]
+    assert client._get.await_args_list[0].args[1]["attractionId"] == "K1,K2"
+
+
+async def test_get_attractions_events_splits_batches_over_paging_limit() -> None:
+    client = TicketmasterClient("key")
+    client._get = AsyncMock(
+        side_effect=[
+            {"page": {"totalElements": 1001, "totalPages": 6}},
+            {
+                "_embedded": {"events": [attraction_event("one", "K1")]},
+                "page": {"totalElements": 1, "totalPages": 1},
+            },
+            {
+                "_embedded": {"events": [attraction_event("two", "K2")]},
+                "page": {"totalElements": 1, "totalPages": 1},
+            },
+        ]
+    )
+
+    results = await client.get_attractions_events(["K1", "K2"])
+
+    assert [
+        [event.external_id for event in events] for events in results if isinstance(events, list)
+    ] == [
+        ["one"],
+        ["two"],
+    ]
+    assert [call.args[1]["attractionId"] for call in client._get.await_args_list] == [
+        "K1,K2",
+        "K1",
+        "K2",
+    ]
+
+
+async def test_get_attractions_events_preserves_successful_split_half() -> None:
+    client = TicketmasterClient("key")
+    client._get = AsyncMock(
+        side_effect=[
+            {"page": {"totalElements": 1001, "totalPages": 6}},
+            {
+                "_embedded": {"events": [attraction_event("one", "K1")]},
+                "page": {"totalElements": 1, "totalPages": 1},
+            },
+            TicketmasterApiError(500, "boom"),
+        ]
+    )
+
+    results = await client.get_attractions_events(["K1", "K2"])
+
+    assert not isinstance(results[0], TicketmasterApiError)
+    assert [event.external_id for event in results[0]] == ["one"]
+    assert isinstance(results[1], TicketmasterApiError)
+
+
+async def test_get_attractions_events_preserves_alignment_through_nested_splits() -> None:
+    client = TicketmasterClient("key")
+
+    async def get(path: str, params: dict) -> dict:
+        attraction_ids = params["attractionId"]
+        if attraction_ids == "K1,K2,K3,K4":
+            return {
+                "_embedded": {"events": [attraction_event("unattributed", "other")]},
+                "page": {"totalElements": 1, "totalPages": 1},
+            }
+        if attraction_ids == "K1,K2":
+            return {"page": {"totalElements": 1001, "totalPages": 6}}
+        if attraction_ids == "K1":
+            return {
+                "_embedded": {"events": [attraction_event("one", "K1")]},
+                "page": {"totalElements": 1, "totalPages": 1},
+            }
+        if attraction_ids == "K2":
+            raise TicketmasterApiError(500, "boom")
+        return {
+            "_embedded": {
+                "events": [attraction_event("three", "K3"), attraction_event("four", "K4")]
+            },
+            "page": {"totalElements": 2, "totalPages": 1},
+        }
+
+    client._get = AsyncMock(side_effect=get)
+
+    results = await client.get_attractions_events(["K1", "K2", "K3", "K4"])
+
+    assert not isinstance(results[0], TicketmasterApiError)
+    assert [event.external_id for event in results[0]] == ["one"]
+    assert isinstance(results[1], TicketmasterApiError)
+    assert not isinstance(results[2], TicketmasterApiError)
+    assert [event.external_id for event in results[2]] == ["three"]
+    assert not isinstance(results[3], TicketmasterApiError)
+    assert [event.external_id for event in results[3]] == ["four"]
 
 
 async def test_rate_limit_is_retried_after_backoff(monkeypatch: pytest.MonkeyPatch) -> None:

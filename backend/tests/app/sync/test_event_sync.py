@@ -5,8 +5,16 @@ from unittest.mock import AsyncMock, MagicMock
 from app.clients.ra import RaApiError, RaClient
 from app.clients.source_events import SourceEventData
 from app.clients.ticketmaster import TicketmasterApiError, TicketmasterClient
-from app.core.models import Artist, Event, RaArtist, RaEvent, TicketmasterArtist, User
-from app.sync.event_sync import _adopt, sync_user_events
+from app.core.models import (
+    Artist,
+    Event,
+    RaArtist,
+    RaEvent,
+    TicketmasterArtist,
+    TicketmasterEvent,
+    User,
+)
+from app.sync.event_sync import _adopt, _fetch_artist_events, _Source, sync_user_events
 from tests.helpers import (
     added_objects,
     make_session,
@@ -75,6 +83,58 @@ def fresh(identity: TicketmasterArtist | RaArtist) -> TicketmasterArtist | RaArt
     return identity
 
 
+async def test_fetch_artist_events_batches_resolution_and_fetching() -> None:
+    artists = [Artist(id=uuid.uuid7(), name=f"Artist {index}") for index in range(11)]
+    resolve_many = AsyncMock(side_effect=lambda names: [f"id-{name}" for name in names])
+    fetch_many = AsyncMock(
+        side_effect=lambda external_ids: [
+            [event_data(f"event-{external_id}")] for external_id in external_ids
+        ]
+    )
+    source = _Source(
+        TicketmasterArtist,
+        TicketmasterEvent,
+        resolve_many,
+        fetch_many,
+        10,
+        (TicketmasterApiError,),
+        (),
+    )
+
+    results = await _fetch_artist_events(source, artists, {})
+
+    assert [len(call.args[0]) for call in resolve_many.await_args_list] == [10, 1]
+    assert [len(call.args[0]) for call in fetch_many.await_args_list] == [10, 1]
+    assert [status for status, _, _ in results] == ["synced"] * 11
+    assert [events[0].external_id for _, _, events in results] == [
+        f"event-id-Artist {index}" for index in range(11)
+    ]
+
+
+async def test_fetch_artist_events_preserves_per_artist_outcomes() -> None:
+    artists = [Artist(id=uuid.uuid7(), name=f"Artist {index}") for index in range(3)]
+    resolve_many = AsyncMock(return_value=["id-0", TicketmasterApiError(500, "boom"), None])
+    fetch_many = AsyncMock(return_value=[[event_data("event-0")]])
+    source = _Source(
+        TicketmasterArtist,
+        TicketmasterEvent,
+        resolve_many,
+        fetch_many,
+        10,
+        (TicketmasterApiError,),
+        (),
+    )
+
+    results = await _fetch_artist_events(source, artists, {})
+
+    assert [(status, external_id) for status, external_id, _ in results] == [
+        ("synced", "id-0"),
+        ("failed", None),
+        ("unknown", None),
+    ]
+    fetch_many.assert_awaited_once_with(["id-0"])
+
+
 def make_clients(
     tm_events: list[SourceEventData] | Exception | None = None,
     ra_events: list[SourceEventData] | Exception | None = None,
@@ -82,17 +142,19 @@ def make_clients(
     ra_resolved: str | None = "966",
 ) -> tuple[AsyncMock, AsyncMock]:
     ticketmaster = AsyncMock(spec=TicketmasterClient)
-    ticketmaster.find_attraction_id.return_value = tm_resolved
+    ticketmaster.find_attraction_ids.side_effect = lambda names: [tm_resolved for _ in names]
     if isinstance(tm_events, Exception):
-        ticketmaster.get_attraction_events.side_effect = tm_events
+        ticketmaster.get_attractions_events.side_effect = tm_events
     else:
-        ticketmaster.get_attraction_events.return_value = tm_events or []
+        ticketmaster.get_attractions_events.side_effect = lambda attraction_ids: [
+            tm_events or [] for _ in attraction_ids
+        ]
     ra = AsyncMock(spec=RaClient)
-    ra.find_artist_id.return_value = ra_resolved
+    ra.find_artist_ids.side_effect = lambda names: [ra_resolved for _ in names]
     if isinstance(ra_events, Exception):
-        ra.get_artist_events.side_effect = ra_events
+        ra.get_artists_events.side_effect = ra_events
     else:
-        ra.get_artist_events.return_value = ra_events or []
+        ra.get_artists_events.side_effect = lambda artist_ids: [ra_events or [] for _ in artist_ids]
     return ticketmaster, ra
 
 
@@ -136,7 +198,7 @@ async def test_sync_creates_events_for_new_artist() -> None:
     assert tm_identity.last_synced_at is not None
     assert ra_identity.external_id is None
     assert ra_identity.last_synced_at is not None  # unknown retries only after the TTL
-    ra.get_artist_events.assert_not_awaited()
+    ra.get_artists_events.assert_not_awaited()
 
 
 async def test_ra_record_of_a_ticketmaster_event_merges_without_touching_fields() -> None:
@@ -171,7 +233,7 @@ async def test_ra_record_of_a_ticketmaster_event_merges_without_touching_fields(
     assert result.events_updated == 1
     assert result.artists_synced == 1
     assert result.artists_skipped == 0
-    ticketmaster.get_attraction_events.assert_not_awaited()
+    ticketmaster.get_attractions_events.assert_not_awaited()
 
 
 async def test_ra_owns_fields_of_events_without_ticketmaster_row() -> None:
@@ -294,8 +356,8 @@ async def test_fresh_identities_skip_both_sources() -> None:
     assert result.artists_skipped == 1
     assert result.artists_synced == 0
     assert result.events_total == 5
-    ticketmaster.get_attraction_events.assert_not_awaited()
-    ra.get_artist_events.assert_not_awaited()
+    ticketmaster.get_attractions_events.assert_not_awaited()
+    ra.get_artists_events.assert_not_awaited()
 
 
 async def test_unresolved_artists_are_reprobed_weekly_not_daily() -> None:
@@ -321,8 +383,8 @@ async def test_unresolved_artists_are_reprobed_weekly_not_daily() -> None:
 
     result = await sync_user_events(session, ticketmaster, ra, user())
 
-    ticketmaster.find_attraction_id.assert_not_awaited()
-    ra.get_artist_events.assert_awaited_once_with("966")
+    ticketmaster.find_attraction_ids.assert_not_awaited()
+    ra.get_artists_events.assert_awaited_once_with(["966"])
     assert result.artists_synced == 1
 
 

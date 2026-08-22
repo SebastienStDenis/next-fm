@@ -79,10 +79,56 @@ async def test_find_artist_id_without_match_is_none() -> None:
     assert await client.find_artist_id("Ben Klock") is None
 
 
+async def test_find_artist_ids_maps_aliases_and_isolates_errors() -> None:
+    client = RaClient()
+    client._query_partial = AsyncMock(
+        return_value=(
+            {
+                "artist0": [{"id": "966", "value": "ben klock"}],
+                "artist1": None,
+                "artist2": [{"id": "2", "value": "Other"}],
+            },
+            [{"message": "gone", "path": ["artist1"]}],
+        )
+    )
+
+    results = await client.find_artist_ids(["Ben Klock", "Broken", "Missing"])
+
+    assert results[0] == "966"
+    assert isinstance(results[1], RaApiError)
+    assert results[2] is None
+
+
+async def test_find_artist_ids_fails_a_missing_alias() -> None:
+    client = RaClient()
+    client._query_partial = AsyncMock(return_value=({"artist0": []}, []))
+
+    results = await client.find_artist_ids(["Known", "Missing"])
+
+    assert results[0] is None
+    assert isinstance(results[1], RaApiError)
+
+
 async def test_get_artist_events_for_vanished_artist_is_empty() -> None:
     client = RaClient()
     client._query = AsyncMock(return_value={"artist": None})
     assert await client.get_artist_events("966") == []
+
+
+async def test_get_artists_events_maps_aliases_and_isolates_errors() -> None:
+    client = RaClient()
+    client._query_partial = AsyncMock(
+        return_value=(
+            {"artist0": {"events": [event_payload()]}, "artist1": None},
+            [{"message": "gone", "path": ["artist1"]}],
+        )
+    )
+
+    results = await client.get_artists_events(["966", "999"])
+
+    assert not isinstance(results[0], RaApiError)
+    assert [event.external_id for event in results[0]] == ["2329592"]
+    assert isinstance(results[1], RaApiError)
 
 
 async def test_graphql_errors_raise() -> None:
@@ -95,6 +141,22 @@ async def test_graphql_errors_raise() -> None:
     client._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     with pytest.raises(RaApiError, match="Something went wrong"):
         await client.get_artist_events("966")
+
+
+async def test_partial_graphql_errors_with_null_data_raise() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "errors": [{"message": "Artist unavailable", "path": ["artist0"]}],
+                "data": None,
+            },
+        )
+
+    client = RaClient()
+    client._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(RaApiError, match="Artist unavailable"):
+        await client.get_artists_events(["966"])
 
 
 async def test_http_error_raises() -> None:

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import httpx
@@ -11,6 +12,7 @@ API_URL = "https://app.ticketmaster.com/discovery/v2"
 PAGE_SIZE = 200
 # Discovery paging is capped at size * page <= 1000 results.
 MAX_PAGES = 5
+BATCH_SIZE = 10
 REQUEST_INTERVAL = 0.25  # Ticketmaster allows 5 requests/second
 # The throttle sits under the documented rate, yet a small share of requests
 # still get 429s from Ticketmaster's own burst accounting; a short backoff
@@ -47,29 +49,104 @@ class TicketmasterClient:
                 return str(attraction["id"])
         return None
 
+    async def find_attraction_ids(
+        self, names: Sequence[str]
+    ) -> list[str | None | TicketmasterApiError]:
+        semaphore = asyncio.Semaphore(4)
+
+        async def resolve(name: str) -> str | None | TicketmasterApiError:
+            async with semaphore:
+                try:
+                    return await self.find_attraction_id(name)
+                except TicketmasterApiError as exc:
+                    return exc
+
+        return list(await asyncio.gather(*(resolve(name) for name in names)))
+
     async def get_attraction_events(self, attraction_id: str) -> list[SourceEventData]:
         """The attraction's upcoming events (Discovery serves only future
         dates), skipping cancelled ones and ones the schema can't represent."""
-        events: list[SourceEventData] = []
-        page = 0
-        while True:
-            payload = await self._get(
-                "/events.json",
-                {
-                    "attractionId": attraction_id,
-                    "size": PAGE_SIZE,
-                    "page": page,
-                    "sort": "date,asc",
-                },
-            )
-            for raw in (payload.get("_embedded") or {}).get("events") or []:
-                parsed = _parse_event(raw)
-                if parsed is not None:
+        result = (await self.get_attractions_events([attraction_id]))[0]
+        if isinstance(result, TicketmasterApiError):
+            raise result
+        return result
+
+    async def get_attractions_events(
+        self, attraction_ids: Sequence[str]
+    ) -> list[list[SourceEventData] | TicketmasterApiError]:
+        """Upcoming events aligned with the requested attraction ids."""
+        unique_ids = list(dict.fromkeys(attraction_ids))
+        events_by_id = await self._get_attractions_events_batch(unique_ids)
+        return [events_by_id.get(attraction_id, []) for attraction_id in attraction_ids]
+
+    async def _get_attractions_events_batch(
+        self, attraction_ids: list[str]
+    ) -> dict[str, list[SourceEventData] | TicketmasterApiError]:
+        if not attraction_ids:
+            return {}
+
+        payload = await self._get_events_page(attraction_ids, 0)
+        page = payload.get("page") or {}
+        total_elements = page.get("totalElements") or 0
+        if total_elements > PAGE_SIZE * MAX_PAGES and len(attraction_ids) > 1:
+            return await self._split_attraction_batch(attraction_ids)
+
+        raw_events = list((payload.get("_embedded") or {}).get("events") or [])
+        total_pages = page.get("totalPages") or 0
+        for page_number in range(1, min(total_pages, MAX_PAGES)):
+            payload = await self._get_events_page(attraction_ids, page_number)
+            raw_events.extend((payload.get("_embedded") or {}).get("events") or [])
+
+        requested = set(attraction_ids)
+        events_by_id: dict[str, list[SourceEventData] | TicketmasterApiError] = {
+            attraction_id: [] for attraction_id in attraction_ids
+        }
+        for raw in raw_events:
+            matching_ids = requested & {
+                str(attraction["id"])
+                for attraction in (raw.get("_embedded") or {}).get("attractions") or []
+                if attraction.get("id")
+            }
+            if not matching_ids and len(attraction_ids) > 1:
+                return await self._split_attraction_batch(attraction_ids)
+            parsed = _parse_event(raw)
+            if parsed is None:
+                continue
+            for attraction_id in matching_ids or requested:
+                events = events_by_id[attraction_id]
+                if isinstance(events, list):
                     events.append(parsed)
-            page += 1
-            total_pages = (payload.get("page") or {}).get("totalPages") or 0
-            if page >= min(total_pages, MAX_PAGES):
-                return events
+        return events_by_id
+
+    async def _split_attraction_batch(
+        self, attraction_ids: list[str]
+    ) -> dict[str, list[SourceEventData] | TicketmasterApiError]:
+        midpoint = len(attraction_ids) // 2
+        split_ids = (attraction_ids[:midpoint], attraction_ids[midpoint:])
+        halves = await asyncio.gather(
+            *(self._get_attractions_events_batch(ids) for ids in split_ids),
+            return_exceptions=True,
+        )
+        combined: dict[str, list[SourceEventData] | TicketmasterApiError] = {}
+        for ids, half in zip(split_ids, halves, strict=True):
+            if isinstance(half, TicketmasterApiError):
+                combined.update(dict.fromkeys(ids, half))
+            elif isinstance(half, BaseException):
+                raise half
+            else:
+                combined.update(half)
+        return combined
+
+    async def _get_events_page(self, attraction_ids: Sequence[str], page: int) -> dict:
+        return await self._get(
+            "/events.json",
+            {
+                "attractionId": ",".join(attraction_ids),
+                "size": PAGE_SIZE,
+                "page": page,
+                "sort": "date,asc",
+            },
+        )
 
     async def _get(self, path: str, params: dict) -> dict:
         for attempt in range(1, RATE_LIMIT_ATTEMPTS + 1):

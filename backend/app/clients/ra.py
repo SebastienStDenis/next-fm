@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import httpx
@@ -18,6 +19,7 @@ USER_AGENT = (
     " (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 )
 EVENTS_LIMIT = 100
+BATCH_SIZE = 10
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,20 @@ query ArtistUpcomingEvents($artistId: ID!, $limit: Int!) {
 }
 """
 
+EVENT_FIELDS = """
+id
+title
+startTime
+contentUrl
+artists { name }
+venue {
+  name
+  address
+  location { latitude longitude }
+  area { name country { name } }
+}
+"""
+
 
 class RaApiError(Exception):
     def __init__(self, status_code: int, message: str | None) -> None:
@@ -77,6 +93,42 @@ class RaClient:
                 return str(hit["id"])
         return None
 
+    async def find_artist_ids(self, names: Sequence[str]) -> list[str | None | RaApiError]:
+        if not names:
+            return []
+        definitions = ", ".join(f"$name{index}: String!" for index in range(len(names)))
+        fields = "\n".join(
+            f"artist{index}: search(searchTerm: $name{index}, indices: [ARTIST], limit: 10)"
+            " { id value }"
+            for index in range(len(names))
+        )
+        data, errors = await self._query_partial(
+            "BatchSearchArtists",
+            f"query BatchSearchArtists({definitions}) {{ {fields} }}",
+            {f"name{index}": name for index, name in enumerate(names)},
+        )
+        errors_by_alias = _errors_by_alias(errors)
+        results: list[str | None | RaApiError] = []
+        for index, name in enumerate(names):
+            alias = f"artist{index}"
+            if error := errors_by_alias.get(alias):
+                results.append(error)
+                continue
+            if alias not in data:
+                results.append(RaApiError(200, f"Response missing {alias}"))
+                continue
+            wanted = lookup_key(name)
+            match = next(
+                (
+                    hit
+                    for hit in data.get(alias) or []
+                    if hit.get("id") and lookup_key(hit.get("value") or "") == wanted
+                ),
+                None,
+            )
+            results.append(str(match["id"]) if match else None)
+        return results
+
     async def get_artist_events(self, artist_id: str) -> list[SourceEventData]:
         """The artist's upcoming events, skipping ones the schema can't
         represent (TBA venues carry (0, 0) coordinates and are dropped)."""
@@ -89,7 +141,55 @@ class RaClient:
         events = (_parse_event(event) for event in artist.get("events") or [])
         return [event for event in events if event is not None]
 
+    async def get_artists_events(
+        self, artist_ids: Sequence[str]
+    ) -> list[list[SourceEventData] | RaApiError]:
+        if not artist_ids:
+            return []
+        definitions = ", ".join(
+            [
+                *(f"$artist{index}: ID!" for index in range(len(artist_ids))),
+                "$limit: Int!",
+            ]
+        )
+        fields = "\n".join(
+            f"artist{index}: artist(id: $artist{index})"
+            f" {{ events(limit: $limit, type: LATEST) {{ {EVENT_FIELDS} }} }}"
+            for index in range(len(artist_ids))
+        )
+        data, errors = await self._query_partial(
+            "BatchArtistUpcomingEvents",
+            f"query BatchArtistUpcomingEvents({definitions}) {{ {fields} }}",
+            {
+                **{f"artist{index}": artist_id for index, artist_id in enumerate(artist_ids)},
+                "limit": EVENTS_LIMIT,
+            },
+        )
+        errors_by_alias = _errors_by_alias(errors)
+        results: list[list[SourceEventData] | RaApiError] = []
+        for index in range(len(artist_ids)):
+            alias = f"artist{index}"
+            if error := errors_by_alias.get(alias):
+                results.append(error)
+                continue
+            if alias not in data:
+                results.append(RaApiError(200, f"Response missing {alias}"))
+                continue
+            artist = data.get(alias) or {}
+            events = (_parse_event(event) for event in artist.get("events") or [])
+            results.append([event for event in events if event is not None])
+        return results
+
     async def _query(self, operation: str, query: str, variables: dict) -> dict:
+        data, errors = await self._query_partial(operation, query, variables)
+        if errors:
+            message = (errors[0] or {}).get("message")
+            raise RaApiError(200, message)
+        return data
+
+    async def _query_partial(
+        self, operation: str, query: str, variables: dict
+    ) -> tuple[dict, list[dict]]:
         async with self._limiter:
             response = await self._http.post(
                 API_URL,
@@ -98,10 +198,23 @@ class RaClient:
         if response.status_code >= 400:
             raise RaApiError(response.status_code, response.text.strip()[:200] or None)
         payload = response.json()
-        if payload.get("errors"):
-            message = (payload["errors"][0] or {}).get("message")
+        errors = payload.get("errors") or []
+        if any(not (error or {}).get("path") for error in errors):
+            message = (errors[0] or {}).get("message")
             raise RaApiError(response.status_code, message)
-        return payload.get("data") or {}
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            message = (errors[0] or {}).get("message") if errors else "Missing response data"
+            raise RaApiError(response.status_code, message)
+        return data, errors
+
+
+def _errors_by_alias(errors: Sequence[dict]) -> dict[str, RaApiError]:
+    return {
+        str(error["path"][0]): RaApiError(200, error.get("message"))
+        for error in errors
+        if error and error.get("path")
+    }
 
 
 def _parse_event(event: dict) -> SourceEventData | None:
