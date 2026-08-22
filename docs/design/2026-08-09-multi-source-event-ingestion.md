@@ -139,15 +139,27 @@ re-fetched every 24 h as before, but an artist a source does not know is
 re-searched only weekly (`UNRESOLVED_RETRY`) - most of a taste profile never
 resolves (in the reference sync below, 28% on Ticketmaster and 90% on RA),
 so probing every unknown daily would dominate both runtime and quota for
-nothing; a newly listed artist is picked up within a week. Client-side
-throttles: Ticketmaster 4 req/s (under the documented 5), with a short
-backoff retry on the occasional 429 its burst accounting still returns; RA
-1 req/s - unofficial endpoint, keep traffic unmistakably polite.
+nothing; a newly listed artist is picked up within a week.
+
+Due artists are processed in batches of ten while preserving an independent
+outcome for each artist. RA uses GraphQL aliases to batch both identity searches
+and event feeds. Ticketmaster accepts comma-separated attraction ids for event
+feeds, but has no equivalent multi-keyword identity search, so unresolved
+artists still require individual searches. A Ticketmaster event batch splits
+recursively when its combined result exceeds the Discovery API's 1,000-result
+paging ceiling or a response cannot be attributed safely. Client-side
+throttles remain unchanged: Ticketmaster 4 req/s (under the documented 5), with
+a short backoff retry on the occasional 429 its burst accounting still returns;
+RA 1 req/s - unofficial endpoint, keep traffic unmistakably polite.
 
 Reference cold sync (2026-08-16, dev, an 882-artist profile): Ticketmaster
 resolved 637 artists in 1,523 requests over 7 minutes; RA resolved 90 in 972
 requests over 16 minutes; 2,434 Ticketmaster + 34 RA records became 2,256
-canonical events; the whole events step took 23 minutes. Nothing is
+canonical events; the whole events step took 23 minutes. This predates request
+batching and is retained as the before measurement. Live batch probes on
+2026-08-22 confirmed ten RA searches or feeds per GraphQL request and the exact
+union of ten individual Ticketmaster attraction feeds from two paginated
+requests (368 events). Nothing is
 committed until the step ends, so a timeout restarts it from scratch - the
 activity timeout in `backend/app/sync/sync_workflow.py` is 60 minutes for
 headroom. Chunked per-batch commits are the follow-up if profiles outgrow
@@ -178,12 +190,11 @@ in `docs/operations.md`. The standing risks, accepted knowingly:
   failing leaves Ticketmaster coverage intact and keeps serving previously
   synced RA events until they age out.
 - **Ticketmaster's free quota** (5,000 requests/day) is the binding
-  production limit. Steady state costs about one request per resolved
-  artist per day plus a trickle of weekly re-probes - roughly 700/day for
-  the reference profile above - so the free tier serves a handful of active
-  users nightly. Requesting a rate increase from the developer portal is
-  the intended path before that; batching attraction ids per call is the
-  code-side escape hatch.
+  production limit. Steady-state event feeds batch up to ten resolved artists
+  per request, plus pagination and a trickle of weekly identity re-probes. The
+  free tier therefore serves substantially more active users than the original
+  one-request-per-artist profile, but requesting a rate increase from the
+  developer portal remains the intended path if nightly volume reaches it.
 - **Records without a start time** (multi-day festival passes, TBA times:
   16 of 2,256 in the reference sync) are stored at midnight and currently
   render as "12:00 AM". Bandsintown always sent a time, so this is a new

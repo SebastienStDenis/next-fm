@@ -178,19 +178,20 @@ Concert data comes from two sources with different failure profiles
   exhaustion surfaces as `TicketmasterApiError` 429s that survive the
   retries, the affected artists are counted `failed` in the step summary
   and retried on the next sync, so a brief overrun heals itself. Budget:
-  roughly one request per resolved artist per user per day (a 900-artist
-  profile costs ~700/day at steady state, ~1,500 on its first sync), so a
-  *persistent* 429 stream means the nightly volume outgrew the tier: request
-  a rate increase from the Ticketmaster developer portal, or batch
-  attraction ids per call (`backend/app/clients/ticketmaster.py`).
+  event feeds batch up to ten resolved artists per request, plus pagination;
+  Ticketmaster identity searches remain one request per unresolved artist but
+  run only on first contact and weekly after a miss. A *persistent* 429 stream
+  means the nightly volume outgrew the tier: request a rate increase from the
+  Ticketmaster developer portal.
 - **RA** (unofficial, keyless): the client speaks the GraphQL endpoint behind
-  ra.co, which can change shape or start blocking without notice. Occasional
-  `RaApiError`s are expected weather; only a sustained failure rate is worth
-  investigating. Confirm with a manual query (the exact requests live as
-  constants in `backend/app/clients/ra.py`); if the schema moved, update the
-  queries; if Cloudflare is blocking, revisit the User-Agent and request
-  interval. Events keep serving from the last successful sync while the RA
-  pass fails - Ticketmaster coverage is unaffected.
+  ra.co, batching up to ten identity searches or event feeds into one request
+  with GraphQL aliases. It can change shape or start blocking without notice.
+  Occasional `RaApiError`s are expected weather; only a sustained failure rate
+  is worth investigating. Confirm with a manual query (the exact requests live
+  in `backend/app/clients/ra.py`); if the schema moved, update the queries; if
+  Cloudflare is blocking, revisit the User-Agent and request interval. Events
+  keep serving from the last successful sync while the RA pass fails -
+  Ticketmaster coverage is unaffected.
 
 ### A sync is failing for one user
 

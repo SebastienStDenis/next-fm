@@ -9,8 +9,10 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clients.ra import BATCH_SIZE as RA_BATCH_SIZE
 from app.clients.ra import RaApiError, RaClient
 from app.clients.source_events import SourceEventData, lookup_key
+from app.clients.ticketmaster import BATCH_SIZE as TICKETMASTER_BATCH_SIZE
 from app.clients.ticketmaster import TicketmasterApiError, TicketmasterClient
 from app.core.models import (
     Artist,
@@ -46,8 +48,9 @@ _STATUS_PRIORITY = ("synced", "failed", "unknown", "skipped")
 class _Source:
     identity_model: type[TicketmasterArtist | RaArtist]
     event_model: type[TicketmasterEvent | RaEvent]
-    resolve: Callable[[str], Awaitable[str | None]]
-    fetch: Callable[[str], Awaitable[list[SourceEventData]]]
+    resolve_many: Callable[[Sequence[str]], Awaitable[Sequence[str | None | Exception]]]
+    fetch_many: Callable[[Sequence[str]], Awaitable[Sequence[list[SourceEventData] | Exception]]]
+    batch_size: int
     errors: tuple[type[Exception], ...]
     # Earlier sources own a shared event's display fields; a later source
     # only writes them on events with no higher-precedence source row.
@@ -64,16 +67,18 @@ async def sync_user_events(
         _Source(
             TicketmasterArtist,
             TicketmasterEvent,
-            ticketmaster.find_attraction_id,
-            ticketmaster.get_attraction_events,
+            ticketmaster.find_attraction_ids,
+            ticketmaster.get_attractions_events,
+            TICKETMASTER_BATCH_SIZE,
             (TicketmasterApiError,),
             (),
         ),
         _Source(
             RaArtist,
             RaEvent,
-            ra.find_artist_id,
-            ra.get_artist_events,
+            ra.find_artist_ids,
+            ra.get_artists_events,
+            RA_BATCH_SIZE,
             (RaApiError,),
             (TicketmasterEvent,),
         ),
@@ -150,18 +155,7 @@ async def _sync_source(
         else:
             to_fetch.append(artist)
 
-    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
-    outcomes = await asyncio.gather(
-        *(
-            _fetch_artist_events(
-                source,
-                identities[artist.id].name if artist.id in identities else artist.name,
-                identities[artist.id].external_id if artist.id in identities else None,
-                semaphore,
-            )
-            for artist in to_fetch
-        )
-    )
+    outcomes = await _fetch_artist_events(source, to_fetch, identities)
 
     created = updated = removed = 0
     for artist, (status, external_id, events) in zip(to_fetch, outcomes, strict=True):
@@ -188,17 +182,87 @@ async def _sync_source(
 
 
 async def _fetch_artist_events(
-    source: _Source, name: str, external_id: str | None, semaphore: asyncio.Semaphore
-) -> tuple[str, str | None, list[SourceEventData]]:
-    async with semaphore:
-        try:
-            if external_id is None:
-                external_id = await source.resolve(name)
-            if external_id is None:
-                return "unknown", None, []
-            return "synced", external_id, await source.fetch(external_id)
-        except source.errors:
-            return "failed", external_id, []
+    source: _Source,
+    artists: Sequence[Artist],
+    identities: dict[uuid.UUID, TicketmasterArtist | RaArtist],
+) -> list[tuple[str, str | None, list[SourceEventData]]]:
+    external_ids = [
+        identities[artist.id].external_id if artist.id in identities else None for artist in artists
+    ]
+    statuses = ["pending"] * len(artists)
+
+    unresolved_indexes = [
+        index for index, external_id in enumerate(external_ids) if external_id is None
+    ]
+    names = [
+        identities[artists[index].id].name
+        if artists[index].id in identities
+        else artists[index].name
+        for index in unresolved_indexes
+    ]
+    resolved = await _run_batches(source, source.resolve_many, names)
+    for index, outcome in zip(unresolved_indexes, resolved, strict=True):
+        if isinstance(outcome, Exception):
+            statuses[index] = "failed"
+        elif outcome is None:
+            statuses[index] = "unknown"
+        else:
+            external_ids[index] = outcome
+
+    fetch_indexes = [
+        index
+        for index, (status, external_id) in enumerate(zip(statuses, external_ids, strict=True))
+        if status == "pending" and external_id is not None
+    ]
+    fetched = await _run_batches(
+        source,
+        source.fetch_many,
+        [
+            external_id
+            for index in fetch_indexes
+            if isinstance((external_id := external_ids[index]), str)
+        ],
+    )
+    events_by_index: dict[int, list[SourceEventData]] = {}
+    for index, outcome in zip(fetch_indexes, fetched, strict=True):
+        if isinstance(outcome, Exception):
+            statuses[index] = "failed"
+        else:
+            statuses[index] = "synced"
+            events_by_index[index] = outcome
+
+    return [
+        (status, external_id, events_by_index.get(index, []))
+        for index, (status, external_id) in enumerate(zip(statuses, external_ids, strict=True))
+    ]
+
+
+async def _run_batches[T](
+    source: _Source,
+    call: Callable[[Sequence[str]], Awaitable[Sequence[T | Exception]]],
+    values: Sequence[str],
+) -> list[T | Exception]:
+    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+
+    async def run(batch: Sequence[str]) -> list[T | Exception]:
+        async with semaphore:
+            try:
+                results = await call(batch)
+            except source.errors as exc:
+                return [exc] * len(batch)
+            if len(results) != len(batch):
+                raise RuntimeError("Source batch result count does not match its request")
+            return list(results)
+
+    batches = [
+        values[start : start + source.batch_size]
+        for start in range(0, len(values), source.batch_size)
+    ]
+    return [
+        result
+        for batch in await asyncio.gather(*(run(batch) for batch in batches))
+        for result in batch
+    ]
 
 
 async def _get_or_create_identity(
