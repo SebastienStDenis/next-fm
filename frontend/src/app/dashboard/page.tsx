@@ -68,16 +68,12 @@ export default async function DashboardPage() {
     await dataPromise;
   // The dashboard requires a linked Last.fm account, a home city and a
   // successful sync (`last_synced_at`, a durable stamp independent of how
-  // long run rows are kept), and acknowledgement of the completed welcome
-  // flow. Anyone short of that returns there. A failed-only run doesn't admit
-  // them: the dashboard is empty without a successful sync, and the welcome
-  // card is where the failure and its retry live.
-  if (
-    lastfm === null ||
-    city === null ||
-    user.last_synced_at === null ||
-    user.onboarding_completed === false
-  ) {
+  // long run rows are kept); anyone short of that goes through the welcome flow
+  // instead. This is the exact inverse of the welcome footer's reveal gate,
+  // so the two never disagree on whether a user is onboarded. A failed-only
+  // run doesn't admit them: the dashboard is empty without a successful sync,
+  // and the welcome card is where the failure and its retry live.
+  if (lastfm === null || city === null || user.last_synced_at === null) {
     redirect("/welcome");
   }
 

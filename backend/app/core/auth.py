@@ -82,12 +82,7 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if user is None:
         name = claims.display_name or (claims.email or "").split("@")[0] or "Audiophil"
-        user = User(
-            supabase_user_id=claims.sub,
-            name=name,
-            onboarding_completed=False,
-            last_seen_at=now,
-        )
+        user = User(supabase_user_id=claims.sub, name=name, last_seen_at=now)
         session.add(user)
         try:
             await session.commit()

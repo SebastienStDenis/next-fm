@@ -42,8 +42,6 @@ def make_committing_session() -> AsyncMock:
                 obj.id = uuid.uuid7()
             if isinstance(obj, User) and obj.include_known_artists is None:
                 obj.include_known_artists = False
-            if isinstance(obj, User) and obj.onboarding_completed is None:
-                obj.onboarding_completed = False
 
     session.commit = commit
     return session
@@ -51,12 +49,7 @@ def make_committing_session() -> AsyncMock:
 
 async def test_get_me_returns_authenticated_user() -> None:
     session = make_committing_session()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        include_known_artists=False,
-        onboarding_completed=False,
-    )
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("GET", "/me", session, user=user)
 
@@ -64,7 +57,6 @@ async def test_get_me_returns_authenticated_user() -> None:
     body = response.json()
     assert body["id"] == str(USER_ID)
     assert body["name"] == "Alice"
-    assert body["onboarding_completed"] is False
 
 
 async def test_get_me_requires_authentication() -> None:
@@ -93,7 +85,6 @@ async def test_get_me_provisions_user_on_first_login() -> None:
     assert len(created) == 1
     assert created[0].name == "Ada"
     assert created[0].supabase_user_id == sub
-    assert created[0].onboarding_completed is False
     assert created[0].last_seen_at is not None
 
 
@@ -106,7 +97,6 @@ async def test_get_me_refreshes_stale_last_seen() -> None:
         name="Ada",
         supabase_user_id=sub,
         include_known_artists=False,
-        onboarding_completed=True,
         last_seen_at=stale,
     )
     session.execute.return_value = result_returning(user)
@@ -127,7 +117,6 @@ async def test_get_me_leaves_fresh_last_seen_alone() -> None:
         name="Ada",
         supabase_user_id=sub,
         include_known_artists=False,
-        onboarding_completed=True,
         last_seen_at=recent,
     )
     session.execute.return_value = result_returning(user)
@@ -141,12 +130,7 @@ async def test_get_me_leaves_fresh_last_seen_alone() -> None:
 
 async def test_update_user_sets_include_known_artists() -> None:
     session = make_committing_session()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        include_known_artists=False,
-        onboarding_completed=False,
-    )
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request(
         "PATCH", "/me", session, user=user, json={"include_known_artists": True}
@@ -159,12 +143,7 @@ async def test_update_user_sets_include_known_artists() -> None:
 
 async def test_update_user_sets_name() -> None:
     session = make_committing_session()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        include_known_artists=False,
-        onboarding_completed=False,
-    )
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("PATCH", "/me", session, user=user, json={"name": "Alicia"})
 
@@ -175,12 +154,7 @@ async def test_update_user_sets_name() -> None:
 
 async def test_update_user_trims_name() -> None:
     session = make_committing_session()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        include_known_artists=False,
-        onboarding_completed=False,
-    )
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("PATCH", "/me", session, user=user, json={"name": "  Bob  "})
 
@@ -190,12 +164,7 @@ async def test_update_user_trims_name() -> None:
 
 async def test_update_user_rejects_blank_name() -> None:
     session = make_committing_session()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        include_known_artists=False,
-        onboarding_completed=False,
-    )
+    user = User(id=USER_ID, name="Alice", include_known_artists=False)
 
     response = await request("PATCH", "/me", session, user=user, json={"name": "   "})
 
@@ -205,69 +174,13 @@ async def test_update_user_rejects_blank_name() -> None:
 
 async def test_update_user_with_empty_payload_changes_nothing() -> None:
     session = make_committing_session()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        include_known_artists=True,
-        onboarding_completed=False,
-    )
+    user = User(id=USER_ID, name="Alice", include_known_artists=True)
 
     response = await request("PATCH", "/me", session, user=user, json={})
 
     assert response.status_code == 200
     assert response.json()["include_known_artists"] is True
     assert user.include_known_artists is True
-
-
-async def test_complete_onboarding_after_successful_sync() -> None:
-    session = AsyncMock()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        onboarding_completed=False,
-        last_synced_at=datetime.now(UTC),
-    )
-
-    response = await request("PUT", "/me/onboarding", session, user=user)
-
-    assert response.status_code == 204
-    assert user.onboarding_completed is True
-    session.commit.assert_awaited_once()
-
-
-async def test_complete_onboarding_requires_successful_sync() -> None:
-    session = AsyncMock()
-    user = User(id=USER_ID, name="Alice", onboarding_completed=False)
-
-    response = await request("PUT", "/me/onboarding", session, user=user)
-
-    assert response.status_code == 409
-    assert user.onboarding_completed is False
-    session.commit.assert_not_awaited()
-
-
-async def test_complete_onboarding_requires_authentication() -> None:
-    session = AsyncMock()
-
-    response = await request("PUT", "/me/onboarding", session)
-
-    assert response.status_code == 401
-    session.commit.assert_not_awaited()
-
-
-async def test_complete_onboarding_is_idempotent() -> None:
-    session = AsyncMock()
-    user = User(
-        id=USER_ID,
-        name="Alice",
-        onboarding_completed=True,
-        last_synced_at=datetime.now(UTC),
-    )
-
-    response = await request("PUT", "/me/onboarding", session, user=user)
-
-    assert response.status_code == 204
-    session.commit.assert_not_awaited()
 
 
 async def test_delete_me() -> None:
@@ -341,13 +254,7 @@ async def test_delete_me_unlinked_user_needs_no_admin() -> None:
 async def test_get_me_adopts_user_provisioned_by_a_concurrent_request() -> None:
     session = make_committing_session()
     sub = uuid.uuid4()
-    existing = User(
-        id=USER_ID,
-        name="Ada",
-        supabase_user_id=sub,
-        include_known_artists=False,
-        onboarding_completed=True,
-    )
+    existing = User(id=USER_ID, name="Ada", supabase_user_id=sub, include_known_artists=False)
     session.execute.side_effect = [result_returning(None), result_returning(existing)]
 
     # Only the provisioning INSERT collides; the later last_seen_at stamp commits fine.

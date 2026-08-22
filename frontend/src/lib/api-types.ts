@@ -5,7 +5,6 @@ export type User = {
   id: string;
   name: string;
   include_known_artists: boolean;
-  onboarding_completed: boolean;
   last_synced_at: string | null;
 };
 

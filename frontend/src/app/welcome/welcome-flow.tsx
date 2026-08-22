@@ -1,26 +1,17 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useState,
-  useTransition,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import {
   SyncActivityProvider,
   SyncSettledProvider,
 } from "@/components/sync-activity";
 import { cueSavePlaylistTip } from "../dashboard/save-playlist-tip";
-import { completeOnboarding } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { Spinner } from "@/components/ui/spinner";
 
 // Wraps the setup sections and the completion footer so the two can
 // coordinate: the footer only reveals once the setup is done and on record
@@ -32,22 +23,8 @@ export function WelcomeFlow({
   ready: boolean;
   children: ReactNode;
 }) {
-  const router = useRouter();
   const [active, setActive] = useState(false);
-  const [leaving, startTransition] = useTransition();
   const report = useCallback((next: boolean) => setActive(next), []);
-
-  function finishOnboarding() {
-    startTransition(async () => {
-      cueSavePlaylistTip();
-      const result = await completeOnboarding();
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-      router.push("/dashboard?tab=playlists");
-    });
-  }
 
   // Once the first sync's steps have played out, the footer stays put: a
   // manual re-run (or one that fails, leaving the earlier sync on record)
@@ -99,14 +76,16 @@ export function WelcomeFlow({
                 own space rather than the viewport's. */}
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-6 @max-[334px]:justify-end">
               <p className="text-sm">All set. Playlists update daily.</p>
-              <Button
-                type="button"
-                size="sm"
-                disabled={leaving}
-                onClick={finishOnboarding}
-              >
-                Go to dashboard
-                {leaving ? <Spinner /> : <ArrowRight aria-hidden />}
+              <Button asChild size="sm">
+                {/* Lands on the Playlists tab and drops a session cue for the
+                    one-shot save-to-library tip on the leading playlist. */}
+                <Link
+                  href="/dashboard?tab=playlists"
+                  onClick={cueSavePlaylistTip}
+                >
+                  Go to dashboard
+                  <ArrowRight aria-hidden />
+                </Link>
               </Button>
             </div>
           </CollapsibleContent>

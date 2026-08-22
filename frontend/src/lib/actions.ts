@@ -17,7 +17,7 @@ async function callApi(
   path: string,
   init: Omit<RequestInit, "headers"> & { headers?: Record<string, string> },
   fallback: string,
-  revalidate?: string,
+  revalidate: string,
   revalidateType?: "page" | "layout",
 ): Promise<ActionState> {
   let res: Response;
@@ -31,9 +31,7 @@ async function callApi(
     return { error: await errorMessage(res, fallback) };
   }
 
-  if (revalidate) {
-    revalidatePath(revalidate, revalidateType);
-  }
+  revalidatePath(revalidate, revalidateType);
   return { error: null };
 }
 
@@ -86,14 +84,6 @@ export async function startSync(): Promise<ActionState> {
     "Failed to start sync.",
     `/`,
     "layout",
-  );
-}
-
-export async function completeOnboarding(): Promise<ActionState> {
-  return callApi(
-    `/me/onboarding`,
-    { method: "PUT" },
-    "Failed to finish setup.",
   );
 }
 
