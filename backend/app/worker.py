@@ -122,6 +122,8 @@ async def main() -> None:
                 MANUAL_LANES,
                 "on" if settings.nightly_sync_enabled else "off",
             )
+    except asyncio.CancelledError:
+        pass
     finally:
         for api_client in (lastfm, ticketmaster, ra, spotify, musicbrainz):
             await api_client.aclose()
