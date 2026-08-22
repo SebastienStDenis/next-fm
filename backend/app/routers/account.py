@@ -33,6 +33,16 @@ async def update_me(user: CurrentUserDep, payload: UserUpdate, session: SessionD
     return user
 
 
+@router.put("/me/onboarding", status_code=204)
+async def complete_onboarding(user: CurrentUserDep, session: SessionDep) -> None:
+    """Acknowledge the completed welcome flow after its first successful sync."""
+    if user.last_synced_at is None:
+        raise HTTPException(status_code=409, detail="Complete a sync before continuing.")
+    if not user.onboarding_completed:
+        user.onboarding_completed = True
+        await session.commit()
+
+
 @router.delete("/me", status_code=204)
 async def delete_me(
     user: CurrentUserDep,

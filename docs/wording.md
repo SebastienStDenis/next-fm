@@ -1,6 +1,6 @@
 # Wording conventions
 
-*Written 2026-07-11 by Claude (Fable 5); revised 2026-07-22 by Claude (Fable 5).*
+*Written 2026-07-11 by Claude (Fable 5); revised 2026-08-22 by OpenAI (GPT-5.6 Sol).*
 
 User-facing copy (web UI, sync step labels and summaries, emails) uses one
 vocabulary. When adding or editing copy, follow these rules; when the product
@@ -106,9 +106,9 @@ fixed messages:
   ones as your listening history and upcoming concerts change."
 
 There is no "no home city" or "unlinked Last.fm" state: the dashboard
-requires a linked Last.fm account, a home city and a successful sync (see
-Welcome flow), and both the account and the city can be changed but never
-cleared.
+requires a linked Last.fm account, a home city, a successful sync and the
+completed welcome handoff (see Welcome flow), and both the account and the city
+can be changed but never cleared.
 
 ## Freshness markers
 
@@ -143,16 +143,24 @@ the status row:
 
 ## Welcome flow
 
-The dashboard requires a linked Last.fm account, a home city and a
-successful sync; anyone short of that is redirected to `/welcome`, a guided,
-non-skippable page that reuses the settings cards unchanged - **Last.fm**,
-**Home City**, then **Daily Sync**, named for the cadence even on the first
-run (the manual run just starts what then repeats). A pulsing attention dot
-on the section heading marks the next step and completed steps carry a
-green check, the sync card runs and plays back the first sync, and a
-successful run reveals the completion footer - "All set. Playlists update
-daily." beside a go-to-dashboard button (see
+The dashboard requires a linked Last.fm account, a home city, a successful
+sync and acknowledgement of the completed welcome flow; anyone short of that
+is redirected to `/welcome`, a guided, non-skippable page that reuses the
+settings cards unchanged - **Last.fm**, **Home City**, then **Daily Sync**,
+named for the cadence even on the first run (the manual run just starts what
+then repeats). A pulsing attention dot on the section heading marks the next
+step and completed steps carry a green check, the sync card runs and plays back
+the first sync, and a successful run reveals the completion footer - "All set.
+Playlists update daily." beside a go-to-dashboard button (see
 `docs/design/2026-07-12-welcome-flow-plan.md`).
+
+Once the user reaches Daily Sync and until the first successful run lands, the
+card says: "The first sync may take a few minutes. Once started, feel free to
+close the page and return later; it will continue." This replaces the generic
+long-run notice during onboarding. Completing a sync does not bypass the welcome
+handoff: returning users stay on the completed welcome page until they choose
+"Go to dashboard." That acknowledgement is durable across browsers and devices;
+the button then opens the Playlists tab with its one-shot save-to-library tip.
 
 ## Section and tab names
 
