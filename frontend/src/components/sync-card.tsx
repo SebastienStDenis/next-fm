@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 // How long a run may be in flight before the card reassures the user that
 // closing the page doesn't stop it.
 const LONG_RUN_NOTICE_MS = 90_000;
+const LONG_RUN_NOTICE =
+  "Taking longer than usual. Feel free to close the page, the sync will continue.";
 // Consecutive failed status polls before the card admits progress is
 // unreachable instead of claiming the sync is still running.
 const DEGRADED_POLL_FAILURES = 10;
@@ -273,6 +275,11 @@ export function SyncCard({
     // (instead of unmounting the content) lets both moves animate: Radix
     // skips the animation when content mounts already open.
     <Collapsible open={expanded && !showSteps} onOpenChange={setExpanded}>
+      {firstSync && (
+        <p className="pb-3 text-xs text-muted-foreground italic">
+          {LONG_RUN_NOTICE}
+        </p>
+      )}
       {/* The status column reserves the two-line height of a step display
           (min-h-9) and everything centers within the row, so the button holds
           its place across states and stays centered next to the last-run line
@@ -378,12 +385,6 @@ export function SyncCard({
           )}
         </div>
       </div>
-      {firstSync && (
-        <p className="pt-1 text-xs text-muted-foreground">
-          The first sync may take a few minutes. Once started, feel free to close
-          the page and return later; it will continue.
-        </p>
-      )}
       {showSteps && (
         <Collapse
           show={
@@ -399,7 +400,7 @@ export function SyncCard({
           >
             {notice.last === "degraded"
               ? "Can't check sync progress right now. Retrying."
-              : "Taking longer than usual. Feel free to close the page, the sync will continue."}
+              : LONG_RUN_NOTICE}
           </p>
         </Collapse>
       )}
@@ -448,4 +449,3 @@ function SyncProgressRing({ fraction }: { fraction: number }) {
     </svg>
   );
 }
-
