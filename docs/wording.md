@@ -131,8 +131,8 @@ Listening History relies on the Daily Sync card above it.
 
 ## Daily Sync card notices
 
-While a run is in flight, the Daily Sync card can add one muted line under
-the status row:
+Outside the welcome flow, while a run is in flight, the Daily Sync card can add
+one muted line under the status row:
 
 - Run in flight longer than usual: "Taking longer than usual. Feel free to
   close the page, the sync will continue." Shown only while progress polling
@@ -155,12 +155,13 @@ Playlists update daily." beside a go-to-dashboard button (see
 `docs/design/2026-07-12-welcome-flow-plan.md`).
 
 Once the user reaches Daily Sync and until the first successful run lands, the
-card says: "The first sync may take a few minutes. Once started, feel free to
-close the page and return later; it will continue." This replaces the generic
-long-run notice during onboarding. Completing a sync does not bypass the welcome
-handoff: returning users stay on the completed welcome page until they choose
-"Go to dashboard." That acknowledgement is durable across browsers and devices;
-the button then opens the Playlists tab with its one-shot save-to-library tip.
+card shows the standard long-run notice above its status row: "Taking longer
+than usual. Feel free to close the page, the sync will continue." The notice is
+a muted italic aside and appears immediately during onboarding. Completing a
+sync does not bypass the welcome handoff: returning users stay on the completed
+welcome page until they choose "Go to dashboard." That acknowledgement is
+durable across browsers and devices; the button then opens the Playlists tab
+with its one-shot save-to-library tip.
 
 ## Section and tab names
 
