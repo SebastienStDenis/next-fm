@@ -34,10 +34,11 @@ export async function proxy(request: NextRequest) {
   });
 
   // Refreshes the session if expired; nothing may run between client
-  // creation and this call, per @supabase/ssr docs.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // creation and this call, per @supabase/ssr docs. getClaims verifies the
+  // JWT locally against the cached signing keys, so a page load doesn't wait
+  // on a round trip to Supabase Auth.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims;
 
   const { pathname } = request.nextUrl;
   // API routes answer JSON; they handle missing sessions themselves rather

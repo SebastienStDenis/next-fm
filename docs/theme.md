@@ -209,6 +209,24 @@ pseudo-elements, with `scrollbar-width: thin` scoped to Firefox). Don't style
 scrollbars per-element; if a container should hide its bar entirely (e.g. the
 command palette), use the `no-scrollbar` utility.
 
+## Loading states
+
+Pages that wait on the API show a skeleton (`loading.tsx`) rather than a
+blank screen, and it resolves in one step: skeleton, then the whole page.
+Don't stream parts of a page behind their own placeholders - a second
+loading stage reads as the page settling twice.
+
+- **Draw the frame for real.** Anything the page renders regardless of data
+  (the dashboard's title, Settings button, tab strip with the active tab
+  already selected) appears in the skeleton exactly as it will on the page,
+  so nothing moves when the content lands. Only data-backed regions become
+  placeholders.
+- **Placeholders are quiet.** `Skeleton` bars in `--muted` inside ordinary
+  cards, laid out in the same grid the results use, with the default slow
+  pulse (off under reduced motion). No shimmer sweep, no spinner.
+- **Hold back before showing them.** Placeholders fade in after 200ms, so a
+  warm load swaps straight to content without flashing a skeleton first.
+
 ## Where the accent shows
 
 The primary token is deliberately present on every logged-in page: the active
