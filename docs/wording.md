@@ -94,8 +94,9 @@ cards would use; Listening History and tracklist messages are plain text.
 `[Settings]` opens the settings dialog (`/dashboard#settings`). Three related
 fixed messages:
 
-- Artists or concerts hidden by the filter toggles ("Suggested artists" /
-  "Artists you listen to", on both tabs): a card-sized ghost box in the tab's
+- Artists or concerts hidden by the filter checkboxes ("Suggested artists" /
+  "Artists you listen to", grouped on the "Sort by" row of both tabs): a
+  card-sized ghost box in the tab's
   grid, after any visible cards: "{n} artist(s)/concert(s) hidden by
   filters."
 - The Artists tab's messages describe its suggestions, so they fill the tab
