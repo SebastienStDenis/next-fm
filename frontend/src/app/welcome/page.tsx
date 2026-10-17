@@ -6,6 +6,7 @@ import { SyncCard } from "@/components/sync-card";
 import { IntroText } from "../intro-text";
 import { DailySyncSection } from "./daily-sync-section";
 import { WelcomeFlow } from "./welcome-flow";
+import { WELCOME_STEPS } from "./welcome-steps";
 import type { City, LastfmAccount } from "@/lib/api-types";
 import { fetchOptional, loadMe } from "@/lib/user-api";
 
@@ -51,32 +52,44 @@ export default async function WelcomePage() {
   // user through the steps, and the sync card runs and replays the first
   // sync (docs/design/2026-07-12-welcome-flow-plan.md).
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center p-8 animate-fade-in">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center p-8">
+      {/* Only the data-backed parts fade in: the loading skeleton already
+          drew the static copy, which would blink if it faded too. */}
       <h1 className="text-2xl font-semibold">
-        Welcome to <Brand />, {user.name}
+        Welcome to <Brand />,{" "}
+        <span className="animate-fade-in">{user.name}</span>
       </h1>
       <IntroText className="mt-1 text-xs text-muted-foreground italic" />
       <WelcomeFlow ready={ready}>
         <div className="mt-6 space-y-6">
           <Section
-            heading="Last.fm"
+            heading={WELCOME_STEPS.lastfm.heading}
             state={stateFor("lastfm", lastfm !== null)}
-            description="Listening history is imported from your Last.fm account."
+            description={WELCOME_STEPS.lastfm.description}
           >
-            <LastfmPanel account={lastfm} />
+            <div className="animate-fade-in">
+              <LastfmPanel account={lastfm} />
+            </div>
           </Section>
           <Section
-            heading="Home City"
+            heading={WELCOME_STEPS.city.heading}
             state={stateFor("city", city !== null)}
-            description="A playlist is generated for concerts in your home city."
+            description={WELCOME_STEPS.city.description}
           >
-            <CityPanel city={city} />
+            <div className="animate-fade-in">
+              <CityPanel city={city} />
+            </div>
           </Section>
           <DailySyncSection
             synced={synced}
             reached={synced || activeStep === "sync"}
           >
-            <SyncCard lastfmLinked={lastfm !== null} citySet={city !== null} />
+            <div className="animate-fade-in">
+              <SyncCard
+                lastfmLinked={lastfm !== null}
+                citySet={city !== null}
+              />
+            </div>
           </DailySyncSection>
         </div>
       </WelcomeFlow>

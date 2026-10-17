@@ -37,7 +37,12 @@ export function SortSelect<K extends string>({
       <span id={labelId}>Sort by</span>
       <Select value={value} onValueChange={(next) => onValueChange(next as K)}>
         <SelectTrigger size="sm" aria-labelledby={labelId} className="text-xs">
-          <SelectValue />
+          {/* Explicit label so the server-rendered HTML carries it; Radix
+              otherwise fills it in only after hydration, and the box
+              renders empty until then. */}
+          <SelectValue>
+            {options.find((option) => option.value === value)?.label}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (

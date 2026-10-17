@@ -23,7 +23,8 @@ import {
 
 import { QueryNotice } from "@/components/query-notice";
 import { ArtistsPanel, type CityConcerts } from "./artists-panel";
-import { DEFAULT_TAB } from "./dashboard-tabs";
+import { ArrivalFade } from "./arrival-fade";
+import { dashboardTab, DEFAULT_TAB } from "./dashboard-tabs";
 import {
   collectPinnedCities,
   partitionArtists,
@@ -136,9 +137,8 @@ export default async function DashboardPage() {
           tabs={[
             {
               key: "suggested",
-              label: "Artists",
-              description:
-                "Artists you might like based on your listening history.",
+              label: dashboardTab("suggested").label,
+              description: dashboardTab("suggested").description,
               note: (
                 <SyncStepNote
                   sync={sync}
@@ -157,8 +157,8 @@ export default async function DashboardPage() {
             },
             {
               key: "concerts",
-              label: "Concerts",
-              description: "Upcoming concerts near you by suggested artists.",
+              label: dashboardTab("concerts").label,
+              description: dashboardTab("concerts").description,
               note: (
                 <SyncStepNote
                   sync={sync}
@@ -185,11 +185,10 @@ export default async function DashboardPage() {
                       <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
                     </span>
                   )}
-                  Playlists
+                  {dashboardTab("playlists").label}
                 </>
               ),
-              description:
-                "Spotify playlists tracking suggested concerts in your cities, updated daily.",
+              description: dashboardTab("playlists").description,
               note: (
                 <SyncStepNote
                   sync={sync}
@@ -198,10 +197,12 @@ export default async function DashboardPage() {
                 />
               ),
               content: (
-                <PlaylistsPanel
-                  synced={syncStepCompleted(sync, "playlists")}
-                  playlists={linkedPlaylists}
-                />
+                <ArrivalFade>
+                  <PlaylistsPanel
+                    synced={syncStepCompleted(sync, "playlists")}
+                    playlists={linkedPlaylists}
+                  />
+                </ArrivalFade>
               ),
             },
           ]}

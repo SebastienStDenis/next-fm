@@ -5,6 +5,8 @@ import { type ReactNode } from "react";
 import { Section } from "@/components/section";
 import { useSyncSettled } from "@/components/sync-activity";
 
+import { WELCOME_STEPS } from "./welcome-steps";
+
 // The Daily Sync section, with its state mark computed on the client so the
 // green check waits for the sync card's simulated steps to finish. `reached`
 // is true once the user is on (or past) the sync step; until playback settles
@@ -23,9 +25,9 @@ export function DailySyncSection({
   const state = reached ? (synced && settled ? "done" : "active") : undefined;
   return (
     <Section
-      heading="Daily Sync"
+      heading={WELCOME_STEPS.sync.heading}
       state={state}
-      description="Imports listening history, suggests artists, finds concerts and generates playlists."
+      description={WELCOME_STEPS.sync.description}
     >
       {children}
     </Section>

@@ -6,8 +6,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-import { DASHBOARD_TABS } from "./dashboard-tabs";
+import * as artistSort from "./artist-sort";
+import { DASHBOARD_TABS, type DashboardTabKey } from "./dashboard-tabs";
 import { CARD_GRID_CLASS } from "./empty-state";
+import * as eventSort from "./event-sort";
+import { RelationFilterBar } from "./relation-filter-bar";
+
+function ignore() {}
 
 function CardGridSkeleton() {
   return (
@@ -31,10 +36,64 @@ function CardGridSkeleton() {
   );
 }
 
+// The panels' filter row in its opening state, drawn by the real component
+// and made inert: it looks exactly as it will, but nothing is wired up yet.
+function FilterBarSkeleton<K extends string>({
+  sort,
+  className,
+}: {
+  sort: {
+    DEFAULT_SORT_KEY: K;
+    sortOptions: readonly { value: K; label: string }[];
+  };
+  className: string;
+}) {
+  return (
+    <div inert>
+      <RelationFilterBar
+        showSuggested
+        onShowSuggested={ignore}
+        showKnown={false}
+        onShowKnown={ignore}
+        sortKey={sort.DEFAULT_SORT_KEY}
+        onSortKey={ignore}
+        sortOptions={sort.sortOptions}
+        className={className}
+      />
+    </div>
+  );
+}
+
+function PanelSkeleton({ tab }: { tab: DashboardTabKey }) {
+  if (tab === "suggested") {
+    return (
+      <div>
+        <FilterBarSkeleton sort={artistSort} className="mb-3" />
+        <CardGridSkeleton />
+      </div>
+    );
+  }
+  if (tab === "concerts") {
+    return (
+      <div>
+        <h3 className="flex flex-wrap items-center gap-x-1 gap-y-1 text-base font-semibold">
+          <span>Upcoming concerts in</span>
+          <Skeleton className="h-5 w-28" />
+        </h3>
+        <FilterBarSkeleton sort={eventSort} className="mt-3" />
+        <div className="mt-3">
+          <CardGridSkeleton />
+        </div>
+      </div>
+    );
+  }
+  return <CardGridSkeleton />;
+}
+
 // A static stand-in for the dashboard's tab strip and the open tab. It
 // resolves the active tab the same way Tabs does (?tab= first, then the
-// default the server read from the last-tab cookie); the tab's contents are
-// placeholders.
+// default the server read from the last-tab cookie), and draws everything
+// that doesn't depend on the user's data for real.
 export function SkeletonTabs({ defaultTab }: { defaultTab: string }) {
   const requested = useSearchParams().get("tab") ?? defaultTab;
   const active =
@@ -58,10 +117,13 @@ export function SkeletonTabs({ defaultTab }: { defaultTab: string }) {
         ))}
       </div>
       <div>
-        <div className="mb-3 flex h-4 items-center">
-          <Skeleton className="h-3 w-72 max-w-full" />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4.5 gap-y-2">
+          <p className="text-xs text-muted-foreground italic">
+            {active.description}
+          </p>
+          <Skeleton className="h-4 w-40" />
         </div>
-        <CardGridSkeleton />
+        <PanelSkeleton tab={active.key} />
       </div>
     </div>
   );

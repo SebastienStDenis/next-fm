@@ -216,19 +216,25 @@ blank screen, and it resolves in one step: skeleton, then the whole page.
 Don't stream parts of a page behind their own placeholders - a second
 loading stage reads as the page settling twice.
 
-- **Draw the frame for real.** Anything the page renders regardless of data
-  (the dashboard's title, Settings button, tab strip with the active tab
-  already selected) appears in the skeleton exactly as it will on the page,
-  so nothing moves when the content lands. Only data-backed regions become
-  placeholders.
+- **Draw everything static for real.** Anything the page renders regardless
+  of data appears in the skeleton exactly as it will on the page, so nothing
+  moves when the content lands: the dashboard's title, Settings button and
+  tab strip (active tab already selected), the open tab's description, the
+  Concerts heading, and the filter row in its opening state (the real
+  component, made `inert`); on the welcome page, the greeting, the intro and
+  each step's heading and description. Only data-backed regions become
+  placeholders - the sync note, the city name, the cards, the user's name,
+  each step's card contents.
 - **Placeholders are quiet.** `Skeleton` bars in `--muted` inside ordinary
   cards, laid out in the same grid the results use, with the default slow
   pulse (off under reduced motion). No shimmer sweep, no spinner.
-- **Show them at once, fade the content in.** Placeholders appear with the
-  first paint, and the content that replaces them fades in (`animate-fade-in`,
-  250ms) - on the dashboard, the tab panels only, not the frame above them,
-  which is identical in both and would only blink. The fade plays once, on
-  arrival: switching tabs swaps instantly.
+- **Show them at once, fade the data in.** Placeholders appear with the
+  first paint, and only what replaces them fades in (`animate-fade-in`,
+  250ms); the static parts are identical in both and would only blink.
+  On the dashboard that fade is `ArrivalFade`, which plays once and then
+  drops its animation, because the panels sit in tabs hidden with
+  `display: none` and a CSS animation replays whenever its element is shown
+  again - switching tabs swaps instantly.
 - **The frame's controls are `inert`, never `disabled`.** A dimmed button
   that brightens when the page lands is a flash of its own.
 

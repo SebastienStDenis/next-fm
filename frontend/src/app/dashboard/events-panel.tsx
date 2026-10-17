@@ -25,12 +25,14 @@ import {
   HiddenByFiltersCell,
 } from "./empty-state";
 import {
+  DEFAULT_SORT_KEY,
   eventName,
   makeComparators,
   sortOptions,
   type SortKey,
 } from "./event-sort";
 import { concertDateFormat, concertTimeFormat } from "@/lib/formats";
+import { ArrivalFade } from "./arrival-fade";
 import { RelationFilterBar } from "./relation-filter-bar";
 import { RunSyncMessage } from "./run-sync-message";
 
@@ -133,7 +135,7 @@ export function EventsPanel({
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT_KEY);
   const [cityView, setCityView] = useState<{
     city: City;
     events: UserEvent[];
@@ -188,16 +190,18 @@ export function EventsPanel({
     <div>
       <h3 className="flex flex-wrap items-center gap-x-1 gap-y-1 text-base font-semibold">
         <span>Upcoming concerts in</span>
-        <CityTitleField
-          city={city}
-          viewCity={cityView?.city ?? null}
-          editing={editingCity}
-          loading={loading}
-          onSelect={selectCity}
-          onEdit={() => setEditingCity(true)}
-          onCancel={() => setEditingCity(false)}
-          onBack={() => setCityView(null)}
-        />
+        <ArrivalFade as="span" className="flex min-w-0">
+          <CityTitleField
+            city={city}
+            viewCity={cityView?.city ?? null}
+            editing={editingCity}
+            loading={loading}
+            onSelect={selectCity}
+            onEdit={() => setEditingCity(true)}
+            onCancel={() => setEditingCity(false)}
+            onBack={() => setCityView(null)}
+          />
+        </ArrivalFade>
       </h3>
       <RelationFilterBar
         showSuggested={showSuggested}
@@ -209,7 +213,7 @@ export function EventsPanel({
         sortOptions={sortOptions}
         className="mt-3"
       />
-      <div className="mt-3">
+      <ArrivalFade className="mt-3">
         <AnimatedHeight>
           {visibleEvents.length === 0 && hiddenCount === 0 ? (
             <EmptyStateCell>
@@ -305,7 +309,7 @@ export function EventsPanel({
             </ul>
           )}
         </AnimatedHeight>
-      </div>
+      </ArrivalFade>
     </div>
   );
 }
