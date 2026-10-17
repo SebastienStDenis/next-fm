@@ -131,7 +131,6 @@ export function EventsPanel({
   artistsById: Record<string, UserArtist>;
   events: UserEvent[];
 }) {
-  const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [cityView, setCityView] = useState<{
@@ -176,7 +175,7 @@ export function EventsPanel({
       userEvent.artists.some((artist) => {
         const relation = artistRelations[artist.id];
         return (
-          (showSuggested && relation === "suggested") ||
+          relation === "suggested" ||
           (showKnown && relation === "known")
         );
       }),
@@ -200,8 +199,6 @@ export function EventsPanel({
         />
       </h3>
       <RelationFilterBar
-        showSuggested={showSuggested}
-        onShowSuggested={setShowSuggested}
         showKnown={showKnown}
         onShowKnown={setShowKnown}
         sortKey={sortKey}

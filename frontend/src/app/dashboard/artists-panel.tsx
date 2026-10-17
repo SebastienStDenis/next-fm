@@ -235,7 +235,6 @@ export function ArtistsPanel({
   cityConcerts: CityConcerts[];
   synced: boolean;
 }) {
-  const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("match");
 
@@ -268,7 +267,7 @@ export function ArtistsPanel({
     suggestedArtists.map(({ artist }) => artist.id),
   );
   const visibleArtists = [
-    ...(showSuggested ? suggestedArtists : []),
+    ...suggestedArtists,
     ...(showKnown ? knownArtists : []),
   ].sort(makeComparators(suggestedIds, soonestConcert)[sortKey]);
   const hiddenCount =
@@ -277,8 +276,6 @@ export function ArtistsPanel({
   return (
     <div>
       <RelationFilterBar
-        showSuggested={showSuggested}
-        onShowSuggested={setShowSuggested}
         showKnown={showKnown}
         onShowKnown={setShowKnown}
         sortKey={sortKey}
@@ -337,10 +334,10 @@ export function ArtistsPanel({
               </li>
             );
           })}
-          {/* The tab's headline content is suggestions: when the filter asks
-              for them and there are none, the explanation keeps its slot even
-              while you-listen-to cards fill the rest of the grid. */}
-          {showSuggested && suggestedArtists.length === 0 && (
+          {/* The tab's headline content is suggestions: when there are none,
+              the explanation keeps its slot even while you-listen-to cards
+              fill the rest of the grid. */}
+          {suggestedArtists.length === 0 && (
             <li className="flex">
               <EmptyState className="flex-1 content-center">
                 <NoSuggestionsMessage synced={synced} />

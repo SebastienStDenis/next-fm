@@ -94,14 +94,13 @@ cards would use; Listening History and tracklist messages are plain text.
 `[Settings]` opens the settings dialog (`/dashboard#settings`). Three related
 fixed messages:
 
-- Artists or concerts hidden by the filter toggles ("Suggested artists" /
-  "Artists you listen to", on both tabs): a card-sized ghost box in the tab's
-  grid, after any visible cards: "{n} artist(s)/concert(s) hidden by
-  filters."
+- Artists or concerts hidden by the "Include artists I know" switch (next to
+  "Sort by" on both tabs; suggested artists always show): a card-sized ghost
+  box in the tab's grid, after any visible cards: "{n} artist(s)/concert(s)
+  hidden by filters."
 - The Artists tab's messages describe its suggestions, so they fill the tab
   only when there are also no artists you listen to; otherwise the message is
-  a card-sized cell in the grid, kept while the Suggested artists filter is
-  on.
+  a card-sized cell in the grid.
 - An empty tracklist inside a playlist: "No tracks found. NextFM will add new
   ones as your listening history and upcoming concerts change."
 
