@@ -229,6 +229,16 @@ known-artist chips ("you listen to ...", play counts) are the plain outline
 badge, so suggested and known read apart at a glance while every pill stays
 the same shape.
 
+Chip text centers on what dominates it. Satoshi's ascent runs well above its
+caps, so a plain line box sits lowercase about 1.5px low in a pill, with
+descenders crowding the border. Word labels (artist tags, the "you might
+like ..." / "you listen to ..." chips) wrap their text in `CHIP_LABEL_CLASS`
+(`frontend/src/components/chip.ts`), which trims the box to the x-height
+(`text-box: trim-both ex alphabetic`) and pads it back evenly, so the
+lowercase sits centered and the gap above the caps matches the gap below the
+descenders. Number-led pills (the score, play counts) stay on the default
+box: digits are cap-height and already center there.
+
 ## Status colors
 
 Status signals are the one deliberate exception to the "accent is a material,

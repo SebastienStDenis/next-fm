@@ -1,6 +1,6 @@
 "use client";
 
-import { CHIP_CLASS } from "@/components/chip";
+import { CHIP_CLASS, CHIP_LABEL_CLASS } from "@/components/chip";
 import {
   DISPLAY_TITLE_CLASS,
   TITLE_RIDER_CLASS,
@@ -57,7 +57,7 @@ export function ArtistChip({
       {suggested && (
         <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
       )}
-      <span className="truncate">{artistChipLabel(artist, relations)}</span>
+      <span className={CHIP_LABEL_CLASS}>{artistChipLabel(artist, relations)}</span>
     </>
   );
   // pl-1.5 sets the dot concentric with the pill's rounded end, matching the

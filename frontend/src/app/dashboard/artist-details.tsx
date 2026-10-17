@@ -1,4 +1,4 @@
-import { CHIP_CLASS } from "@/components/chip";
+import { CHIP_CLASS, CHIP_LABEL_CLASS } from "@/components/chip";
 import { Badge } from "@/components/ui/badge";
 import type { Interest, UserArtist } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -116,7 +116,7 @@ export function ArtistDetails({
                 >
                   {/* A badge never wraps internally, so a tag longer than the
                       card ellipsizes instead of clipping mid-letter. */}
-                  <span className="truncate">{tag}</span>
+                  <span className={CHIP_LABEL_CLASS}>{tag}</span>
                 </Badge>
               ))}
             </div>
