@@ -15,13 +15,12 @@ export async function loadMe(): Promise<User> {
   return res.json();
 }
 
-// The signed-in email lives in Supabase Auth, not the API's user record.
+// The signed-in email lives in Supabase Auth, not the API's user record. The
+// session's JWT carries it, and an email change issues a fresh session.
 export async function loadEmail(): Promise<string | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.email ?? null;
+  const { data } = await supabase.auth.getClaims();
+  return data?.claims.email ?? null;
 }
 
 export async function fetchJson<T>(path: string, what: string): Promise<T> {

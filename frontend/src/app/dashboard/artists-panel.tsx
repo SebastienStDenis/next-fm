@@ -36,11 +36,12 @@ import {
   EmptyStateCell,
   HiddenByFiltersCell,
 } from "./empty-state";
+import { ArrivalFade } from "./arrival-fade";
+import { DEFAULT_SORT_KEY, sortOptions, type SortKey } from "./artist-sort";
 import { eventTitle } from "./event-sort";
 import { concertDateFormat } from "@/lib/formats";
 import { RelationFilterBar } from "./relation-filter-bar";
 import { RunSyncText } from "./run-sync-message";
-import { type SortOption } from "./sort-select";
 import { compareByName, playsOf, rankOf, scoreOf } from "./user-artist";
 import { usePinnedPopoverWidth } from "./use-pinned-popover-width";
 
@@ -141,14 +142,6 @@ function ConcertsFooter({
   );
 }
 
-type SortKey = "match" | "name" | "concert";
-
-const sortOptions: readonly SortOption<SortKey>[] = [
-  { value: "match", label: "Best match" },
-  { value: "name", label: "Name" },
-  { value: "concert", label: "Next concert" },
-];
-
 // Next concert orders by each artist's soonest show across the user's
 // cities; artists with nothing coming up trail alphabetically. Best match
 // leads with the you-listen-to cards in the Listening History panel's
@@ -237,15 +230,17 @@ export function ArtistsPanel({
 }) {
   const [showSuggested, setShowSuggested] = useState(true);
   const [showKnown, setShowKnown] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>("match");
+  const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT_KEY);
 
   // Without any artist to show there is nothing to filter or sort: just the
   // explanation, full width, in place of the controls.
   if (suggestedArtists.length === 0 && knownArtists.length === 0) {
     return (
-      <EmptyStateCell>
-        <NoSuggestionsMessage synced={synced} />
-      </EmptyStateCell>
+      <ArrivalFade>
+        <EmptyStateCell>
+          <NoSuggestionsMessage synced={synced} />
+        </EmptyStateCell>
+      </ArrivalFade>
     );
   }
 
@@ -286,72 +281,74 @@ export function ArtistsPanel({
         sortOptions={sortOptions}
         className="mb-3"
       />
-      <AnimatedHeight>
-        <ul className={CARD_GRID_CLASS}>
-          {visibleArtists.map((userArtist) => {
-            const suggested = suggestedIds.has(userArtist.artist.id);
-            const sections = cityConcerts
-              .map(({ city }, index) => ({
-                city,
-                events: cityIndexes[index].get(userArtist.artist.id) ?? [],
-              }))
-              .filter((section) => section.events.length > 0);
-            return (
-              <li key={userArtist.artist.id} className="min-w-0">
-                <Card size="sm" className="h-full gap-2">
-                  {/* items-start rides the badge on the title's first line
-                      when a long name wraps. */}
-                  <CardHeader className="flex items-start justify-between gap-2">
-                    <CardTitle
-                      className={cn("min-w-0 break-words", DISPLAY_TITLE_CLASS)}
-                    >
-                      {userArtist.artist.name}
-                    </CardTitle>
-                    {/* The artist's headline number: the score for a
-                        suggestion, the listening-history pills for an artist
-                        you listen to - matching the concert chips' popover. */}
-                    <span className={TITLE_RIDER_CLASS}>
-                      {suggested ? (
-                        <ScoreBadge userArtist={userArtist} />
-                      ) : (
-                        <KnownInterestBadges
-                          userArtist={userArtist}
-                          className="justify-end"
-                        />
-                      )}
-                    </span>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-1">
-                    <ArtistDetails
-                      userArtist={userArtist}
-                      tagsClassName="mt-auto pt-2"
-                    />
-                  </CardContent>
-                  {sections.length > 0 && (
-                    <ConcertsFooter
-                      sections={sections}
-                      multiCity={multiCity}
-                    />
-                  )}
-                </Card>
+      <ArrivalFade>
+        <AnimatedHeight>
+          <ul className={CARD_GRID_CLASS}>
+            {visibleArtists.map((userArtist) => {
+              const suggested = suggestedIds.has(userArtist.artist.id);
+              const sections = cityConcerts
+                .map(({ city }, index) => ({
+                  city,
+                  events: cityIndexes[index].get(userArtist.artist.id) ?? [],
+                }))
+                .filter((section) => section.events.length > 0);
+              return (
+                <li key={userArtist.artist.id} className="min-w-0">
+                  <Card size="sm" className="h-full gap-2">
+                    {/* items-start rides the badge on the title's first line
+                        when a long name wraps. */}
+                    <CardHeader className="flex items-start justify-between gap-2">
+                      <CardTitle
+                        className={cn("min-w-0 break-words", DISPLAY_TITLE_CLASS)}
+                      >
+                        {userArtist.artist.name}
+                      </CardTitle>
+                      {/* The artist's headline number: the score for a
+                          suggestion, the listening-history pills for an artist
+                          you listen to - matching the concert chips' popover. */}
+                      <span className={TITLE_RIDER_CLASS}>
+                        {suggested ? (
+                          <ScoreBadge userArtist={userArtist} />
+                        ) : (
+                          <KnownInterestBadges
+                            userArtist={userArtist}
+                            className="justify-end"
+                          />
+                        )}
+                      </span>
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col gap-1">
+                      <ArtistDetails
+                        userArtist={userArtist}
+                        tagsClassName="mt-auto pt-2"
+                      />
+                    </CardContent>
+                    {sections.length > 0 && (
+                      <ConcertsFooter
+                        sections={sections}
+                        multiCity={multiCity}
+                      />
+                    )}
+                  </Card>
+                </li>
+              );
+            })}
+            {/* The tab's headline content is suggestions: when the filter asks
+                for them and there are none, the explanation keeps its slot even
+                while you-listen-to cards fill the rest of the grid. */}
+            {showSuggested && suggestedArtists.length === 0 && (
+              <li className="flex">
+                <EmptyState className="flex-1 content-center">
+                  <NoSuggestionsMessage synced={synced} />
+                </EmptyState>
               </li>
-            );
-          })}
-          {/* The tab's headline content is suggestions: when the filter asks
-              for them and there are none, the explanation keeps its slot even
-              while you-listen-to cards fill the rest of the grid. */}
-          {showSuggested && suggestedArtists.length === 0 && (
-            <li className="flex">
-              <EmptyState className="flex-1 content-center">
-                <NoSuggestionsMessage synced={synced} />
-              </EmptyState>
-            </li>
-          )}
-          {hiddenCount > 0 && (
-            <HiddenByFiltersCell count={hiddenCount} noun="artist" />
-          )}
-        </ul>
-      </AnimatedHeight>
+            )}
+            {hiddenCount > 0 && (
+              <HiddenByFiltersCell count={hiddenCount} noun="artist" />
+            )}
+          </ul>
+        </AnimatedHeight>
+      </ArrivalFade>
     </div>
   );
 }

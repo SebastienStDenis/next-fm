@@ -16,10 +16,8 @@ const NOTICES: Record<string, string> = {
 
 export default async function Home() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) {
+  const { data } = await supabase.auth.getClaims();
+  if (data?.claims) {
     redirect("/dashboard");
   }
 

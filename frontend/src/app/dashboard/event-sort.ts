@@ -31,6 +31,8 @@ export const sortOptions: readonly SortOption<SortKey>[] = [
   { value: "match", label: "Best match" },
 ];
 
+export const DEFAULT_SORT_KEY: SortKey = "date";
+
 function byName(a: UserEvent, b: UserEvent): number {
   return eventName(a).localeCompare(eventName(b));
 }

@@ -12,6 +12,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
+import { ArrivalFade } from "./arrival-fade";
 import { TAB_COOKIE } from "./tab-cookie";
 
 // The key of the currently active tab, so a panel can tell when it's on
@@ -107,7 +108,7 @@ export function Tabs({
                       {tab.description}
                     </p>
                   )}
-                  {tab.note && <div>{tab.note}</div>}
+                  {tab.note && <ArrivalFade>{tab.note}</ArrivalFade>}
                 </div>
               )}
               <div>{tab.content}</div>
