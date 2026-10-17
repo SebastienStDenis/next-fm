@@ -2,14 +2,40 @@
 
 import { useId } from "react";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { SortSelect, type SortOption } from "./sort-select";
 
-// The filter/sort row shared by the Artists and Concerts tabs: suggestions
-// always show, the switch adds artists you listen to, plus the sort picker.
+function FilterCheckbox({
+  checked,
+  onCheckedChange,
+  children,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  children: string;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center gap-2">
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(next) => onCheckedChange(next === true)}
+      />
+      <Label htmlFor={id} className="text-xs font-normal">
+        {children}
+      </Label>
+    </div>
+  );
+}
+
+// The filter/sort row shared by the Artists and Concerts tabs: the two
+// artist-relation checkboxes plus the sort picker, right-aligned together.
 export function RelationFilterBar<K extends string>({
+  showSuggested,
+  onShowSuggested,
   showKnown,
   onShowKnown,
   sortKey,
@@ -17,6 +43,8 @@ export function RelationFilterBar<K extends string>({
   sortOptions,
   className,
 }: {
+  showSuggested: boolean;
+  onShowSuggested: (checked: boolean) => void;
   showKnown: boolean;
   onShowKnown: (checked: boolean) => void;
   sortKey: K;
@@ -24,31 +52,26 @@ export function RelationFilterBar<K extends string>({
   sortOptions: readonly SortOption<K>[];
   className?: string;
 }) {
-  const switchId = useId();
   return (
-    <div className={cn(className, "flex flex-wrap items-center gap-x-4 gap-y-3")}>
-      <div className="flex items-center gap-2">
-        <Switch
-          id={switchId}
-          size="sm"
-          checked={showKnown}
-          onCheckedChange={onShowKnown}
-        />
-        <Label
-          htmlFor={switchId}
-          className="text-xs font-normal text-muted-foreground"
-        >
-          Include artists I know
-        </Label>
+    <div
+      className={cn(
+        className,
+        "flex flex-wrap items-center justify-end gap-x-4 gap-y-3",
+      )}
+    >
+      <div
+        role="group"
+        aria-label="Show"
+        className="flex min-h-7 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-1"
+      >
+        <FilterCheckbox checked={showSuggested} onCheckedChange={onShowSuggested}>
+          Suggested artists
+        </FilterCheckbox>
+        <FilterCheckbox checked={showKnown} onCheckedChange={onShowKnown}>
+          Artists you listen to
+        </FilterCheckbox>
       </div>
-      {/* ml-auto rather than justify-between on the row: it also keeps the
-          picker right-aligned when it wraps to its own line. */}
-      <SortSelect
-        value={sortKey}
-        onValueChange={onSortKey}
-        options={sortOptions}
-        className="ml-auto"
-      />
+      <SortSelect value={sortKey} onValueChange={onSortKey} options={sortOptions} />
     </div>
   );
 }
