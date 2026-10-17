@@ -95,7 +95,7 @@ cards would use; Listening History and tracklist messages are plain text.
 fixed messages:
 
 - Artists or concerts hidden by the filter checkboxes ("Suggested artists" /
-  "Artists you listen to", grouped beside "Sort by" on both tabs): a
+  "Artists you listen to", grouped on the "Sort by" row of both tabs): a
   card-sized ghost box in the tab's
   grid, after any visible cards: "{n} artist(s)/concert(s) hidden by
   filters."

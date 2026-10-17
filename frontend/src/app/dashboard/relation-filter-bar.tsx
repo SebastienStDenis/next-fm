@@ -32,7 +32,7 @@ function FilterCheckbox({
 }
 
 // The filter/sort row shared by the Artists and Concerts tabs: the two
-// artist-relation checkboxes plus the sort picker, right-aligned together.
+// artist-relation checkboxes plus the sort picker.
 export function RelationFilterBar<K extends string>({
   showSuggested,
   onShowSuggested,
@@ -53,12 +53,7 @@ export function RelationFilterBar<K extends string>({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        className,
-        "flex flex-wrap items-center justify-end gap-x-4 gap-y-3",
-      )}
-    >
+    <div className={cn(className, "flex flex-wrap items-center gap-x-4 gap-y-3")}>
       <div
         role="group"
         aria-label="Show"
@@ -71,7 +66,14 @@ export function RelationFilterBar<K extends string>({
           Artists you listen to
         </FilterCheckbox>
       </div>
-      <SortSelect value={sortKey} onValueChange={onSortKey} options={sortOptions} />
+      {/* ml-auto rather than justify-between on the row: it also keeps the
+          picker right-aligned when it wraps to its own line. */}
+      <SortSelect
+        value={sortKey}
+        onValueChange={onSortKey}
+        options={sortOptions}
+        className="ml-auto"
+      />
     </div>
   );
 }
