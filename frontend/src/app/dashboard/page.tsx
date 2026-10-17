@@ -23,6 +23,7 @@ import {
 
 import { QueryNotice } from "@/components/query-notice";
 import { ArtistsPanel, type CityConcerts } from "./artists-panel";
+import { DEFAULT_TAB } from "./dashboard-tabs";
 import {
   collectPinnedCities,
   partitionArtists,
@@ -131,7 +132,7 @@ export default async function DashboardPage() {
       </div>
       <section className="mt-6">
         <Tabs
-          defaultTab={lastTab ?? "playlists"}
+          defaultTab={lastTab ?? DEFAULT_TAB}
           tabs={[
             {
               key: "suggested",
