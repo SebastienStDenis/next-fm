@@ -224,11 +224,13 @@ loading stage reads as the page settling twice.
 - **Placeholders are quiet.** `Skeleton` bars in `--muted` inside ordinary
   cards, laid out in the same grid the results use, with the default slow
   pulse (off under reduced motion). No shimmer sweep, no spinner.
-- **Hold back before showing them.** Placeholders fade in after 500ms, so a
-  warm load swaps straight to content without flashing a skeleton first;
-  only a slow load (a cold start) ever shows them. For the same reason the
-  frame's controls are made `inert`, never `disabled`: a dimmed button that
-  brightens when the page lands is a flash of its own.
+- **Show them at once, fade the content in.** Placeholders appear with the
+  first paint, and the content that replaces them fades in (`animate-fade-in`,
+  250ms) - on the dashboard, the tab panels only, not the frame above them,
+  which is identical in both and would only blink. The fade plays once, on
+  arrival: switching tabs swaps instantly.
+- **The frame's controls are `inert`, never `disabled`.** A dimmed button
+  that brightens when the page lands is a flash of its own.
 
 ## Where the accent shows
 

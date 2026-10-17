@@ -9,11 +9,6 @@ import { cn } from "@/lib/utils";
 import { DASHBOARD_TABS } from "./dashboard-tabs";
 import { CARD_GRID_CLASS } from "./empty-state";
 
-// Placeholders hold off briefly before fading in, so a warm load that resolves
-// quickly swaps straight to content instead of flashing a skeleton first.
-const DEFERRED_FADE_IN_CLASS =
-  "animate-fade-in [animation-delay:500ms] [animation-fill-mode:backwards]";
-
 function CardGridSkeleton() {
   return (
     <ul aria-hidden className={CARD_GRID_CLASS}>
@@ -62,7 +57,7 @@ export function SkeletonTabs({ defaultTab }: { defaultTab: string }) {
           </span>
         ))}
       </div>
-      <div className={DEFERRED_FADE_IN_CLASS}>
+      <div>
         <div className="mb-3 flex h-4 items-center">
           <Skeleton className="h-3 w-72 max-w-full" />
         </div>

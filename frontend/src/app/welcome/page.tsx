@@ -51,7 +51,7 @@ export default async function WelcomePage() {
   // user through the steps, and the sync card runs and replays the first
   // sync (docs/design/2026-07-12-welcome-flow-plan.md).
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center p-8">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center p-8 animate-fade-in">
       <h1 className="text-2xl font-semibold">
         Welcome to <Brand />, {user.name}
       </h1>
