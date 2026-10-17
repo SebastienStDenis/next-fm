@@ -12,7 +12,7 @@ import { CARD_GRID_CLASS } from "./empty-state";
 // Placeholders hold off briefly before fading in, so a warm load that resolves
 // quickly swaps straight to content instead of flashing a skeleton first.
 const DEFERRED_FADE_IN_CLASS =
-  "animate-fade-in [animation-delay:200ms] [animation-fill-mode:backwards]";
+  "animate-fade-in [animation-delay:500ms] [animation-fill-mode:backwards]";
 
 function CardGridSkeleton() {
   return (

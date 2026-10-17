@@ -83,8 +83,13 @@ function TabsList({
     positionIndicator()
     const mutations = new MutationObserver(positionIndicator)
     mutations.observe(list, { attributeFilter: ["data-state"], subtree: true })
+    // Triggers too: in a full-width list a trigger can change size (e.g. a
+    // label growing a marker) while the list itself stays the same width.
     const resizes = new ResizeObserver(positionIndicator)
     resizes.observe(list)
+    list
+      .querySelectorAll('[data-slot="tabs-trigger"]')
+      .forEach((trigger) => resizes.observe(trigger))
     return () => {
       mutations.disconnect()
       resizes.disconnect()

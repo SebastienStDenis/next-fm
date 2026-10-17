@@ -15,7 +15,7 @@ export default async function Loading() {
     <main aria-busy className="mx-auto w-full max-w-5xl p-8">
       <div className="flex items-center justify-between gap-4">
         <h1 className="min-w-0 font-heading text-2xl font-semibold">NextFM</h1>
-        <Button variant="outline" size="sm" className="shrink-0" disabled>
+        <Button variant="outline" size="sm" className="shrink-0" inert>
           <SettingsIcon aria-hidden />
           Settings
         </Button>

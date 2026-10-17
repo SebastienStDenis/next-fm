@@ -22,6 +22,7 @@ import {
 } from "@/lib/user-api";
 
 import { QueryNotice } from "@/components/query-notice";
+import { cn } from "@/lib/utils";
 import { ArtistsPanel, type CityConcerts } from "./artists-panel";
 import { DEFAULT_TAB } from "./dashboard-tabs";
 import {
@@ -180,11 +181,20 @@ export default async function DashboardPage() {
               key: "playlists",
               label: (
                 <>
-                  {linkedPlaylists.length > 0 && (
-                    <span className="shrink-0 animate-fade-in" aria-hidden>
-                      <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
-                    </span>
-                  )}
+                  {/* Always mounted so the tab can widen and narrow smoothly
+                      as the dot comes and goes; the negative margin cancels
+                      the trigger's gap while the dot is hidden. */}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "shrink-0 overflow-hidden transition-[width,margin,opacity] duration-250 ease-out motion-reduce:transition-none",
+                      linkedPlaylists.length > 0
+                        ? "w-1.5 animate-dot-in motion-reduce:animate-none"
+                        : "-mr-1.5 w-0 opacity-0",
+                    )}
+                  >
+                    <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
+                  </span>
                   Playlists
                 </>
               ),
