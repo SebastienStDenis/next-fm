@@ -187,10 +187,10 @@ export default async function DashboardPage() {
                   <span
                     aria-hidden
                     className={cn(
-                      "shrink-0 overflow-hidden transition-[width,margin,opacity] duration-250 ease-out motion-reduce:transition-none",
+                      "shrink-0 overflow-hidden transition-[width,margin] duration-250 ease-out motion-reduce:transition-none",
                       linkedPlaylists.length > 0
                         ? "w-1.5 animate-dot-in motion-reduce:animate-none"
-                        : "-mr-1.5 w-0 opacity-0",
+                        : "-mr-1.5 w-0",
                     )}
                   >
                     <span className="block size-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-current" />
