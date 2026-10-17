@@ -1,11 +1,38 @@
 "use client";
 
-import { Toggle } from "@/components/ui/toggle";
+import { useId } from "react";
+
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { SortSelect, type SortOption } from "./sort-select";
 
+function FilterCheckbox({
+  checked,
+  onCheckedChange,
+  children,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  children: string;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center gap-2">
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(next) => onCheckedChange(next === true)}
+      />
+      <Label htmlFor={id} className="text-xs font-normal">
+        {children}
+      </Label>
+    </div>
+  );
+}
+
 // The filter/sort row shared by the Artists and Concerts tabs: the two
-// artist-relation toggles plus the sort picker.
+// artist-relation checkboxes plus the sort picker.
 export function RelationFilterBar<K extends string>({
   showSuggested,
   onShowSuggested,
@@ -17,9 +44,9 @@ export function RelationFilterBar<K extends string>({
   className,
 }: {
   showSuggested: boolean;
-  onShowSuggested: (pressed: boolean) => void;
+  onShowSuggested: (checked: boolean) => void;
   showKnown: boolean;
-  onShowKnown: (pressed: boolean) => void;
+  onShowKnown: (checked: boolean) => void;
   sortKey: K;
   onSortKey: (key: K) => void;
   sortOptions: readonly SortOption<K>[];
@@ -27,23 +54,17 @@ export function RelationFilterBar<K extends string>({
 }) {
   return (
     <div className={cn(className, "flex flex-wrap items-center gap-x-4 gap-y-3")}>
-      <div className="flex flex-wrap gap-2">
-        <Toggle
-          variant="outline"
-          size="sm"
-          pressed={showSuggested}
-          onPressedChange={onShowSuggested}
-        >
+      <div
+        role="group"
+        aria-label="Show"
+        className="flex min-h-7 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-3 py-1"
+      >
+        <FilterCheckbox checked={showSuggested} onCheckedChange={onShowSuggested}>
           Suggested artists
-        </Toggle>
-        <Toggle
-          variant="outline"
-          size="sm"
-          pressed={showKnown}
-          onPressedChange={onShowKnown}
-        >
+        </FilterCheckbox>
+        <FilterCheckbox checked={showKnown} onCheckedChange={onShowKnown}>
           Artists you listen to
-        </Toggle>
+        </FilterCheckbox>
       </div>
       {/* ml-auto rather than justify-between on the row: it also keeps the
           picker right-aligned when it wraps to its own line. */}
